@@ -1,0 +1,11 @@
+logs/*.log
+logs/*.raw
+logs/*.txt
+result
+result-*
+.env
+.direnv/
+__pycache__/
+*.pyc
+target/
+rust-hello/target/

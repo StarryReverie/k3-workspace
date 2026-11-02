@@ -1,0 +1,36 @@
+# BananaPi BPI-SM10 (SpacemiT K3) board config for `ostool board run`.
+#
+# Stage 2 only. The addresses below come from the verified TGOSKits
+# `bananapi` configuration; do not copy them to another board type.
+
+board_type = "BananaPi"
+
+kernel_load_addr = "0x102200000"
+fit_load_addr = "0x140000000"
+bootm_addr = "0x140000000"
+timeout = 600
+
+fail_regex = [
+  "(?i)\\bpanic(?:ked)?\\b",
+  "(?i)segmentation fault",
+  "(?i)SIGSEGV",
+  "exit with code: 139",
+  "failed to determine root device",
+]
+
+# Ethernet init before ostool enumerates network devices.
+# Do NOT replace this with static ipaddr + `net list`; that hangs on this
+# firmware. DHCP also needs `autoload no` so it does not fetch a default image.
+uboot_cmd = [
+  'test -n "$ethaddr" || setenv ethaddr $eth1addr',
+  'setexpr.l sm10_dline *0xd4282bf0',
+  'setexpr sm10_dline $sm10_dline "|" 0x10001',
+  'mw.l 0xd4282bf0 $sm10_dline 1',
+  'setenv netretry no && setenv autoload no && dhcp && setenv autoload yes',
+]
+
+# Replace the marker/prefix with the shell your OS actually exposes.
+[[shell_check_steps]]
+shell_prefix = "root@starry:"
+shell_cmd = "echo STARRY_BPI_SM10_BOOT_OK"
+success_regex = ['(?m)^(?:\x1b\[[0-9;]*m)*STARRY_BPI_SM10_BOOT_OK[ \t]*\r?$']

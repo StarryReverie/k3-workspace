@@ -1,0 +1,12 @@
+# Reuse an already-built kernel with `ostool board run --config`.
+#
+# Stage 2 only. Set `elf_path` to the ELF printed by your build, for example:
+#   target/riscv64gc-unknown-none-elf/release/starryos
+#
+# `build_cmd = "true"` skips compilation; ostool still converts ELF -> BIN
+# because `to_bin = true`.
+
+[system.Custom]
+build_cmd = "true"
+elf_path = "CHANGE_ME/target/riscv64gc-unknown-none-elf/release/starryos"
+to_bin = true

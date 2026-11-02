@@ -1,0 +1,9 @@
+[target.riscv64gc-unknown-linux-musl]
+# Use the rust-lld bundled with the Rust toolchain. The target's
+# rust-std package ships self-contained musl CRT objects and libc.a,
+# so no external cross GCC is needed.
+linker = "rust-lld"
+rustflags = [
+  "-C", "link-self-contained=yes",
+  "-C", "target-feature=+crt-static",
+]
