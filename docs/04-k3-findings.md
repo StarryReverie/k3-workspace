@@ -489,3 +489,5 @@ sed -i '/^# K3 serial console:/,/^export LINES=24$/d' /etc/profile
 3. **需要正常启动 shell**：如果要改 inittab，建议先明确备份和恢复方式，并注意 `stty -echo` 的持久影响。
 4. **板卡分配**：如果一直被分到不需要的镜像，联系平台管理员固定租约或统一两块板的镜像；`--board-id` 目前不可靠。
 5. **脚本自动化**：不要假设 `ostool board connect` 一定连到某块板；从日志里解析 `board_id` / `session_id`，并对 Alpine/Yocto 分别处理。
+
+> 把 Alpine 修成可正常使用的 Linux 的完整方案对比与执行步骤，见 [`05-os-options.md`](05-os-options.md)。

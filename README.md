@@ -54,6 +54,7 @@ ostool board connect -b BananaPi
 | `docs/02-uboot-cheatsheet.md` | U-Boot 安全命令、网卡初始化、手动 booti |
 | `docs/03-pitfalls.md` | 实测坑位合并表 |
 | `docs/04-k3-findings.md` | 双板镜像、Alpine rootfs、串口/输入问题、Rust 交叉编译、当前恢复状态 |
+| `docs/05-os-options.md` | OS 修复方案汇总：原地补 OpenRC、官方 rootfs、Debian、NixOS、initramfs、Yocto |
 | `scripts/capture-session.sh` | 用 `script(1)` 包住 `board connect`，留下 pty 日志 |
 | `scripts/smoke-test.py` | 自动打断 autoboot，执行 `version` / `mmc list`，并干净退出 |
 | `scripts/session-env.sh` | 从日志提取 `SID`，从 keyring / `hosts.json` 提取 token |
@@ -68,6 +69,7 @@ ostool board connect -b BananaPi
 - 不执行 `net list`、`saveenv`、`mmc write`
 - 不构建内核、不运行 `ostool board run`
 - 不修改 SD 卡内容
+- 系统修复按 [`docs/05-os-options.md`](docs/05-os-options.md) 的方案 A 执行；写盘前先确认
 
 ## 关于配置
 
