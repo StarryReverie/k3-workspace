@@ -55,6 +55,10 @@ ostool board connect -b BananaPi
 | `docs/03-pitfalls.md` | 实测坑位合并表 |
 | `docs/04-k3-findings.md` | 双板镜像、Alpine rootfs、串口/输入问题、Rust 交叉编译、当前恢复状态 |
 | `docs/05-os-options.md` | OS 修复方案汇总：原地补 OpenRC、官方 rootfs、Debian、NixOS、initramfs、Yocto |
+| `board/install.sh` | 板端增量安装脚本：OpenRC + getty + DHCP + sshd + chrony |
+| `board/README.md` | 离线 bundle 的构建与板端执行说明 |
+| `scripts/build-offline-bundle.sh` | 生成 `dist/k3-offline.tar.gz` 离线安装包 |
+| `dist/` | 构建产物，已在 `.gitignore` 中忽略 |
 | `scripts/capture-session.sh` | 用 `script(1)` 包住 `board connect`，留下 pty 日志 |
 | `scripts/smoke-test.py` | 自动打断 autoboot，执行 `version` / `mmc list`，并干净退出 |
 | `scripts/session-env.sh` | 从日志提取 `SID`，从 keyring / `hosts.json` 提取 token |

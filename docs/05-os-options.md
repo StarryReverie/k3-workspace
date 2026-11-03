@@ -333,6 +333,61 @@ df -h /
 - 版本会从 3.23.4 小幅升到 3.23.7
 - `/etc/fstab` 仍是 vendor 风格，需要 OpenRC 自己挂 `/proc /sys /dev`
 
+### 1.10 已实现的离线 bundle
+
+宿主机构建：
+
+```bash
+K3_ROOT_PASSWORD='<root 密码>' ./scripts/build-offline-bundle.sh
+```
+
+产物：
+
+```text
+dist/k3-offline.tar.gz
+```
+
+当前构建结果（2026-11-03）：
+
+```text
+size    16 MiB (16,791,159 bytes)
+sha256  ebf132edf66ca96442de6fd6b2f49f4f9bfb58ef589cd7e6b86fb361b3f78d6b
+```
+
+bundle 内容：
+
+```text
+offline/install.sh
+offline/root.hash
+offline/README.txt
+offline/apks/riscv64/APKINDEX.tar.gz
+offline/apks/riscv64/*.apk        # 102 个包，约 17 MB
+```
+
+用法：
+
+```bash
+# 宿主机：上传到会话，远端路径越短越好
+source scripts/session-env.sh logs/session-<时间戳>.log
+./scripts/upload.sh dist/k3-offline.tar.gz boot/k.tar.gz
+
+# 板子（init=/bin/sh）
+stty echo icanon
+dmesg -n 1
+wget -O /root/k.tar.gz 'http://192.168.1.2:2999/share/sessions/<SID>/boot/k.tar.gz'
+tar xzf /root/k.tar.gz -C /root
+sh /root/offline/install.sh
+sync
+reboot -f
+```
+
+说明：
+
+- `install.sh` 会先检查 `ID=alpine`，误分配到 Yocto 板时直接退出
+- 本地仓库会写进 `/etc/apk/repositories`，原有镜像地址保留为注释
+- root 密码只以 `$6$` 哈希形式出现在 bundle 的 `root.hash` 里
+- `dist/` 已在 `.gitignore` 中，不提交二进制产物
+
 ---
 
 ## 2. 方案 B：用官方 Alpine rootfs 覆盖 sda3

@@ -9,3 +9,4 @@ __pycache__/
 *.pyc
 target/
 rust-hello/target/
+dist/
