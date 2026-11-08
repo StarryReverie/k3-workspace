@@ -35,7 +35,7 @@
 | 17 | 执行过 `stty -echo` 后，后续 shell 输入没有回显 | tty 设置会保留；执行 `stty echo icanon` |
 | 18 | 同一个 `-b BananaPi` 有时是 Alpine，有时是 Yocto，行为完全不同 | 平台至少有两块板、两套镜像；`--board-id` 不可靠；从 `board_id` 和提示符判断 |
 | 19 | 板子 Linux 里 `tftp: not found` | Alpine BusyBox 没有 tftp/ftpget；U-Boot TFTP 仍可用，Linux 内可用 `wget` HTTP 共享或 initramfs |
-| 20 | `setenv bootargs ... init=/bin/sh` 不生效 | `commonargs` 会重置 `bootargs`；应改 `commonargs`，见 `docs/04-k3-findings.md` |
+| 20 | `setenv bootargs ... init=/bin/sh` 不生效 | `commonargs` 会重置 `bootargs`；应改 `commonargs`，见 `docs/agents/04-k3-findings.md` |
 | 21 | Alpine 正常启动没有 shell，且找不到 `/etc/init.d` | rootfs 实际是“容器镜像”，只装了 `alpine-baselayout` 等基础包，缺 `openrc` / `-openrc` 服务包；不是 OpenRC 损坏 |
 | 22 | `udhcpc` 拿到 IP，但没有默认路由，DNS 还是 QEMU 残留 | rootfs 缺 udhcpc 的 `default.script`；用 `dhcpcd` 接管，或手工补路由和 `resolv.conf` |
 | 23 | 板子 `ping 192.168.1.2` 通，但访问公网失败 | 实验网没有默认路由 / DNS；只有 `192.168.1.2:2999` 会话共享可达，安装包需离线准备 |

@@ -3,7 +3,7 @@
 面向 BananaPi BPI-SM10（SpacemiT K3）的远程开发环境。
 当前工作区包含 **登录 → 看租约 → 连串口 → 熟悉 U-Boot**、Alpine rootfs 实测，以及 Rust `riscv64gc-unknown-linux-musl` 交叉编译环境。
 
-> 重要：平台实际有 Alpine 和 Yocto 两套镜像，`board connect` 自动分配且 `--board-id` 不可靠。详见 [`docs/04-k3-findings.md`](docs/04-k3-findings.md)。
+> 重要：平台实际有 Alpine 和 Yocto 两套镜像，`board connect` 自动分配且 `--board-id` 不可靠。详见 [`docs/agents/04-k3-findings.md`](docs/agents/04-k3-findings.md)。
 
 ## 快速开始
 
@@ -45,6 +45,8 @@ ostool board connect -b BananaPi
 
 ## 目录
 
+`docs/agents/` 是 agent 的工作记录，内容和结构可能随排查过程变化，不作为正式文档；正式文档的结构后续再定。
+
 | 路径 | 用途 |
 |---|---|
 | `flake.nix` | devShell：ostool + Rust riscv64 musl 工具链 + curl/jq/python3/script/libsecret |
@@ -53,8 +55,8 @@ ostool board connect -b BananaPi
 | `docs/01-platform.md` | 平台模型、认证、会话生命周期、文件传输 |
 | `docs/02-uboot-cheatsheet.md` | U-Boot 安全命令、网卡初始化、手动 booti |
 | `docs/03-pitfalls.md` | 实测坑位合并表 |
-| `docs/04-k3-findings.md` | 双板镜像、Alpine rootfs、串口/输入问题、Rust 交叉编译、当前恢复状态 |
-| `docs/05-os-options.md` | OS 修复方案汇总：原地补 OpenRC、官方 rootfs、Debian、NixOS、initramfs、Yocto |
+| `docs/agents/04-k3-findings.md` | 工作记录：双板镜像、Alpine rootfs、串口/输入问题、Rust 交叉编译、当前恢复状态 |
+| `docs/agents/05-os-options.md` | 工作记录：OS 修复方案汇总：原地补 OpenRC、官方 rootfs、Debian、NixOS、initramfs、Yocto |
 | `board/install.sh` | 板端增量安装脚本：OpenRC + getty + DHCP + sshd + chrony |
 | `board/README.md` | 离线 bundle 的构建与板端执行说明 |
 | `scripts/build-offline-bundle.sh` | 生成 `dist/k3-offline.tar.gz` 离线安装包 |
@@ -73,7 +75,7 @@ ostool board connect -b BananaPi
 - 不执行 `net list`、`saveenv`、`mmc write`
 - 不构建内核、不运行 `ostool board run`
 - 不修改 SD 卡内容
-- 系统修复按 [`docs/05-os-options.md`](docs/05-os-options.md) 的方案 A 执行；写盘前先确认
+- 系统修复按 [`docs/agents/05-os-options.md`](docs/agents/05-os-options.md) 的方案 A 执行；写盘前先确认
 
 ## 关于配置
 

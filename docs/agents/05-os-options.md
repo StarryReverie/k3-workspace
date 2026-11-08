@@ -2,7 +2,7 @@
 
 日期：2026-11-02  
 适用范围：BananaPi BPI-SM10（SpacemiT K3），BananaPi-1 / Alpine 3.23.4  
-相关文档：[`04-k3-findings.md`](04-k3-findings.md)、[`03-pitfalls.md`](03-pitfalls.md)
+相关文档：[`04-k3-findings.md`](04-k3-findings.md)、[`03-pitfalls.md`](../03-pitfalls.md)
 
 本文记录“把板子上残缺的系统修成一个能正常启动、能联网、有正规 init 的 Linux”的所有候选方案，以及当前推荐路线。**方案 A 是下一步要执行的方案，其余方案保留作为备选或长期方向。**
 
@@ -593,6 +593,6 @@ Yocto/Poky 5.3.99 + systemd 已经是完整系统：
 ## 11. 参考
 
 - [`04-k3-findings.md`](04-k3-findings.md)：双板镜像、`commonargs` 覆盖、串口问题、Rust 交叉编译
-- [`03-pitfalls.md`](03-pitfalls.md)：坑位表
+- [`03-pitfalls.md`](../03-pitfalls.md)：坑位表
 - Alpine 3.23 发布包：<https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/riscv64/>
 - Alpine OpenRC：<https://wiki.alpinelinux.org/wiki/OpenRC>
