@@ -73,7 +73,7 @@ ostool board connect -b BananaPi
 - 单文件上限 **64 MiB**，超了会返回 HTTP 500，需要分块。
 - TFTP 速度大约 4–8 MB/s（局域网），外网上传更慢。
 - 上传接口返回的 JSON 里有 `tftp_url`，U-Boot 里用 `tftpboot` 拉取。
-- 具体脚本见 `scripts/upload.sh`，细节见 `docs/02-uboot-cheatsheet.md`。
+- 具体脚本见 `scripts/upload.sh`，细节见 `docs/agents/02-uboot-cheatsheet.md`。
 
 ## 7. 退出
 

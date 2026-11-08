@@ -52,9 +52,9 @@ ostool board connect -b BananaPi
 | `flake.nix` | devShell：ostool + Rust riscv64 musl 工具链 + curl/jq/python3/script/libsecret |
 | `rust-hello/` | Rust 静态 riscv64 示例程序 |
 | `.cargo/config.toml` | `rust-lld` + self-contained musl 交叉链接配置 |
-| `docs/01-platform.md` | 平台模型、认证、会话生命周期、文件传输 |
-| `docs/02-uboot-cheatsheet.md` | U-Boot 安全命令、网卡初始化、手动 booti |
-| `docs/03-pitfalls.md` | 实测坑位合并表 |
+| `docs/agents/01-platform.md` | 平台模型、认证、会话生命周期、文件传输 |
+| `docs/agents/02-uboot-cheatsheet.md` | U-Boot 安全命令、网卡初始化、手动 booti |
+| `docs/agents/03-pitfalls.md` | 实测坑位合并表 |
 | `docs/agents/04-k3-findings.md` | 工作记录：双板镜像、Alpine rootfs、串口/输入问题、Rust 交叉编译、当前恢复状态 |
 | `docs/agents/05-os-options.md` | 工作记录：OS 修复方案汇总：原地补 OpenRC、官方 rootfs、Debian、NixOS、initramfs、Yocto |
 | `board/install.sh` | 板端增量安装脚本：OpenRC + getty + DHCP + sshd + chrony |
