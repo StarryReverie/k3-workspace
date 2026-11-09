@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Build the minimal Alien image for SpacemiT K3.
+#
+# Required:
+#   ALIEN_DIR   path to an Alien checkout with the K3 workspace patches applied
+#
+# Optional:
+#   OUT_DIR     output directory (default: $ALIEN_DIR/out-k3)
+#
+# The kernel embeds the initramfs. The initramfs is created before the
+# kernel build because subsystems/platform/src/k3_riscv/mod.rs uses
+# include_bytes! on tools/initrd/initramfs.cpio.gz.
+
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+ALIEN_DIR=${ALIEN_DIR:-}
+if [ -z "$ALIEN_DIR" ]; then
+    echo "ALIEN_DIR is required" >&2
+    echo "example: ALIEN_DIR=/tmp/opencode/Alien-k3 $0" >&2
+    exit 2
+fi
+ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
+OUT_DIR=${OUT_DIR:-$ALIEN_DIR/out-k3}
+
+TARGET=riscv64gc-unknown-none-elf
+
+for cmd in cargo rustc mkimage cpio gzip; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "missing command: $cmd" >&2
+        exit 2
+    fi
+done
+
+mkdir -p "$OUT_DIR"
+
+echo "[1/7] building init"
+(
+    cd "$ALIEN_DIR"
+    RUSTFLAGS="-C link-arg=-T$ALIEN_DIR/user/apps/linker.ld" \
+        cargo build -p init --release --target "$TARGET"
+)
+
+echo "[2/7] preparing initramfs"
+rm -rf "$OUT_DIR/initrd"
+mkdir -p "$OUT_DIR/initrd/bin" "$OUT_DIR/initrd/tests"
+cp "$ALIEN_DIR/target/$TARGET/release/init" "$OUT_DIR/initrd/tests/init"
+cp "$ALIEN_DIR/tests/testbin-second-stage/bash" "$OUT_DIR/initrd/tests/bash"
+cp "$ALIEN_DIR/tests/testbin-second-stage/libc.so" "$OUT_DIR/initrd/tests/libc.so"
+cp "$ALIEN_DIR/tests/testbin-second-stage/busybox" "$OUT_DIR/initrd/bin/busybox"
+ln -s busybox "$OUT_DIR/initrd/bin/sh"
+
+mkdir -p "$ALIEN_DIR/tools/initrd"
+(
+    cd "$OUT_DIR/initrd"
+    find . -print0 | cpio --null -ov --format=newc 2>/dev/null | gzip -9
+) > "$ALIEN_DIR/tools/initrd/initramfs.cpio.gz"
+
+echo "[3/7] building kernel"
+# include_bytes! does not always trigger a rebuild when only the included
+# file changes, so touch the platform module.
+touch "$ALIEN_DIR/subsystems/platform/src/k3_riscv/mod.rs"
+(
+    cd "$ALIEN_DIR"
+    cargo build --release -p kernel --target "$TARGET" \
+        --no-default-features --features k3
+)
+
+echo "[4/7] linking kernel-k3"
+SYSROOT=$(rustc --print sysroot)
+HOST=$(rustc -vV | sed -n 's/^host: //p')
+RUST_LLD="$SYSROOT/lib/rustlib/$HOST/bin/rust-lld"
+"$RUST_LLD" -flavor gnu \
+    -T "$ALIEN_DIR/tools/linker-k3.ld" \
+    -o "$OUT_DIR/kernel-k3" \
+    "$ALIEN_DIR/target/$TARGET/release/libkernel.a"
+
+echo "[5/7] creating raw binary"
+LLVM_OBJCOPY="$SYSROOT/lib/rustlib/$HOST/bin/llvm-objcopy"
+"$LLVM_OBJCOPY" --strip-all -O binary \
+    "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin"
+
+echo "[6/7] creating FIT image"
+mkimage -f "$ALIEN_DIR/tools/k3.its" "$OUT_DIR/alien-k3.itb"
+
+echo "[7/7] summary"
+ls -lh "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin" "$OUT_DIR/alien-k3.itb"
+echo
+echo "U-Boot:"
+echo "  tftpboot 0x140000000 alien-k3.itb"
+echo "  bootm 0x140000000"

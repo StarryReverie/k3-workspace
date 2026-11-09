@@ -34,27 +34,49 @@ grep -aE 'Alien.*#|Init process is running' /tmp/opencode/alien-qemu.log
 
 ### 阶段 1：K3 最小平台
 
+状态：完成。
+
+完成内容：
+
+- 新增 `k3` feature、`k3_riscv` 平台模块与 `tools/linker-k3.ld`。
+- 内存范围固定为 `0x102000000..0x300000000`，入口 `0x102200000`。
+- 控制台、定时器、关机改用 SBI DBCN、TIME、SRST，并保留旧版调用作为回退。
+- 跳过 PLIC 与设备探测。
+- VFS 在 `/dev/sda` 不存在时跳过磁盘挂载，并支持解出 initramfs 中的任意路径。
+- 无 UART 驱动时，用 SBI 控制台提供 `/dev/tty`。
+- 生成内嵌 initramfs、raw bin 与 FIT。
+- 新增 `scripts/alien/build-k3.sh`。
+- 新增补丁 `0003-k3-minimal-platform.patch`。
+
+验收结果：
+
+```text
+kernel-k3         9.4 MiB
+alien-k3.bin      5.0 MiB
+alien-k3.itb      5.0 MiB
+Entry point       0x102200000
+Load address      0x102200000
+```
+
+干净克隆 `/tmp/opencode/Alien-k3test` 应用三个补丁后构建成功。QEMU 基线回归通过，输出仍出现 `Alien:/#`。
+
+详细记录见 `04-k3-minimal.md`。
+
+### 阶段 2：QEMU 回归验证 K3 平台代码
+
 状态：未开始。
 
-计划内容：
+计划建立 `k3-qemu` 变体，复用 K3 平台代码，但使用 QEMU 的内存范围与链接地址，在 QEMU 上验证：
 
-- 新增 `k3` feature 与平台模块。
-- 控制台、定时器、关机改用 SBI DBCN、TIME、SRST。
-- 内存范围固定为 `0x102000000..0x300000000`。
-- 链接地址 `0x102200000`，新增 `tools/linker-k3.ld`。
-- 跳过 PLIC、设备探测与 FAT 磁盘挂载。
-- 使用 initramfs 提供 `/tests/init` 与静态 bash。
-- 生成 FIT 镜像，准备 `bootm` 启动命令。
-
-进入阶段 1 前需要确认：
-
-1. 第一版验收目标是启动并运行 `/tests/init`，还是必须到可交互 shell。
-2. Alien 的 K3 改动放在独立分支与补丁集，还是继续在临时克隆上修改。
-3. 是否允许使用主线 K3 设备树作为参考，暂时不提取板端 vendor DTB。
+- SBI DBCN 输出。
+- SBI 控制台 `/dev/tty`。
+- initramfs 解出 `/tests/init` 与 bash。
+- 无磁盘、无 PLIC 的启动路径。
 
 ### 待确认
 
-- K3 的 `timebase-frequency`。
+- K3 的 `timebase-frequency`。当前使用暂定值 24 MHz。
 - K3 使用 PLIC、APLIC 还是 IMSIC。
 - K3 UART 的基址、兼容字符串与中断号。
 - 开发板 `/boot` 或 `/sys/firmware/fdt` 是否提供可用的 vendor DTB。
+- U-Boot `bootm` 在 FIT 不含 FDT 时是否会传入可用的控制设备树。

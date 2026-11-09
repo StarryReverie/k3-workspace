@@ -9,3 +9,4 @@
 当前文件：
 
 - `2026-11-09-qemu-baseline.txt`：Alien QEMU 基线启动日志。
+- `2026-11-09-k3-build.txt`：K3 最小镜像的构建与静态检查节选。

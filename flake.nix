@@ -54,6 +54,7 @@
               pkgs.cpio
               pkgs.curl
               pkgs.dosfstools
+              pkgs.dtc
               pkgs.file
               pkgs.gzip
               pkgs.jq
@@ -61,6 +62,7 @@
               pkgs.mtools
               pkgs.python3
               pkgs.qemu
+              pkgs.ubootTools
               pkgs.util-linux
               pkgs.gnugrep
               pkgs.coreutils
@@ -85,6 +87,9 @@
               echo "  Alien QEMU baseline (ALIEN_DIR=<Alien checkout>):"
               echo "    ALIEN_DIR=\$ALIEN_DIR ./scripts/alien/build-qemu.sh"
               echo "    ALIEN_DIR=\$ALIEN_DIR ./scripts/alien/run-qemu.sh"
+              echo
+              echo "  Alien K3 image:"
+              echo "    ALIEN_DIR=\$ALIEN_DIR ./scripts/alien/build-k3.sh"
               echo
               echo "  toolchain: nightly-2025-05-20, targets riscv64gc-unknown-none-elf + riscv64gc-unknown-linux-musl"
               echo

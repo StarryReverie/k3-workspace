@@ -1,0 +1,691 @@
+diff --git a/.gitignore b/.gitignore
+index 8f9f9333..90ccd49f 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -33,4 +33,6 @@ subsystems/unwinder/src/kernel_symbol.S
+ tools/initrd/busybox*
+ tools/initrd/initramfs*
+ tools/qemu-loongarch-runenv
+-subsystems/unwinder/src/ksym.o
+\ No newline at end of file
++subsystems/unwinder/src/ksym.o
++# K3 workspace build outputs
++out-*/
+diff --git a/kernel/Cargo.toml b/kernel/Cargo.toml
+index 06f6258a..c1c03d9c 100644
+--- a/kernel/Cargo.toml
++++ b/kernel/Cargo.toml
+@@ -49,6 +49,7 @@ small-index = { git = "https://github.com/os-module/small-index" }
+ default = ["smp", "test", "kprobe_test", "qemu"]
+ qemu = ["platform/qemu_riscv", "interrupt/qemu", "mem/initrd"]
+ vf2 = ["platform/vf2", "interrupt/vf2", "devices/vf2", "mem/initrd"]
++k3 = ["platform/k3_riscv", "interrupt/k3", "mem/initrd"]
+ hifive = ["platform/hifive", "interrupt/hifive", "devices/hifive"]
+ smp = ["platform/smp"]
+ 
+diff --git a/kernel/src/lib.rs b/kernel/src/lib.rs
+index 33ca0840..c5f5dbae 100644
+--- a/kernel/src/lib.rs
++++ b/kernel/src/lib.rs
+@@ -53,8 +53,10 @@ fn main(hart_id: usize) {
+         let machine_info = platform_machine_info();
+         println!("{:#?}", machine_info);
+         mem::init_memory_system(machine_info.memory.end, true);
++        #[cfg(not(feature = "k3"))]
+         interrupt::init_plic(machine_info.plic.start);
+         shim::register_task_func(Box::new(DriverTaskImpl));
++        #[cfg(not(feature = "k3"))]
+         devices::init_device();
+         vfs::init_filesystem().expect("init filesystem failed");
+         ksym::init_kallsyms();
+diff --git a/subsystems/interrupt/Cargo.toml b/subsystems/interrupt/Cargo.toml
+index 1c6879d9..da1885eb 100644
+--- a/subsystems/interrupt/Cargo.toml
++++ b/subsystems/interrupt/Cargo.toml
+@@ -19,3 +19,4 @@ platform  = { path = "../platform"}
+ vf2 = []
+ hifive = []
+ qemu = []
++k3 = []
+diff --git a/subsystems/interrupt/src/lib.rs b/subsystems/interrupt/src/lib.rs
+index 207ed673..f61d0f46 100644
+--- a/subsystems/interrupt/src/lib.rs
++++ b/subsystems/interrupt/src/lib.rs
+@@ -23,6 +23,11 @@ pub fn init_plic(plic_addr: usize) {
+         PLIC.call_once(|| plic);
+         println!("Init qemu plic success");
+     }
++    #[cfg(feature = "k3")]
++    {
++        let _ = plic_addr;
++        println!("K3: PLIC init skipped");
++    }
+     #[cfg(any(feature = "vf2", feature = "hifive"))]
+     {
+         let mut privileges = [2; CPU_NUM];
+diff --git a/subsystems/platform/Cargo.toml b/subsystems/platform/Cargo.toml
+index 1f38ec27..bd4497d9 100644
+--- a/subsystems/platform/Cargo.toml
++++ b/subsystems/platform/Cargo.toml
+@@ -19,4 +19,5 @@ fdt = { git = "https://github.com/repnop/fdt" }
+ qemu_riscv = []
+ vf2 = []
+ hifive = []
++k3_riscv = []
+ smp = []
+\ No newline at end of file
+diff --git a/subsystems/platform/src/common_riscv/mod.rs b/subsystems/platform/src/common_riscv/mod.rs
+index 9939a61b..9451d777 100644
+--- a/subsystems/platform/src/common_riscv/mod.rs
++++ b/subsystems/platform/src/common_riscv/mod.rs
+@@ -1,3 +1,4 @@
++#[cfg_attr(feature = "k3_riscv", allow(dead_code))]
+ pub mod basic;
+ pub mod boot;
+ pub mod sbi;
+diff --git a/subsystems/platform/src/common_riscv/sbi.rs b/subsystems/platform/src/common_riscv/sbi.rs
+index 2712cca6..f4c71484 100644
+--- a/subsystems/platform/src/common_riscv/sbi.rs
++++ b/subsystems/platform/src/common_riscv/sbi.rs
+@@ -34,23 +34,57 @@ fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> i32 {
+ 
+ /// 设置定时器
+ pub fn set_timer(time: usize) {
+-    sbi_call(SBI_SET_TIMER, time, 0, 0);
++    let ret = sbi_call_3(EXTENSION_TIMER, FUNCTION_TIMER_SET_TIMER, time, 0, 0);
++    if ret.error != 0 {
++        sbi_call(SBI_SET_TIMER, time, 0, 0);
++    }
+ }
+ 
+ pub fn system_shutdown() -> ! {
+-    sbi_call(SBI_SHUTDOWN, 0, 0, 0);
++    let ret = sbi_call_3(
++        EXTENSION_SRST,
++        FUNCTION_SRST_SYSTEM_RESET,
++        0, // shutdown
++        0, // no reason
++        0,
++    );
++    if ret.error != 0 {
++        sbi_call(SBI_SHUTDOWN, 0, 0, 0);
++    }
+     loop {}
+ }
+ 
+ /// Warp sbi SBI_CONSOLE_PUT_CHAR  call
+ pub fn console_putchar(ch: u8) {
+-    sbi_call(SBI_CONSOLE_PUT_CHAR, ch as usize, 0, 0);
++    let buf = [ch];
++    let ret = sbi_call_3(
++        EXTENSION_DBCN,
++        FUNCTION_DBCN_WRITE,
++        1,
++        buf.as_ptr() as usize,
++        0,
++    );
++    if ret.error != 0 || ret.value <= 0 {
++        sbi_call(SBI_CONSOLE_PUT_CHAR, ch as usize, 0, 0);
++    }
+ }
+ 
+ /// Warp sbi SBI_CONSOLE_GET_CHAR  call
+ #[allow(unused)]
+ pub fn console_getchar() -> char {
+-    sbi_call(SBI_CONSOLE_GET_CHAR, 0, 0, 0) as u8 as char
++    let mut buf = [0u8; 1];
++    let ret = sbi_call_3(
++        EXTENSION_DBCN,
++        FUNCTION_DBCN_READ,
++        1,
++        buf.as_mut_ptr() as usize,
++        0,
++    );
++    if ret.error == 0 && ret.value == 1 {
++        buf[0] as char
++    } else {
++        sbi_call(SBI_CONSOLE_GET_CHAR, 0, 0, 0) as u8 as char
++    }
+ }
+ 
+ /// sbi调用返回值
+@@ -71,7 +105,19 @@ pub const EXTENSION_TIMER: usize = 0x54494D45;
+ // pub const EXTENSION_RFENCE: usize = 0x52464E43;
+ /// SBI HSM 扩展
+ pub const EXTENSION_HSM: usize = 0x48534D;
+-// pub const EXTENSION_SRST: usize = 0x53525354;
++/// SBI 系统复位扩展
++pub const EXTENSION_SRST: usize = 0x53525354;
++/// SBI 调试控制台扩展
++pub const EXTENSION_DBCN: usize = 0x4442434E;
++
++/// SBI TIME 扩展的设置定时器功能
++const FUNCTION_TIMER_SET_TIMER: usize = 0;
++/// SBI SRST 扩展的系统复位功能
++const FUNCTION_SRST_SYSTEM_RESET: usize = 0;
++/// SBI DBCN 扩展的写入功能
++const FUNCTION_DBCN_WRITE: usize = 0;
++/// SBI DBCN 扩展的读取功能
++const FUNCTION_DBCN_READ: usize = 2;
+ 
+ /// SBI HSM扩展的启动cpu功能
+ const FUNCTION_HSM_HART_START: usize = 0x0;
+diff --git a/subsystems/platform/src/k3_riscv/config.rs b/subsystems/platform/src/k3_riscv/config.rs
+new file mode 100644
+index 00000000..0689d38d
+--- /dev/null
++++ b/subsystems/platform/src/k3_riscv/config.rs
+@@ -0,0 +1,6 @@
++pub const CLOCK_FREQ: usize = 24_000_000;
++pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
++pub const HEAP_SIZE: usize = 0x200_00000;
++
++/// K3 的外设地址空间。第一版只使用 SBI，不映射外部设备。
++pub const MMIO: &[(usize, usize)] = &[];
+diff --git a/subsystems/platform/src/k3_riscv/mod.rs b/subsystems/platform/src/k3_riscv/mod.rs
+new file mode 100644
+index 00000000..2d01b2b5
+--- /dev/null
++++ b/subsystems/platform/src/k3_riscv/mod.rs
+@@ -0,0 +1,53 @@
++pub mod config;
++
++use core::ops::Range;
++
++use spin::Once;
++
++use crate::PlatformInfo;
++
++/// 第一版不使用设备树；保留入口参数，便于后续接入。
++pub static DTB: Once<usize> = Once::new();
++
++pub fn init_dtb(dtb: Option<usize>) {
++    DTB.call_once(|| dtb.unwrap_or(0));
++}
++
++pub fn basic_machine_info() -> PlatformInfo {
++    let mut model = [0u8; 32];
++    let name = b"SpacemiT K3";
++    model[..name.len()].copy_from_slice(name);
++
++    PlatformInfo {
++        model,
++        smp: ::config::CPU_NUM,
++        memory: 0x1_0200_0000..0x3_0000_0000,
++        plic: 0..0,
++        clint: 0..0,
++        initrd: Some(Range {
++            start: INITRD.as_ptr() as usize,
++            end: INITRD.as_ptr() as usize + INITRD.len(),
++        }),
++        bootargs: None,
++        bootargs_len: 0,
++    }
++}
++
++static INITRD: &[u8] = include_bytes!("../../../../tools/initrd/initramfs.cpio.gz");
++
++pub fn set_timer(time: usize) {
++    crate::common_riscv::sbi::set_timer(time);
++}
++
++pub fn system_shutdown() -> ! {
++    crate::common_riscv::sbi::system_shutdown();
++}
++
++pub fn console_putchar(ch: u8) {
++    crate::common_riscv::sbi::console_putchar(ch);
++}
++
++#[allow(unused)]
++pub fn console_getchar() -> char {
++    crate::common_riscv::sbi::console_getchar()
++}
+diff --git a/subsystems/platform/src/lib.rs b/subsystems/platform/src/lib.rs
+index 19b31715..5fe64ece 100644
+--- a/subsystems/platform/src/lib.rs
++++ b/subsystems/platform/src/lib.rs
+@@ -7,6 +7,7 @@ mod common_riscv;
+ #[cfg(feature = "hifive")]
+ mod hifive_riscv;
+ 
++#[cfg(feature = "smp")]
+ use ::config::CPU_NUM;
+ pub use common_riscv::basic::MachineInfo as PlatformInfo;
+ use spin::Once;
+@@ -16,21 +17,29 @@ pub mod logging;
+ mod qemu_riscv;
+ #[cfg(feature = "vf2")]
+ mod starfive2_riscv;
++#[cfg(feature = "k3_riscv")]
++mod k3_riscv;
+ 
+ #[cfg(feature = "hifive")]
+ use hifive_riscv::{basic_machine_info, console_putchar};
+ #[cfg(feature = "hifive")]
+-pub use hifive_riscv::{config, set_timer, system_shutdown};
++pub use hifive_riscv::{config, console_getchar, set_timer, system_shutdown};
+ #[cfg(feature = "qemu_riscv")]
+ use qemu_riscv::{basic_machine_info, console_putchar};
+ #[cfg(feature = "qemu_riscv")]
+-pub use qemu_riscv::{config, set_timer, system_shutdown};
++pub use qemu_riscv::{config, console_getchar, set_timer, system_shutdown};
+ #[cfg(feature = "vf2")]
+ use starfive2_riscv::{basic_machine_info, console_putchar};
+ #[cfg(feature = "vf2")]
+-pub use starfive2_riscv::{config, set_timer, system_shutdown};
++pub use starfive2_riscv::{config, console_getchar, set_timer, system_shutdown};
++#[cfg(feature = "k3_riscv")]
++use k3_riscv::{basic_machine_info, console_putchar};
++#[cfg(feature = "k3_riscv")]
++pub use k3_riscv::{config, console_getchar, set_timer, system_shutdown};
+ 
+-use crate::{common_riscv::sbi::hart_start, console::PrePrint};
++use crate::console::PrePrint;
++#[cfg(feature = "smp")]
++use crate::common_riscv::sbi::hart_start;
+ 
+ #[no_mangle]
+ pub fn platform_init(hart_id: usize, _dtb: usize) {
+@@ -39,6 +48,8 @@ pub fn platform_init(hart_id: usize, _dtb: usize) {
+     hifive_riscv::init_dtb(None);
+     #[cfg(feature = "vf2")]
+     starfive2_riscv::init_dtb(None);
++    #[cfg(feature = "k3_riscv")]
++    k3_riscv::init_dtb(Some(_dtb));
+     #[cfg(feature = "qemu_riscv")]
+     qemu_riscv::init_dtb(Some(_dtb));
+     let machine_info = basic_machine_info();
+@@ -54,6 +65,7 @@ pub fn platform_init(hart_id: usize, _dtb: usize) {
+ ///
+ /// 对于qemu来说，只需要工具所有的核都是一样的，因此从严号核开始唤醒。
+ /// 对于visionfive2/unmatched 来说，0号核只有M态，因此不进行唤醒
++#[cfg(feature = "smp")]
+ fn init_other_hart(hart_id: usize) {
+     let start_hart = if cfg!(any(feature = "vf2", feature = "hifive")) {
+         1
+@@ -80,6 +92,8 @@ pub fn platform_dtb_ptr() -> usize {
+     return *starfive2_riscv::DTB.get().unwrap();
+     #[cfg(feature = "qemu_riscv")]
+     return *qemu_riscv::DTB.get().unwrap();
++    #[cfg(feature = "k3_riscv")]
++    return *k3_riscv::DTB.get().unwrap();
+ }
+ 
+ static MACHINE_INFO: Once<PlatformInfo> = Once::new();
+diff --git a/subsystems/vfs/src/dev/mod.rs b/subsystems/vfs/src/dev/mod.rs
+index 03cad8ea..2f8de109 100644
+--- a/subsystems/vfs/src/dev/mod.rs
++++ b/subsystems/vfs/src/dev/mod.rs
+@@ -13,9 +13,13 @@ use random::RandomDevice;
+ use spin::Lazy;
+ use vfscore::{
+     dentry::VfsDentry,
++    error::VfsError,
++    file::VfsFile,
+     fstype::VfsFsType,
+-    inode::VfsInode,
+-    utils::{VfsNodeType, VfsTimeSpec},
++    inode::{InodeAttr, VfsInode},
++    superblock::VfsSuperBlock,
++    utils::{VfsFileStat, VfsNodeType, VfsTimeSpec},
++    VfsResult,
+ };
+ 
+ mod null;
+@@ -76,6 +80,64 @@ impl DeviceIdManager {
+     }
+ }
+ 
++/// 在没有 UART 驱动时，用 SBI 控制台提供 /dev/tty。
++struct SbiConsoleDevice {
++    device_id: DeviceId,
++}
++
++impl SbiConsoleDevice {
++    fn new(device_id: DeviceId) -> Self {
++        Self { device_id }
++    }
++
++    fn device_id(&self) -> DeviceId {
++        self.device_id
++    }
++}
++
++impl VfsFile for SbiConsoleDevice {
++    fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
++        if buf.is_empty() {
++            return Ok(0);
++        }
++        loop {
++            let ch = platform::console_getchar();
++            if ch != '\0' && ch != '\u{ff}' {
++                buf[0] = if ch == '\r' { b'\n' } else { ch as u8 };
++                return Ok(1);
++            }
++            core::hint::spin_loop();
++        }
++    }
++
++    fn write_at(&self, _offset: u64, buf: &[u8]) -> VfsResult<usize> {
++        let text = core::str::from_utf8(buf).unwrap_or("");
++        platform::console::console_write(text);
++        Ok(buf.len())
++    }
++}
++
++impl VfsInode for SbiConsoleDevice {
++    fn get_super_block(&self) -> VfsResult<Arc<dyn VfsSuperBlock>> {
++        Err(VfsError::NoSys)
++    }
++
++    fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
++        Ok(())
++    }
++
++    fn get_attr(&self) -> VfsResult<VfsFileStat> {
++        Ok(VfsFileStat {
++            st_rdev: self.device_id.id(),
++            ..Default::default()
++        })
++    }
++
++    fn inode_type(&self) -> VfsNodeType {
++        VfsNodeType::CharDevice
++    }
++}
++
+ #[derive(Clone)]
+ pub struct DevFsProviderImpl;
+ impl DevKernelProvider for DevFsProviderImpl {
+@@ -252,4 +314,17 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
+         info!("uart device id: {}", uart_device.device_id().id());
+         register_device(uart_device);
+     });
++    if UART_DEVICE.get().is_none() {
++        let sbi_console =
++            Arc::new(SbiConsoleDevice::new(alloc_device_id(VfsNodeType::CharDevice)));
++        root.create(
++            "tty",
++            VfsNodeType::CharDevice,
++            "rw-rw-rw-".into(),
++            Some(sbi_console.device_id().id()),
++        )
++        .unwrap();
++        register_device(sbi_console);
++        info!("sbi console device registered");
++    }
+ }
+diff --git a/subsystems/vfs/src/initrd.rs b/subsystems/vfs/src/initrd.rs
+index 97a99e99..4b3dc0b2 100644
+--- a/subsystems/vfs/src/initrd.rs
++++ b/subsystems/vfs/src/initrd.rs
+@@ -1,23 +1,36 @@
+-use alloc::{sync::Arc, vec};
+-
++use alloc::{string::String, sync::Arc, vec, vec::Vec};
+ use constants::AlienResult;
+ use core2::io::Read;
+ use cpio_reader::Mode;
+ use vfscore::{
+     dentry::VfsDentry,
+     path::VfsPath,
+-    utils::{VfsInodeMode, VfsNodeType},
++    utils::VfsInodeMode,
+ };
+ 
+ pub fn populate_initrd(root: Arc<dyn VfsDentry>) -> AlienResult<()> {
+-    root.inode()?
+-        .create("bin", VfsNodeType::Dir, "rwxr-xr-x".into(), None)?;
+-    root.inode()?
+-        .create("sbin", VfsNodeType::Dir, "rwxr-xr-x".into(), None)?;
+     parse_initrd_data(root)?;
+     println!("Initrd populate success");
+     Ok(())
+ }
++
++fn ensure_parent_dirs(root: &Arc<dyn VfsDentry>, name: &str) -> AlienResult<()> {
++    let parts: Vec<&str> = name.split('/').filter(|s| !s.is_empty()).collect();
++    if parts.len() <= 1 {
++        return Ok(());
++    }
++    let mut current = String::new();
++    for part in &parts[..parts.len() - 1] {
++        if !current.is_empty() {
++            current.push('/');
++        }
++        current.push_str(part);
++        let path = VfsPath::new(root.clone(), root.clone()).join(&current)?;
++        path.open(Some(VfsInodeMode::from_bits_truncate(0o040755)))?;
++    }
++    Ok(())
++}
++
+ fn parse_initrd_data(root: Arc<dyn VfsDentry>) -> AlienResult<()> {
+     let mut guard = mem::data::INITRD_DATA.lock();
+     if guard.is_some() {
+@@ -30,20 +43,27 @@ fn parse_initrd_data(root: Arc<dyn VfsDentry>) -> AlienResult<()> {
+         let mut buf = vec![];
+         let _r = decoder.read_to_end(&mut buf).unwrap();
+         for entry in cpio_reader::iter_files(&buf) {
++            let name = entry
++                .name()
++                .trim_start_matches("./")
++                .trim_start_matches('/')
++                .trim_end_matches('/');
++            if name.is_empty() || name == "." || name == "TRAILER!!!" {
++                continue;
++            }
++            ensure_parent_dirs(&root, name)?;
+             let mode = entry.mode();
+-            let name = entry.name();
+-            if name.starts_with("bin/") | name.starts_with("sbin/") {
++            let target = path.join(name)?;
++            if mode.contains(Mode::DIRECTORY) {
++                target.open(Some(VfsInodeMode::from_bits_truncate(0o040755)))?;
++            } else if mode.contains(Mode::SYMBOLIK_LINK) {
++                let data = entry.file();
++                let link = core::str::from_utf8(data).unwrap();
++                target.symlink(link)?;
++            } else if mode.contains(Mode::REGULAR_FILE) {
+                 let inode_mode = VfsInodeMode::from_bits_truncate(mode.bits());
+-                if mode.contains(Mode::SYMBOLIK_LINK) {
+-                    // create symlink
+-                    let data = entry.file();
+-                    let target = core::str::from_utf8(data).unwrap();
+-                    path.join(name)?.symlink(target)?;
+-                } else if mode.contains(Mode::REGULAR_FILE) {
+-                    // create file
+-                    let f = path.join(name)?.open(Some(inode_mode))?;
+-                    f.inode()?.write_at(0, entry.file())?;
+-                }
++                let f = target.open(Some(inode_mode))?;
++                f.inode()?.write_at(0, entry.file())?;
+             }
+         }
+         // release the page frame
+diff --git a/subsystems/vfs/src/lib.rs b/subsystems/vfs/src/lib.rs
+index e4472296..c9f5a696 100644
+--- a/subsystems/vfs/src/lib.rs
++++ b/subsystems/vfs/src/lib.rs
+@@ -17,7 +17,12 @@ use ksync::Mutex;
+ use spin::{Lazy, Once};
+ #[cfg(feature = "ext")]
+ use vfscore::inode::VfsInode;
+-use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, utils::VfsTimeSpec};
++use vfscore::{
++    dentry::VfsDentry,
++    fstype::VfsFsType,
++    path::VfsPath,
++    utils::{VfsInodeMode, VfsTimeSpec},
++};
+ 
+ use crate::dev::DevFsProviderImpl;
+ pub mod dev;
+@@ -106,6 +111,7 @@ fn register_all_fs() {
+         CommonFsProviderImpl,
+     ));
+ 
++    #[cfg(any(feature = "fat", feature = "ext"))]
+     FS.lock().insert("diskfs".to_string(), diskfs);
+ 
+     println!("register fs success");
+@@ -140,16 +146,30 @@ pub fn init_filesystem() -> AlienResult<()> {
+         .i_mount(0, "/dev/shm", None, &[])?;
+     path.join("dev/shm")?.mount(shm_ramfs, 0)?;
+ 
++    #[cfg(any(feature = "fat", feature = "ext"))]
+     let diskfs = FS.lock().index("diskfs").clone();
+-    let blk_inode = path
+-        .join("/dev/sda")?
+-        .open(None)
+-        .expect("open /dev/sda failed")
+-        .inode()?;
+-
+-    let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
+-    path.join("tests")?.mount(diskfs_root, 0)?;
+-    println!("mount fs success");
++    let tests_path = path.join("tests")?;
++    tests_path.open(Some(VfsInodeMode::from_bits_truncate(0o040755)))?;
++
++    #[cfg(any(feature = "fat", feature = "ext"))]
++    {
++        let block = path
++            .join("/dev/sda")
++            .ok()
++            .and_then(|p| p.open(None).ok());
++        if let Some(block) = block {
++            let blk_inode = block.inode()?;
++            let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
++            tests_path.mount(diskfs_root, 0)?;
++            println!("mount fs success");
++        } else {
++            println!("no block device, skip /tests disk mount");
++        }
++    }
++    #[cfg(not(any(feature = "fat", feature = "ext")))]
++    {
++        println!("no disk filesystem feature, skip /tests disk mount");
++    }
+ 
+     vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), false)
+         .unwrap();
+diff --git a/tools/k3.its b/tools/k3.its
+new file mode 100644
+index 00000000..4d5c5926
+--- /dev/null
++++ b/tools/k3.its
+@@ -0,0 +1,34 @@
++/*
++ * U-Boot FIT source for Alien on SpacemiT K3.
++ *
++ * The kernel embeds its initramfs and does not parse a device tree in
++ * the first minimal version.
++ */
++
++/dts-v1/;
++
++/ {
++    description = "U-Boot FIT image for Alien on SpacemiT K3";
++    #address-cells = <2>;
++
++    images {
++        kernel {
++            description = "Alien kernel for SpacemiT K3";
++            data = /incbin/("../alien-k3.bin");
++            type = "kernel";
++            arch = "riscv";
++            os = "linux";
++            compression = "none";
++            load = <0x1 0x02200000>;
++            entry = <0x1 0x02200000>;
++        };
++    };
++
++    configurations {
++        default = "conf";
++        conf {
++            description = "Boot Alien on SpacemiT K3";
++            kernel = "kernel";
++        };
++    };
++};
+diff --git a/tools/linker-k3.ld b/tools/linker-k3.ld
+new file mode 100644
+index 00000000..2b99938d
+--- /dev/null
++++ b/tools/linker-k3.ld
+@@ -0,0 +1,72 @@
++OUTPUT_ARCH(riscv)
++ENTRY(_start)
++BASE_ADDRESS = 0x102200000;
++
++SECTIONS
++{
++    . = BASE_ADDRESS;
++    skernel = .;
++
++    .text : ALIGN(4096){
++        __executable_start = .;
++        stext = .;
++        *(.text.entry)
++        . = ALIGN(4K);
++        strampoline = . ;
++        *(.text.trampoline)
++        . = ALIGN(4K);
++        etrampoline = . ;
++        *(.text.startup)
++        *(.text .text.*)
++        . = ALIGN(4K);
++        etext = .;
++        __etext = .;
++    }
++
++    .rodata : ALIGN(4096){
++        srodata = .;
++        *(.rodata .rodata.*)
++        *(.srodata .srodata.*)
++        *(.gcc_except_table .gcc_except_table.*)
++        . = ALIGN(4K);
++        erodata = .;
++    }
++
++    .data : ALIGN(4096){
++        sdata = .;
++        sinit = .;
++        *(.init_array .init_array.*)
++        einit = .;
++        *(.data .data.*)
++        *(.sdata .sdata.*)
++        . = ALIGN(4K);
++        edata = .;
++    }
++
++    .bss :  ALIGN(4096){
++        *(.bss.stack)
++        . = ALIGN(4K);
++        sbss = .;
++        *(.bss .bss.*)
++        *(.sbss .sbss.*)
++        . = ALIGN(4K);
++        ebss = .;
++    }
++
++    eh_frame = .;
++	.eh_frame : ALIGN(4096){
++		__eh_frame_hdr_start = .;
++        __GNU_EH_FRAME_HDR = .;
++		*(.eh_frame_hdr)
++		__eh_frame_hdr_end = .;
++		__eh_frame_start = .;
++		*(.eh_frame)
++		*(.rela.eh_frame)
++		__eh_frame_end = .;
++        . = ALIGN(4K);
++	}
++
++    sheap = .;
++/*    ekernel = .;*/
++    PROVIDE(end = .);
++}
+\ No newline at end of file

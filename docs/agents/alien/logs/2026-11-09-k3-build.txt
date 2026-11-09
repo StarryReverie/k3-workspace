@@ -1,0 +1,37 @@
+Alien K3 minimal build, 2026-11-09
+Source: /tmp/opencode/alien-k3-build.log and static inspection.
+Note: excerpt only.
+
+[4/7] linking kernel-k3
+[5/7] creating raw binary
+[6/7] creating FIT image
+FIT description: U-Boot FIT image for Alien on SpacemiT K3
+ Image 0 (kernel)
+  Description:  Alien kernel for SpacemiT K3
+  Type:         Kernel Image
+  Compression:  uncompressed
+  Data Size:    5201920 Bytes = 5080.00 KiB = 4.96 MiB
+  Architecture: RISC-V
+  OS:           Linux
+  Load Address: 0x102200000
+  Entry Point:  0x102200000
+ Default Configuration: 'conf'
+ Configuration 0 (conf)
+  Description:  Boot Alien on SpacemiT K3
+  Kernel:       kernel
+
+ELF:
+  Entry point address: 0x102200000
+  Type:                EXEC
+  Machine:             RISC-V
+
+Raw binary:
+  size:                5.0 MiB
+  first instruction:   mv tp, a0
+
+Initramfs:
+  bin/busybox
+  bin/sh
+  tests/init
+  tests/bash
+  tests/libc.so

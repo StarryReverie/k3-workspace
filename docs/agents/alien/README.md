@@ -7,7 +7,7 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | 0 | 固定 Alien 版本、补丁、QEMU 可重复构建 | 完成，2026-11-09 |
-| 1 | K3 最小平台移植 | 未开始 |
+| 1 | K3 最小平台移植 | 完成，2026-11-09 |
 | 2 | QEMU 回归验证 K3 平台代码 | 未开始 |
 | 3 | 开发板首次启动 | 未开始 |
 
@@ -29,6 +29,7 @@
 | `01-baseline.md` | 阶段 0 的版本、补丁、构建与 QEMU 验收 |
 | `02-k3-notes.md` | AlienOS 架构、K3 平台事实与移植计划 |
 | `03-progress.md` | 阶段进度与待确认事项 |
+| `04-k3-minimal.md` | 阶段 1 的 K3 平台代码、镜像与静态验收 |
 | `patches/` | 相对 Alien 提交 `181b263` 的补丁 |
 | `logs/` | 关键日志节选 |
 
@@ -43,6 +44,9 @@ nix develop
 
 # 构建 QEMU 基线
 ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/build-qemu.sh
+
+# 构建 K3 最小镜像
+ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/build-k3.sh
 
 # 启动 QEMU，默认 60 秒后停止
 ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/run-qemu.sh
