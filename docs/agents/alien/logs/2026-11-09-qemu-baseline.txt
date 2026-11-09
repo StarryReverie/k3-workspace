@@ -1,0 +1,47 @@
+Alien QEMU baseline, 2026-11-09
+Source: /tmp/opencode/alien-clean-qemu.log
+Note: excerpt only; ANSI escape sequences removed.
+
+OpenSBI v1.8.1
+Platform Name               : riscv-virtio,qemu
+Platform HART Count         : 1
+Firmware Base               : 0x80000000
+Domain0 Next Address        : 0x0000000080200000
+Domain0 Next Arg1           : 0x00000000bfe00000
+Boot HART ID                : 0
+
+[0] Init logger None
+[0] Boot hart 0
+[0] This is a device tree representation of a riscv-virtio,qemu machine
+SMP:    1
+Memory: 0x80000000..0xc0000000
+PLIC:   0xc000000..0xc600000
+CLINT:  0x2000000..0x2010000
+Initrd: Some(
+    0xa0200000..0xa02c04fb,
+)
+Bootargs: Some("rdinit=/init")
+[0] Frame allocator init success
+[0] Talloc allocator init success
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] Init qemu plic success
+[0] Init rtc, base_addr:0x101000, irq:11
+[0] PLIC enable irq 11 for hart 0, priority 1
+[0] Init rtc success, current time: "2026-11-09 19:43:12"
+[0] Init uart, base_addr:0x10000000,irq:10
+[0] Init uart success
+[0] Init block device, base_addr:0x10008000,irq:8
+[0] Block device size is 72MB
+[0] Init block device success
+[0] mount fs success
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] setup interrupt done, enable:true
+[0] Init task success
+[0] kprobe test passed
+[0] Begin run task...
+[0] kthread_init start...
+Init process is running
+Alien:/#

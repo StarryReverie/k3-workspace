@@ -51,11 +51,16 @@
               starrynix.packages.${system}.ostool
               rust
               pkgs.binutils
+              pkgs.cpio
               pkgs.curl
+              pkgs.dosfstools
               pkgs.file
+              pkgs.gzip
               pkgs.jq
               pkgs.libsecret
+              pkgs.mtools
               pkgs.python3
+              pkgs.qemu
               pkgs.util-linux
               pkgs.gnugrep
               pkgs.coreutils
@@ -76,6 +81,12 @@
               echo
               echo "  rust cross build:"
               echo "    cargo build --manifest-path rust-hello/Cargo.toml --release --target riscv64gc-unknown-linux-musl"
+              echo
+              echo "  Alien QEMU baseline (ALIEN_DIR=<Alien checkout>):"
+              echo "    ALIEN_DIR=\$ALIEN_DIR ./scripts/alien/build-qemu.sh"
+              echo "    ALIEN_DIR=\$ALIEN_DIR ./scripts/alien/run-qemu.sh"
+              echo
+              echo "  toolchain: nightly-2025-05-20, targets riscv64gc-unknown-none-elf + riscv64gc-unknown-linux-musl"
               echo
               echo "  interrupt autoboot: Ctrl+C during 'Autoboot in 3 seconds'"
               echo "  serial exit: Ctrl+A, release, then x"
