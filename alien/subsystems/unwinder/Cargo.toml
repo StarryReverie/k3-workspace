@@ -1,0 +1,19 @@
+[package]
+name = "unwinder"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+platform = { path = "../platform" }
+arch = { path = "../arch" }
+unwinding = { version = "=0.2.6", default-features = false, features = [
+    "unwinder",
+    "fde-gnu-eh-frame-hdr",
+    "panic",
+    "personality",
+] }
+constants = { path = "../constants" }
+ksym = { git = "https://github.com/Godones/ext_ebpf" }
+spin = "0.10"

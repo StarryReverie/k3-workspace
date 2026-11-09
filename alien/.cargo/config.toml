@@ -1,0 +1,4 @@
+cargo-features = ["edition2024"]
+[profile.release]
+strip = true
+debug = false

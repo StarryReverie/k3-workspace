@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+    "kernel",
+    "user/userlib",
+    "subsystems/*",
+    "user/apps/*",
+    "user/musl/hello",
+    "user/musl/async_test",
+    "user/musl/ftest",
+]

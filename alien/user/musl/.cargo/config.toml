@@ -1,0 +1,9 @@
+[profile.release]
+#lto = true
+strip = true
+incremental = true
+panic = "abort"
+
+[target.riscv64gc-unknown-linux-musl]
+rustflags = ["-C", "target-feature=+crt-static"]
+linker = "riscv64-linux-musl-cc"
