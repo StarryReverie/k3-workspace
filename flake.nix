@@ -32,8 +32,17 @@
     {
       devShells = forAllSystems ({ pkgs, system, ... }:
         let
-          rust = pkgs.rust-bin.stable.latest.default.override {
-            targets = [ "riscv64gc-unknown-linux-musl" ];
+          rust = pkgs.rust-bin.nightly."2025-05-20".minimal.override {
+            targets = [
+              "riscv64gc-unknown-none-elf"
+              "riscv64gc-unknown-linux-musl"
+            ];
+            extensions = [
+              "rust-src"
+              "llvm-tools"
+              "rustfmt"
+              "clippy"
+            ];
           };
         in
         {
