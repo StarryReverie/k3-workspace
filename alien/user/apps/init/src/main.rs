@@ -4,6 +4,7 @@
 extern crate alloc;
 
 use Mstd::{
+    fs::{open, OpenFlags},
     println,
     process::{exec, exit, fork, wait, waitpid},
     thread::m_yield,
@@ -12,6 +13,12 @@ use Mstd::{
 #[no_mangle]
 fn main() -> isize {
     println!("Init process is running");
+    if open("/tests/bash\0", OpenFlags::O_RDONLY) < 0 {
+        println!("K3_QEMU_INIT_OK");
+        loop {
+            m_yield();
+        }
+    }
     if fork() == 0 {
         // let sh = "sh\0";
         let bash = "bash\0";

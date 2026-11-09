@@ -1,0 +1,23 @@
+Alien K3 platform QEMU regression, 2026-11-09
+Source: /tmp/opencode/k3-qemu-final.log
+Note: excerpt only; ANSI escape sequences removed.
+
+OpenSBI v1.8.1
+Platform Name               : riscv-virtio,qemu
+Platform HART Count         : 1
+
+[0] This is a device tree representation of a QEMU virt (K3 test) machine
+SMP:    1
+Memory: 0x80000000..0xc0000000
+PLIC:   0x0..0x0
+Initrd: Some(
+[0] no disk filesystem feature, skip /tests disk mount
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] setup interrupt done, enable:true
+[0] Init task success
+[0] Begin run task...
+[0] kthread_init start...
+Init process is running
+K3_QEMU_INIT_OK

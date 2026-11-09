@@ -91,6 +91,10 @@
               echo "  Alien K3 image:"
               echo "    ./scripts/alien/build-k3.sh"
               echo
+              echo "  Alien K3 platform QEMU regression:"
+              echo "    ./scripts/alien/build-k3-qemu.sh"
+              echo "    ./scripts/alien/run-k3-qemu.sh"
+              echo
               echo "  toolchain: nightly-2025-05-20, targets riscv64gc-unknown-none-elf + riscv64gc-unknown-linux-musl"
               echo
               echo "  interrupt autoboot: Ctrl+C during 'Autoboot in 3 seconds'"

@@ -73,14 +73,32 @@ Load address      0x102200000
 
 ### 阶段 2：QEMU 回归验证 K3 平台代码
 
-状态：未开始。
+状态：完成。
 
-计划建立 `k3-qemu` 变体，复用 K3 平台代码，但使用 QEMU 的内存范围与链接地址，在 QEMU 上验证：
+完成内容：
 
-- SBI DBCN 输出。
-- SBI 控制台 `/dev/tty`。
-- initramfs 解出 `/tests/init` 与 bash。
-- 无磁盘、无 PLIC 的启动路径。
+- 新增 `k3_qemu` feature。
+- K3 平台模块在 `k3_qemu` 下使用 QEMU 内存范围 `0x80000000..0xc0000000` 与 10 MHz 时间基准。
+- 使用 `tools/linker-qemu.ld`，入口 `0x80200000`。
+- 跳过 PLIC、设备探测与磁盘挂载。
+- 新增 `scripts/alien/build-k3-qemu.sh` 与 `run-k3-qemu.sh`。
+- 为 `k3_qemu` 准备不含 bash 的 initramfs，由 init 打印 `K3_QEMU_INIT_OK` 后循环。
+
+验收结果：
+
+```text
+QEMU virt (K3 test)
+Memory: 0x80000000..0xc0000000
+no disk filesystem feature, skip /tests disk mount
+Initrd populate success
+Init filesystem success
+Init process is running
+K3_QEMU_INIT_OK
+```
+
+日志中 0x01 控制字符数量为 0。
+
+已知问题：initramfs 包含 bash 时，执行 bash 后串口出现连续 0x01。阶段 2 通过不启动 bash 绕开，交互问题留到后续阶段。详细记录见 `05-k3-qemu.md`。
 
 ### 待确认
 

@@ -15,12 +15,18 @@ pub fn init_dtb(dtb: Option<usize>) {
 
 pub fn basic_machine_info() -> PlatformInfo {
     let mut model = [0u8; 32];
+    #[cfg(feature = "k3_qemu")]
+    let name = b"QEMU virt (K3 test)";
+    #[cfg(not(feature = "k3_qemu"))]
     let name = b"SpacemiT K3";
     model[..name.len()].copy_from_slice(name);
 
     PlatformInfo {
         model,
         smp: ::config::CPU_NUM,
+        #[cfg(feature = "k3_qemu")]
+        memory: 0x8000_0000..0xc000_0000,
+        #[cfg(not(feature = "k3_qemu"))]
         memory: 0x1_0200_0000..0x3_0000_0000,
         plic: 0..0,
         clint: 0..0,
