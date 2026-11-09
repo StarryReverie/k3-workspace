@@ -6,7 +6,7 @@
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| 0 | 固定 Alien 版本、补丁、QEMU 可重复构建 | 完成，2026-11-09 |
+| 0 | 固定 Alien 版本、QEMU 可重复构建 | 完成，2026-11-09 |
 | 1 | K3 最小平台移植 | 完成，2026-11-09 |
 | 2 | QEMU 回归验证 K3 平台代码 | 完成，2026-11-09 |
 | 3 | 开发板首次启动 | 未开始 |
@@ -26,12 +26,11 @@
 
 | 文件 | 内容 |
 |---|---|
-| `01-baseline.md` | 阶段 0 的版本、补丁、构建与 QEMU 验收 |
+| `01-baseline.md` | 阶段 0 的版本、修复、构建与 QEMU 验收 |
 | `02-k3-notes.md` | AlienOS 架构、K3 平台事实与移植计划 |
 | `03-progress.md` | 阶段进度与待确认事项 |
 | `04-k3-minimal.md` | 阶段 1 的 K3 平台代码、镜像与静态验收 |
 | `05-k3-qemu.md` | 阶段 2 的 K3 平台 QEMU 回归 |
-| `patches/` | 相对 Alien 提交 `181b263` 的补丁 |
 | `logs/` | 关键日志节选 |
 
 ## 源码位置
@@ -69,7 +68,5 @@ QEMU_TIMEOUT=0 ./scripts/alien/run-qemu.sh
 ```bash
 ALIEN_DIR=/path/to/alien ./scripts/alien/build-k3.sh
 ```
-
-`apply-patches.sh` 只用于从上游重建参考树，不再参与日常构建。
 
 `build-qemu.sh` 不使用 Alien 自带的 Makefile。该 Makefile 依赖 `sudo mount`、交互式 BusyBox 配置与 `gen_ksym`，不适合当前环境。

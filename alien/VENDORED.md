@@ -34,13 +34,17 @@ Date:     2026-11-09
 - 其他板型的 DTB 与 ITS
 - 完整测试集；只保留当前构建脚本使用的三个文件
 
-## 已应用的本地补丁
+## 本地改动
 
-以下补丁已经包含在源码中，同时保留在 `docs/agents/alien/patches/`：
+本目录不是上游原样快照。K3 平台、QEMU 基线修复与构建调整都直接提交在 k3 仓库的
+`alien/` 中，由 Git 历史维护，不另存补丁文件。
 
-1. `0001-platform-detect-plic-node.patch`
-2. `0002-kernel-skip-missing-kallsyms.patch`
-3. `0003-k3-minimal-platform.patch`
+查看本地改动：
+
+```bash
+git log -- alien/
+git diff 312f0b9..HEAD -- alien/
+```
 
 ## 更新方式
 
@@ -49,7 +53,7 @@ Date:     2026-11-09
 1. 在仓库外克隆 Alien 到新目录，检出目标 commit。
 2. 生成从 `181b263` 到新 commit、且只涉及已包含路径的 diff。
 3. 在 `alien/` 中应用 diff。
-4. 重新应用上述三个本地补丁，或把本地修改 rebase 到新版本。
+4. 将本地 K3 改动重新应用到新版本；可用 `git diff 312f0b9..HEAD -- alien/` 查看。
 5. 更新本文件的 commit 与日期。
 6. 重新运行 QEMU 与 K3 构建验证。
 

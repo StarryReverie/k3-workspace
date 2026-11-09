@@ -33,13 +33,13 @@ extensions = [
 ]
 ```
 
-## 2. 补丁
+## 2. 两处修复
 
-### 2.1 `0001-platform-detect-plic-node.patch`
+### 2.1 PLIC 节点识别
 
 Alien 只按节点名 `plic` 查找 PLIC。QEMU 的设备树节点名是 `interrupt-controller@c000000`，因此 `MachineInfo.plic` 被解析为 `0x0..0x0`。后续写 PLIC 阈值与使能寄存器时，实际写入了地址 0 附近，内核在 `register_device_to_plic` 中挂起。
 
-补丁同时匹配 `interrupt-controller@`，并改用 `if let Some(reg)`，避免没有 `reg` 属性的节点触发 `unwrap`。VisionFive2 的 `plic@...` 仍按原路径处理。
+修改同时匹配 `interrupt-controller@`，并改用 `if let Some(reg)`，避免没有 `reg` 属性的节点触发 `unwrap`。VisionFive2 的 `plic@...` 仍按原路径处理。
 
 修改后，QEMU 中的解析结果为：
 
@@ -47,11 +47,11 @@ Alien 只按节点名 `plic` 查找 PLIC。QEMU 的设备树节点名是 `interr
 PLIC: 0xc000000..0xc600000
 ```
 
-### 2.2 `0002-kernel-skip-missing-kallsyms.patch`
+### 2.2 kallsyms 缺失处理
 
 `ksym::init_kallsyms()` 原先无条件读取 `/tests/kallsyms`。文件不存在时 `read_all` 返回空缓冲区，随后 `KallsymsMapped::from_blob` 失败并 panic。
 
-补丁在读取失败时打印提示并返回，不中断启动：
+修改后，读取失败时打印提示并返回，不中断启动：
 
 ```text
 kallsyms not found, skip symbol mapping
@@ -61,18 +61,9 @@ kallsyms not found, skip symbol mapping
 
 ## 3. 构建与运行
 
-### 3.1 源码位置与补丁
+### 3.1 源码位置
 
-Alien 源码已放入仓库根目录的 `alien/`，三个补丁已经包含在源码中。日常构建不再需要克隆或应用补丁。
-
-需要从上游重建参考树时，才使用：
-
-```bash
-nix develop
-./scripts/alien/apply-patches.sh /tmp/opencode/alien-reference
-```
-
-脚本会克隆 Alien、检出提交 `181b263` 并应用 `docs/agents/alien/patches/` 中的补丁。
+Alien 源码已放入仓库根目录的 `alien/`。本地修改直接提交在该目录中，不单独维护补丁文件。日常构建不需要克隆上游或应用补丁。
 
 ### 3.2 构建
 

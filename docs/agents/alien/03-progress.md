@@ -10,15 +10,14 @@
 
 - 固定 Alien 提交 `181b263b` 与工具链 `nightly-2025-05-20`。
 - 清理 `init_rtc` 中的临时调试输出。
-- 保留两处必要修复并导出为补丁：
+- 保留两处必要修复：
   - QEMU PLIC 节点识别。
   - kallsyms 缺失时跳过符号映射。
 - 新增构建与运行脚本：
-  - `scripts/alien/apply-patches.sh`
   - `scripts/alien/build-qemu.sh`
   - `scripts/alien/run-qemu.sh`
 - k3 仓库 devShell 增加 Alien 构建所需工具：`cpio`、`dosfstools`、`gzip`、`mtools`、`qemu`。
-- 在干净克隆上重新应用补丁、构建并启动 QEMU；临时克隆在验证后删除。
+- 在干净克隆上重新构建并启动 QEMU；临时克隆在验证后删除。
 - 验收输出出现 `Alien:/#`，日志中同时出现 `kallsyms not found, skip symbol mapping`，说明可选符号表路径有效。
 
 验收命令：
@@ -44,7 +43,6 @@ grep -aE 'Alien.*#|Init process is running' /tmp/opencode/alien-qemu.log
 - 无 UART 驱动时，用 SBI 控制台提供 `/dev/tty`。
 - 生成内嵌 initramfs、raw bin 与 FIT。
 - 新增 `scripts/alien/build-k3.sh`。
-- 新增补丁 `0003-k3-minimal-platform.patch`。
 
 验收结果：
 
@@ -56,7 +54,7 @@ Entry point       0x102200000
 Load address      0x102200000
 ```
 
-干净克隆应用三个补丁后构建成功。QEMU 基线回归通过，输出仍出现 `Alien:/#`。
+干净克隆验证阶段 1 改动后构建成功。QEMU 基线回归通过，输出仍出现 `Alien:/#`。
 
 详细记录见 `04-k3-minimal.md`。
 

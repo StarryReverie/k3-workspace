@@ -99,7 +99,7 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 - `subsystems/vfs/src/lib.rs`：为 `k3` 跳过 `/dev/sda` 与 `/tests` 的磁盘挂载。
 - `subsystems/vfs/src/initrd.rs`：允许从 initramfs 解出任意路径，而不只 `bin/` 与 `sbin/`。
 - `kernel/src/task/mod.rs`：初始进程仍读取 `/tests/init`，由 initramfs 提供。
-- `kernel/src/ksym.rs`：kallsyms 缺失时跳过，已由补丁 0002 完成。
+- `kernel/src/ksym.rs`：kallsyms 缺失时跳过，已由本地修改完成。
 
 ### 5.3 构建与镜像
 

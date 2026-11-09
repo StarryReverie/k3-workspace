@@ -7,7 +7,7 @@
 | 路径 | 内容 |
 |---|---|
 | `01-platform.md` 至 `05-os-options.md` | K3 平台模型、U-Boot、Alpine 修复与方案对比 |
-| `alien/` | AlienOS 调研、QEMU 基线、K3 移植计划与补丁 |
+| `alien/` | AlienOS 调研、QEMU 基线、K3 移植记录 |
 | `doc-conventions.md` | 文档与用语规范 |
 
 仓库根目录的 `alien/` 是 Alien 源码的 vendored 子集，不是工作记录。其来源与更新方式见 `alien/VENDORED.md`。
@@ -16,7 +16,7 @@
 
 - 一个主题一个子目录，入口使用 `README.md`。
 - 同一主题的阶段记录使用 `01-`、`02-` 前缀，按时间或阶段排序。
-- 补丁放入该主题的 `patches/`，日志节选放入 `logs/`。
+- 本地改动直接提交，不单独维护补丁目录；日志节选放入 `logs/`。
 - 关键版本、命令、验收结果与未验证项必须写入记录。
 - 不写口令、令牌、私钥与会话 cookie。
 - 临时试验产物不提交；需要复现时由脚本重新生成。
