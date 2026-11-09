@@ -1,5 +1,5 @@
 Alien QEMU baseline, 2026-11-09
-Source: /tmp/opencode/alien-clean-qemu.log
+Source: 阶段 0 QEMU 运行日志（临时文件，已删除）
 Note: excerpt only; ANSI escape sequences removed.
 
 OpenSBI v1.8.1

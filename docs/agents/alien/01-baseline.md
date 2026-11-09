@@ -61,23 +61,23 @@ kallsyms not found, skip symbol mapping
 
 ## 3. 构建与运行
 
-### 3.1 应用补丁
+### 3.1 源码位置与补丁
+
+Alien 源码已放入仓库根目录的 `alien/`，三个补丁已经包含在源码中。日常构建不再需要克隆或应用补丁。
+
+需要从上游重建参考树时，才使用：
 
 ```bash
 nix develop
-./scripts/alien/apply-patches.sh /tmp/opencode/Alien-clean
+./scripts/alien/apply-patches.sh /tmp/opencode/alien-reference
 ```
 
-脚本完成三件事：
-
-1. 克隆 Alien。
-2. 检出提交 `181b263`。
-3. 依次检查并应用 `docs/agents/alien/patches/` 中的补丁。
+脚本会克隆 Alien、检出提交 `181b263` 并应用 `docs/agents/alien/patches/` 中的补丁。
 
 ### 3.2 构建
 
 ```bash
-ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/build-qemu.sh
+./scripts/alien/build-qemu.sh
 ```
 
 构建脚本执行以下步骤：
@@ -99,18 +99,18 @@ ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/build-qemu.sh
 ### 3.3 运行
 
 ```bash
-ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/run-qemu.sh
+./scripts/alien/run-qemu.sh
 ```
 
 默认 60 秒后停止。需要交互时：
 
 ```bash
-ALIEN_DIR=/tmp/opencode/Alien-clean QEMU_TIMEOUT=0 ./scripts/alien/run-qemu.sh
+QEMU_TIMEOUT=0 ./scripts/alien/run-qemu.sh
 ```
 
 ## 4. 验收结果
 
-在干净克隆 `/tmp/opencode/Alien-clean` 上执行构建与启动，结果为：
+阶段 0 当时在干净克隆上执行构建与启动；现在使用仓库内 `alien/` 可直接复现。结果为：
 
 ```text
 [0] Init filesystem success
@@ -133,8 +133,8 @@ Alien:/#
 
 - 该基线只验证 QEMU。K3 的内存布局、SBI 实现、启动协议与外设均未验证。
 - QEMU 的 `-drive file=fat:rw:<目录>` 方式不可用。Alien 的 FAT 驱动读到无效的 BPB，报 `invalid bytes_per_sector`。必须使用真实的 FAT32 镜像。
-- 内核仍默认从 `/dev/sda` 挂载 `/tests`，因此 QEMU 必须提供 virtio-blk 磁盘。
-- initramfs 只填充 `/bin` 与 `/sbin`，不提供 `/tests/init`。
+- 内核仍需要 `/dev/sda` 提供 `/tests/init`；QEMU 基线没有把 init 放进 initramfs。
+- QEMU 基线的 initramfs 只包含 `/bin`，`/tests/init` 来自 FAT 磁盘。
 - `init` 固定执行 `/tests/bash`，磁盘中必须提供静态 bash。
 - 当前 `initramfs.cpio.gz` 约 770 KiB，FAT 镜像固定 72 MiB。
 - `gen_ksym` 不存在时跳过符号表，panic 回溯只有地址。
@@ -144,10 +144,7 @@ Alien:/#
 ```bash
 cd /home/starryreverie/userdata/development/k3
 nix develop
-rm -rf /tmp/opencode/Alien-clean
-./scripts/alien/apply-patches.sh /tmp/opencode/Alien-clean
-ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/build-qemu.sh
-ALIEN_DIR=/tmp/opencode/Alien-clean QEMU_TIMEOUT=30 \
-  ./scripts/alien/run-qemu.sh > /tmp/opencode/alien-qemu.log 2>&1
+./scripts/alien/build-qemu.sh
+QEMU_TIMEOUT=30 ./scripts/alien/run-qemu.sh > /tmp/opencode/alien-qemu.log 2>&1
 grep -aE 'Alien.*#|Init process is running' /tmp/opencode/alien-qemu.log
 ```

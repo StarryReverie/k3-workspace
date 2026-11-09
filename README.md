@@ -57,6 +57,9 @@ ostool board connect -b BananaPi
 | `docs/agents/03-pitfalls.md` | 实测坑位合并表 |
 | `docs/agents/04-k3-findings.md` | 工作记录：双板镜像、Alpine rootfs、串口/输入问题、Rust 交叉编译、当前恢复状态 |
 | `docs/agents/05-os-options.md` | 工作记录：OS 修复方案汇总：原地补 OpenRC、官方 rootfs、Debian、NixOS、initramfs、Yocto |
+| `docs/agents/alien/` | AlienOS 调研、QEMU 基线、K3 移植记录与补丁 |
+| `alien/` | Alien 源码的 vendored 子集，来源见 `alien/VENDORED.md` |
+| `scripts/alien/` | Alien 的 QEMU 基线、K3 镜像构建与运行脚本 |
 | `board/install.sh` | 板端增量安装脚本：OpenRC + getty + DHCP + sshd + chrony |
 | `board/README.md` | 离线 bundle 的构建与板端执行说明 |
 | `scripts/build-offline-bundle.sh` | 生成 `dist/k3-offline.tar.gz` 离线安装包 |

@@ -13,9 +13,13 @@ use random::RandomDevice;
 use spin::Lazy;
 use vfscore::{
     dentry::VfsDentry,
+    error::VfsError,
+    file::VfsFile,
     fstype::VfsFsType,
-    inode::VfsInode,
-    utils::{VfsNodeType, VfsTimeSpec},
+    inode::{InodeAttr, VfsInode},
+    superblock::VfsSuperBlock,
+    utils::{VfsFileStat, VfsNodeType, VfsTimeSpec},
+    VfsResult,
 };
 
 mod null;
@@ -73,6 +77,64 @@ impl DeviceIdManager {
         let id = self.map.entry(inode_type.to_u32()).or_insert(0);
         *id += 1;
         DeviceId::new(inode_type.to_u32(), *id)
+    }
+}
+
+/// 在没有 UART 驱动时，用 SBI 控制台提供 /dev/tty。
+struct SbiConsoleDevice {
+    device_id: DeviceId,
+}
+
+impl SbiConsoleDevice {
+    fn new(device_id: DeviceId) -> Self {
+        Self { device_id }
+    }
+
+    fn device_id(&self) -> DeviceId {
+        self.device_id
+    }
+}
+
+impl VfsFile for SbiConsoleDevice {
+    fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        loop {
+            let ch = platform::console_getchar();
+            if ch != '\0' && ch != '\u{ff}' {
+                buf[0] = if ch == '\r' { b'\n' } else { ch as u8 };
+                return Ok(1);
+            }
+            core::hint::spin_loop();
+        }
+    }
+
+    fn write_at(&self, _offset: u64, buf: &[u8]) -> VfsResult<usize> {
+        let text = core::str::from_utf8(buf).unwrap_or("");
+        platform::console::console_write(text);
+        Ok(buf.len())
+    }
+}
+
+impl VfsInode for SbiConsoleDevice {
+    fn get_super_block(&self) -> VfsResult<Arc<dyn VfsSuperBlock>> {
+        Err(VfsError::NoSys)
+    }
+
+    fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
+        Ok(())
+    }
+
+    fn get_attr(&self) -> VfsResult<VfsFileStat> {
+        Ok(VfsFileStat {
+            st_rdev: self.device_id.id(),
+            ..Default::default()
+        })
+    }
+
+    fn inode_type(&self) -> VfsNodeType {
+        VfsNodeType::CharDevice
     }
 }
 
@@ -252,4 +314,17 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         info!("uart device id: {}", uart_device.device_id().id());
         register_device(uart_device);
     });
+    if UART_DEVICE.get().is_none() {
+        let sbi_console =
+            Arc::new(SbiConsoleDevice::new(alloc_device_id(VfsNodeType::CharDevice)));
+        root.create(
+            "tty",
+            VfsNodeType::CharDevice,
+            "rw-rw-rw-".into(),
+            Some(sbi_console.device_id().id()),
+        )
+        .unwrap();
+        register_device(sbi_console);
+        info!("sbi console device registered");
+    }
 }

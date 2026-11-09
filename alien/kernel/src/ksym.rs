@@ -18,7 +18,10 @@ pub fn init_kallsyms() {
     let etext = srodata as usize;
 
     let mut buf = Vec::new();
-    read_all("/tests/kallsyms", &mut buf);
+    if !read_all("/tests/kallsyms", &mut buf) {
+        println!("kallsyms not found, skip symbol mapping");
+        return;
+    }
     let buf = buf.leak();
 
     let ksym = ksym::KallsymsMapped::from_blob(buf, stext as u64, etext as u64)

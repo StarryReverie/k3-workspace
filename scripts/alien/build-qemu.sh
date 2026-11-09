@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # Build the Alien kernel and a minimal QEMU disk/initramfs.
 #
-# Required:
-#   ALIEN_DIR   path to an Alien checkout with the patches from
-#               docs/agents/alien/patches/ applied
-#
 # Optional:
+#   ALIEN_DIR   Alien source directory (default: <workspace>/alien)
 #   OUT_DIR     output directory (default: $ALIEN_DIR/out-qemu)
 #
 # The script does not use the Alien Makefile. It builds the kernel
@@ -15,10 +12,10 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-ALIEN_DIR=${ALIEN_DIR:-}
-if [ -z "$ALIEN_DIR" ]; then
-    echo "ALIEN_DIR is required" >&2
-    echo "example: ALIEN_DIR=/tmp/opencode/Alien $0" >&2
+ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien}
+if [ ! -d "$ALIEN_DIR" ]; then
+    echo "Alien source not found: $ALIEN_DIR" >&2
+    echo "set ALIEN_DIR to a different checkout if needed" >&2
     exit 2
 fi
 ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
@@ -101,4 +98,4 @@ echo "  $OUT_DIR/sdcard.img"
 echo "  $OUT_DIR/initramfs.cpio.gz"
 echo
 echo "run:"
-echo "  ALIEN_DIR=$ALIEN_DIR OUT_DIR=$OUT_DIR $ROOT/scripts/alien/run-qemu.sh"
+echo "  $ROOT/scripts/alien/run-qemu.sh"

@@ -100,7 +100,7 @@ FIT 不包含 DTB 与 ramdisk。内核内嵌 initramfs，第一版不解析设�
 
 ```bash
 nix develop
-ALIEN_DIR=/tmp/opencode/Alien-k3 ./scripts/alien/build-k3.sh
+./scripts/alien/build-k3.sh
 ```
 
 构建顺序与 QEMU 基线不同：
@@ -156,7 +156,7 @@ Alien:/#
 
 ## 7. 干净克隆验证
 
-从 `181b263` 克隆，依次应用：
+阶段 1 当时从 `181b263` 克隆，依次应用：
 
 ```text
 0001-platform-detect-plic-node.patch
@@ -165,6 +165,8 @@ Alien:/#
 ```
 
 构建成功，FIT 的加载地址与入口均为 `0x102200000`。
+
+这三个补丁现在已包含在仓库根目录的 `alien/` 中；日常构建直接使用该目录。
 
 ## 8. 已知限制
 

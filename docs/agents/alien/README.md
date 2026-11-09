@@ -33,26 +33,36 @@
 | `patches/` | 相对 Alien 提交 `181b263` 的补丁 |
 | `logs/` | 关键日志节选 |
 
+## 源码位置
+
+Alien 源码已放入仓库根目录的 `alien/`，不含 `.git`。上游 commit 与裁剪范围见
+`alien/VENDORED.md`。
+
 ## 快速使用
 
 ```bash
 # 在 k3 仓库根目录，进入 devShell
 nix develop
 
-# 克隆 Alien、检出固定提交并应用补丁
-./scripts/alien/apply-patches.sh /tmp/opencode/Alien-clean
-
 # 构建 QEMU 基线
-ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/build-qemu.sh
+./scripts/alien/build-qemu.sh
 
 # 构建 K3 最小镜像
-ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/build-k3.sh
+./scripts/alien/build-k3.sh
 
 # 启动 QEMU，默认 60 秒后停止
-ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/run-qemu.sh
+./scripts/alien/run-qemu.sh
 
 # 不自动停止
-ALIEN_DIR=/tmp/opencode/Alien-clean QEMU_TIMEOUT=0 ./scripts/alien/run-qemu.sh
+QEMU_TIMEOUT=0 ./scripts/alien/run-qemu.sh
 ```
+
+需要改用其他 Alien 源码目录时，设置 `ALIEN_DIR`：
+
+```bash
+ALIEN_DIR=/path/to/alien ./scripts/alien/build-k3.sh
+```
+
+`apply-patches.sh` 只用于从上游重建参考树，不再参与日常构建。
 
 `build-qemu.sh` 不使用 Alien 自带的 Makefile。该 Makefile 依赖 `sudo mount`、交互式 BusyBox 配置与 `gen_ksym`，不适合当前环境。

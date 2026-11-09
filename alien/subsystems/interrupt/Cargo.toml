@@ -19,3 +19,4 @@ platform  = { path = "../platform"}
 vf2 = []
 hifive = []
 qemu = []
+k3 = []

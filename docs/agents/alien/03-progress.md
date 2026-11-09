@@ -18,17 +18,15 @@
   - `scripts/alien/build-qemu.sh`
   - `scripts/alien/run-qemu.sh`
 - k3 仓库 devShell 增加 Alien 构建所需工具：`cpio`、`dosfstools`、`gzip`、`mtools`、`qemu`。
-- 在干净克隆 `/tmp/opencode/Alien-clean` 上重新应用补丁、构建并启动 QEMU。
+- 在干净克隆上重新应用补丁、构建并启动 QEMU；临时克隆在验证后删除。
 - 验收输出出现 `Alien:/#`，日志中同时出现 `kallsyms not found, skip symbol mapping`，说明可选符号表路径有效。
 
 验收命令：
 
 ```bash
 nix develop
-./scripts/alien/apply-patches.sh /tmp/opencode/Alien-clean
-ALIEN_DIR=/tmp/opencode/Alien-clean ./scripts/alien/build-qemu.sh
-ALIEN_DIR=/tmp/opencode/Alien-clean QEMU_TIMEOUT=30 \
-  ./scripts/alien/run-qemu.sh > /tmp/opencode/alien-qemu.log 2>&1
+./scripts/alien/build-qemu.sh
+QEMU_TIMEOUT=30 ./scripts/alien/run-qemu.sh > /tmp/opencode/alien-qemu.log 2>&1
 grep -aE 'Alien.*#|Init process is running' /tmp/opencode/alien-qemu.log
 ```
 
@@ -58,9 +56,20 @@ Entry point       0x102200000
 Load address      0x102200000
 ```
 
-干净克隆 `/tmp/opencode/Alien-k3test` 应用三个补丁后构建成功。QEMU 基线回归通过，输出仍出现 `Alien:/#`。
+干净克隆应用三个补丁后构建成功。QEMU 基线回归通过，输出仍出现 `Alien:/#`。
 
 详细记录见 `04-k3-minimal.md`。
+
+### 源码 vendor
+
+状态：完成。
+
+- 将 Alien 必要源码复制到仓库根目录 `alien/`，不包含 `.git`。
+- 上游 commit：`181b263bbcaeb3e75340f7b1a3fd224ec4757b7e`。
+- 保留核心源码、K3 与 QEMU 链接脚本、FIT 源文件，以及三个构建所需测试程序。
+- 不包含 `docs/`、`assert/`、完整测试集与其他板型工具。
+- `alien/VENDORED.md` 记录 commit、范围和更新方式。
+- 构建脚本默认使用 `alien/`，不再依赖 `/tmp`。
 
 ### 阶段 2：QEMU 回归验证 K3 平台代码
 

@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # Run the QEMU baseline built by build-qemu.sh.
 #
-# Required:
-#   ALIEN_DIR     path to the Alien checkout (used to locate the default OUT_DIR)
-#
 # Optional:
+#   ALIEN_DIR     Alien source directory (default: <workspace>/alien)
 #   OUT_DIR       output directory (default: $ALIEN_DIR/out-qemu)
 #   QEMU_TIMEOUT  seconds before stopping QEMU (default: 60, 0 disables)
 
 set -euo pipefail
 
-ALIEN_DIR=${ALIEN_DIR:-}
-if [ -z "$ALIEN_DIR" ]; then
-    echo "ALIEN_DIR is required" >&2
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien}
+if [ ! -d "$ALIEN_DIR" ]; then
+    echo "Alien source not found: $ALIEN_DIR" >&2
     exit 2
 fi
 ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)

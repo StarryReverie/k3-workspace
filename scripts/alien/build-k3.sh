@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # Build the minimal Alien image for SpacemiT K3.
 #
-# Required:
-#   ALIEN_DIR   path to an Alien checkout with the K3 workspace patches applied
-#
 # Optional:
+#   ALIEN_DIR   Alien source directory (default: <workspace>/alien)
 #   OUT_DIR     output directory (default: $ALIEN_DIR/out-k3)
 #
 # The kernel embeds the initramfs. The initramfs is created before the
@@ -14,10 +12,10 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-ALIEN_DIR=${ALIEN_DIR:-}
-if [ -z "$ALIEN_DIR" ]; then
-    echo "ALIEN_DIR is required" >&2
-    echo "example: ALIEN_DIR=/tmp/opencode/Alien-k3 $0" >&2
+ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien}
+if [ ! -d "$ALIEN_DIR" ]; then
+    echo "Alien source not found: $ALIEN_DIR" >&2
+    echo "set ALIEN_DIR to a different checkout if needed" >&2
     exit 2
 fi
 ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)

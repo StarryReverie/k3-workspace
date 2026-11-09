@@ -1,0 +1,34 @@
+/*
+ * U-Boot FIT source for Alien on SpacemiT K3.
+ *
+ * The kernel embeds its initramfs and does not parse a device tree in
+ * the first minimal version.
+ */
+
+/dts-v1/;
+
+/ {
+    description = "U-Boot FIT image for Alien on SpacemiT K3";
+    #address-cells = <2>;
+
+    images {
+        kernel {
+            description = "Alien kernel for SpacemiT K3";
+            data = /incbin/("../alien-k3.bin");
+            type = "kernel";
+            arch = "riscv";
+            os = "linux";
+            compression = "none";
+            load = <0x1 0x02200000>;
+            entry = <0x1 0x02200000>;
+        };
+    };
+
+    configurations {
+        default = "conf";
+        conf {
+            description = "Boot Alien on SpacemiT K3";
+            kernel = "kernel";
+        };
+    };
+};

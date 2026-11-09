@@ -53,8 +53,10 @@ fn main(hart_id: usize) {
         let machine_info = platform_machine_info();
         println!("{:#?}", machine_info);
         mem::init_memory_system(machine_info.memory.end, true);
+        #[cfg(not(feature = "k3"))]
         interrupt::init_plic(machine_info.plic.start);
         shim::register_task_func(Box::new(DriverTaskImpl));
+        #[cfg(not(feature = "k3"))]
         devices::init_device();
         vfs::init_filesystem().expect("init filesystem failed");
         ksym::init_kallsyms();

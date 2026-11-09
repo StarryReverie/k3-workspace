@@ -23,6 +23,11 @@ pub fn init_plic(plic_addr: usize) {
         PLIC.call_once(|| plic);
         println!("Init qemu plic success");
     }
+    #[cfg(feature = "k3")]
+    {
+        let _ = plic_addr;
+        println!("K3: PLIC init skipped");
+    }
     #[cfg(any(feature = "vf2", feature = "hifive"))]
     {
         let mut privileges = [2; CPU_NUM];

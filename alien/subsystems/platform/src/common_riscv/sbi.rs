@@ -34,23 +34,57 @@ fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> i32 {
 
 /// 设置定时器
 pub fn set_timer(time: usize) {
-    sbi_call(SBI_SET_TIMER, time, 0, 0);
+    let ret = sbi_call_3(EXTENSION_TIMER, FUNCTION_TIMER_SET_TIMER, time, 0, 0);
+    if ret.error != 0 {
+        sbi_call(SBI_SET_TIMER, time, 0, 0);
+    }
 }
 
 pub fn system_shutdown() -> ! {
-    sbi_call(SBI_SHUTDOWN, 0, 0, 0);
+    let ret = sbi_call_3(
+        EXTENSION_SRST,
+        FUNCTION_SRST_SYSTEM_RESET,
+        0, // shutdown
+        0, // no reason
+        0,
+    );
+    if ret.error != 0 {
+        sbi_call(SBI_SHUTDOWN, 0, 0, 0);
+    }
     loop {}
 }
 
 /// Warp sbi SBI_CONSOLE_PUT_CHAR  call
 pub fn console_putchar(ch: u8) {
-    sbi_call(SBI_CONSOLE_PUT_CHAR, ch as usize, 0, 0);
+    let buf = [ch];
+    let ret = sbi_call_3(
+        EXTENSION_DBCN,
+        FUNCTION_DBCN_WRITE,
+        1,
+        buf.as_ptr() as usize,
+        0,
+    );
+    if ret.error != 0 || ret.value <= 0 {
+        sbi_call(SBI_CONSOLE_PUT_CHAR, ch as usize, 0, 0);
+    }
 }
 
 /// Warp sbi SBI_CONSOLE_GET_CHAR  call
 #[allow(unused)]
 pub fn console_getchar() -> char {
-    sbi_call(SBI_CONSOLE_GET_CHAR, 0, 0, 0) as u8 as char
+    let mut buf = [0u8; 1];
+    let ret = sbi_call_3(
+        EXTENSION_DBCN,
+        FUNCTION_DBCN_READ,
+        1,
+        buf.as_mut_ptr() as usize,
+        0,
+    );
+    if ret.error == 0 && ret.value == 1 {
+        buf[0] as char
+    } else {
+        sbi_call(SBI_CONSOLE_GET_CHAR, 0, 0, 0) as u8 as char
+    }
 }
 
 /// sbi调用返回值
@@ -71,7 +105,19 @@ pub const EXTENSION_TIMER: usize = 0x54494D45;
 // pub const EXTENSION_RFENCE: usize = 0x52464E43;
 /// SBI HSM 扩展
 pub const EXTENSION_HSM: usize = 0x48534D;
-// pub const EXTENSION_SRST: usize = 0x53525354;
+/// SBI 系统复位扩展
+pub const EXTENSION_SRST: usize = 0x53525354;
+/// SBI 调试控制台扩展
+pub const EXTENSION_DBCN: usize = 0x4442434E;
+
+/// SBI TIME 扩展的设置定时器功能
+const FUNCTION_TIMER_SET_TIMER: usize = 0;
+/// SBI SRST 扩展的系统复位功能
+const FUNCTION_SRST_SYSTEM_RESET: usize = 0;
+/// SBI DBCN 扩展的写入功能
+const FUNCTION_DBCN_WRITE: usize = 0;
+/// SBI DBCN 扩展的读取功能
+const FUNCTION_DBCN_READ: usize = 2;
 
 /// SBI HSM扩展的启动cpu功能
 const FUNCTION_HSM_HART_START: usize = 0x0;

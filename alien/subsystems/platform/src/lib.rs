@@ -7,6 +7,7 @@ mod common_riscv;
 #[cfg(feature = "hifive")]
 mod hifive_riscv;
 
+#[cfg(feature = "smp")]
 use ::config::CPU_NUM;
 pub use common_riscv::basic::MachineInfo as PlatformInfo;
 use spin::Once;
@@ -16,21 +17,29 @@ pub mod logging;
 mod qemu_riscv;
 #[cfg(feature = "vf2")]
 mod starfive2_riscv;
+#[cfg(feature = "k3_riscv")]
+mod k3_riscv;
 
 #[cfg(feature = "hifive")]
 use hifive_riscv::{basic_machine_info, console_putchar};
 #[cfg(feature = "hifive")]
-pub use hifive_riscv::{config, set_timer, system_shutdown};
+pub use hifive_riscv::{config, console_getchar, set_timer, system_shutdown};
 #[cfg(feature = "qemu_riscv")]
 use qemu_riscv::{basic_machine_info, console_putchar};
 #[cfg(feature = "qemu_riscv")]
-pub use qemu_riscv::{config, set_timer, system_shutdown};
+pub use qemu_riscv::{config, console_getchar, set_timer, system_shutdown};
 #[cfg(feature = "vf2")]
 use starfive2_riscv::{basic_machine_info, console_putchar};
 #[cfg(feature = "vf2")]
-pub use starfive2_riscv::{config, set_timer, system_shutdown};
+pub use starfive2_riscv::{config, console_getchar, set_timer, system_shutdown};
+#[cfg(feature = "k3_riscv")]
+use k3_riscv::{basic_machine_info, console_putchar};
+#[cfg(feature = "k3_riscv")]
+pub use k3_riscv::{config, console_getchar, set_timer, system_shutdown};
 
-use crate::{common_riscv::sbi::hart_start, console::PrePrint};
+use crate::console::PrePrint;
+#[cfg(feature = "smp")]
+use crate::common_riscv::sbi::hart_start;
 
 #[no_mangle]
 pub fn platform_init(hart_id: usize, _dtb: usize) {
@@ -39,6 +48,8 @@ pub fn platform_init(hart_id: usize, _dtb: usize) {
     hifive_riscv::init_dtb(None);
     #[cfg(feature = "vf2")]
     starfive2_riscv::init_dtb(None);
+    #[cfg(feature = "k3_riscv")]
+    k3_riscv::init_dtb(Some(_dtb));
     #[cfg(feature = "qemu_riscv")]
     qemu_riscv::init_dtb(Some(_dtb));
     let machine_info = basic_machine_info();
@@ -54,6 +65,7 @@ pub fn platform_init(hart_id: usize, _dtb: usize) {
 ///
 /// 对于qemu来说，只需要工具所有的核都是一样的，因此从严号核开始唤醒。
 /// 对于visionfive2/unmatched 来说，0号核只有M态，因此不进行唤醒
+#[cfg(feature = "smp")]
 fn init_other_hart(hart_id: usize) {
     let start_hart = if cfg!(any(feature = "vf2", feature = "hifive")) {
         1
@@ -80,6 +92,8 @@ pub fn platform_dtb_ptr() -> usize {
     return *starfive2_riscv::DTB.get().unwrap();
     #[cfg(feature = "qemu_riscv")]
     return *qemu_riscv::DTB.get().unwrap();
+    #[cfg(feature = "k3_riscv")]
+    return *k3_riscv::DTB.get().unwrap();
 }
 
 static MACHINE_INFO: Once<PlatformInfo> = Once::new();

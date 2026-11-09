@@ -10,6 +10,8 @@
 | `alien/` | AlienOS 调研、QEMU 基线、K3 移植计划与补丁 |
 | `doc-conventions.md` | 文档与用语规范 |
 
+仓库根目录的 `alien/` 是 Alien 源码的 vendored 子集，不是工作记录。其来源与更新方式见 `alien/VENDORED.md`。
+
 ## 新增主题的约定
 
 - 一个主题一个子目录，入口使用 `README.md`。

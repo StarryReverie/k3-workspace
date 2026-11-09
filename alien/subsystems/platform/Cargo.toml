@@ -19,4 +19,5 @@ fdt = { git = "https://github.com/repnop/fdt" }
 qemu_riscv = []
 vf2 = []
 hifive = []
+k3_riscv = []
 smp = []

@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
-# Clone Alien at the pinned commit and apply the K3 workspace patches.
+# Rebuild a reference Alien tree from upstream and apply the K3 workspace
+# patches. The repository already contains the vendored source in alien/;
+# this script is only for reproducing that source from upstream.
 #
 # Usage:
 #   ./scripts/alien/apply-patches.sh [destination]
 #
-# Default destination: $ALIEN_DIR, or <workspace>/../Alien if unset.
+# Default destination: $ALIEN_DIR, or <workspace>/../alien-upstream if unset.
 
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-DEST=${1:-${ALIEN_DIR:-$ROOT/../Alien}}
+DEST=${1:-${ALIEN_DIR:-$ROOT/../alien-upstream}}
 COMMIT=181b263
+
+case "$DEST" in
+    "$ROOT/alien"|"$ROOT/alien/")
+        echo "alien/ is the vendored source tree; choose an external destination" >&2
+        exit 2
+        ;;
+esac
 
 if [ ! -d "$DEST/.git" ]; then
     echo "cloning Alien into $DEST"

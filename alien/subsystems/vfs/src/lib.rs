@@ -17,7 +17,12 @@ use ksync::Mutex;
 use spin::{Lazy, Once};
 #[cfg(feature = "ext")]
 use vfscore::inode::VfsInode;
-use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, utils::VfsTimeSpec};
+use vfscore::{
+    dentry::VfsDentry,
+    fstype::VfsFsType,
+    path::VfsPath,
+    utils::{VfsInodeMode, VfsTimeSpec},
+};
 
 use crate::dev::DevFsProviderImpl;
 pub mod dev;
@@ -106,6 +111,7 @@ fn register_all_fs() {
         CommonFsProviderImpl,
     ));
 
+    #[cfg(any(feature = "fat", feature = "ext"))]
     FS.lock().insert("diskfs".to_string(), diskfs);
 
     println!("register fs success");
@@ -140,16 +146,30 @@ pub fn init_filesystem() -> AlienResult<()> {
         .i_mount(0, "/dev/shm", None, &[])?;
     path.join("dev/shm")?.mount(shm_ramfs, 0)?;
 
+    #[cfg(any(feature = "fat", feature = "ext"))]
     let diskfs = FS.lock().index("diskfs").clone();
-    let blk_inode = path
-        .join("/dev/sda")?
-        .open(None)
-        .expect("open /dev/sda failed")
-        .inode()?;
+    let tests_path = path.join("tests")?;
+    tests_path.open(Some(VfsInodeMode::from_bits_truncate(0o040755)))?;
 
-    let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
-    path.join("tests")?.mount(diskfs_root, 0)?;
-    println!("mount fs success");
+    #[cfg(any(feature = "fat", feature = "ext"))]
+    {
+        let block = path
+            .join("/dev/sda")
+            .ok()
+            .and_then(|p| p.open(None).ok());
+        if let Some(block) = block {
+            let blk_inode = block.inode()?;
+            let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
+            tests_path.mount(diskfs_root, 0)?;
+            println!("mount fs success");
+        } else {
+            println!("no block device, skip /tests disk mount");
+        }
+    }
+    #[cfg(not(any(feature = "fat", feature = "ext")))]
+    {
+        println!("no disk filesystem feature, skip /tests disk mount");
+    }
 
     vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), false)
         .unwrap();
