@@ -117,12 +117,32 @@ BananaPi 常用地址：
 
 这些地址必须与服务端板卡配置一致，不要从其他板型复制。
 
+### 5.1 Alien K3 FIT
+
+Alien 的 FIT 不含 FDT 节点，`bootm` 必须显式传入 U-Boot 控制设备树：
+
+```text
+printenv fdtcontroladdr
+tftpboot 0x140000000 ostool/sessions/<SESSION_ID>/boot/alien-k3-diag.itb
+bootm 0x140000000 - $fdtcontroladdr
+```
+
+省略第三个参数会报：
+
+```text
+Device tree not found or missing FDT support
+### ERROR ### Please RESET the board ###
+```
+
+自动化脚本见 `scripts/alien/boot-k3-board.py`。
+
 ## 6. 判断启动进度
 
 | 日志 | 含义 |
 |---|---|
 | `Bytes transferred = ...` | TFTP 传输完成 |
 | `Starting kernel ...` | U-Boot 已跳转，不代表内核已起来 |
+| `K3_BOOT_OK` | Alien K3 诊断镜像已运行到用户态 init |
 | `root@starry:` | StarryOS shell 就绪 |
 | `EQOS_DMA_MODE_SWR stuck` | 网卡 DMA 复位失败，通常重连（重新上电）可恢复 |
 

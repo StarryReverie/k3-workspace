@@ -1,0 +1,72 @@
+Alien K3 first board boot, 2026-11-10
+Board: BananaPi-1 / BPI-SM10, U-Boot 2022.10, 8 GiB DRAM
+Image: alien-k3-diag.itb, diagnostic initramfs without bash
+Note: excerpt only; ANSI escape sequences and U-Boot timestamps removed.
+
+=> bootm 0x140000000 - $fdtcontroladdr
+## Loading kernel from FIT Image at 140000000 ...
+   Using 'conf' configuration
+   Trying 'kernel' kernel subimage
+     Description:  Alien kernel for SpacemiT K3
+     Type:         Kernel Image
+     Compression:  uncompressed
+     Architecture: RISC-V
+     OS:           Linux
+     Load Address: 0x102200000
+     Entry Point:  0x102200000
+   Verifying Hash Integrity ... OK
+## Flattened Device Tree blob at 2fbe903c0
+   Booting using the fdt blob at 0x2fbe903c0
+   Loading Kernel Image
+   Loading Device Tree to 00000002fbd6f000, end 00000002fbd809bf ... OK
+
+Starting kernel ...
+
+[0] Boot hart 0
+[0] This is a device tree representation of a SpacemiT K3 machine
+SMP:    1
+Memory: 0x102000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0x0..0x0
+Initrd: Some(
+    0x102342003..0x102406d5b,
+)
+Bootargs: None
+[0] Page start:0x12248e,end:0x300000,count:0x1ddb72
+[0] Bitmap manage 1956662 pages using 60 pages
+[0] Frame allocator init success
+[0] Relocate initrd data to 0x00000001224ca000
+[0] Talloc allocator init success
+[0] kernel text:          0x102200000-0x102340000
+[0] kernel rodata:        0x102340000-0x102471000
+[0] kernel init_array:    0x102471000-0x102471470
+[0] kernel data:          0x102471000-0x122485000
+[0] kernel bss:           0x102485000-0x10248e000
+[0] kernel heap:          0x10248e000-0x300000000
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] no disk filesystem feature, skip /tests disk mount
+drwxr-xr-x      4KB root
+drwxr-xr-x      4KB var
+drwxr-xr-x      4KB etc
+drwxr-xr-x      4KB dev
+drwxr-xr-x      4KB proc
+drwxr-xr-x      4KB sys
+drwxrwxrwx      4KB tmp
+drwxr-xr-x      4KB tests
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] Init task success
+[0] Begin run task...
+[0] kthread_init start...
+Init process is running
+K3_BOOT_OK

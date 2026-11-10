@@ -11,3 +11,5 @@
 - `2026-11-09-qemu-baseline.txt`：Alien QEMU 基线启动日志。
 - `2026-11-09-k3-build.txt`：K3 最小镜像的构建与静态检查节选。
 - `2026-11-09-k3-qemu.txt`：K3 平台代码的 QEMU 回归日志。
+- `2026-11-10-k3-high-qemu.txt`：真实 K3 ELF 在 10 GiB QEMU 上的高地址回归。
+- `2026-11-10-k3-board-boot.txt`：K3 诊断镜像的首次上板启动日志。

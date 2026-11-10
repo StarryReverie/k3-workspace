@@ -67,13 +67,27 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 | FIT 加载 | `0x140000000` |
 | `bootm` | `0x140000000` |
 
+阶段 3 在 U-Boot 中读取控制设备树，确认了以下事实：
+
+| 项目 | 值 |
+|---|---|
+| `timebase-frequency` | `0x016e3600`，即 24 MHz |
+| UART | `ns16550`，基址 `0xd4017000`，长度 `0x100`，`clock-frequency = 0x00e10000` |
+| 控制台 | `stdout-path = "uart0:115200"` |
+| APLIC | `0xf1800000`、`0xe0804000`，均为 `status = "disabled"` |
+| IMSIC | `0xf1000000`、`0xe0400000` |
+| 内存节点 | `0x100000000..0x300000000` |
+| `fdtcontroladdr` | 每次启动变化，本次为 `0x2fbe903c0` |
+
+因此 K3 的外部中断路径应基于 IMSIC，不能按 PLIC 处理。第一版仍未初始化中断控制器。
+
 ### 4.2 来自公开资料
 
 - K3 包含 8 个 X100 通用核与 8 个 A100 AI 核。
 - Linux 会枚举 16 个 hart，A100 也以 CPU 形式出现。
 - 支持 RVV 1.0、Hypervisor 扩展与 RVA23。
 - 板载 8、16 或 32 GiB LPDDR5。
-- 主线 Linux 已加入 K3 SoC 与部分板型设备树，可作为 UART、PLIC、时间基准的参考。
+- 主线 Linux 已加入 K3 SoC 与部分板型设备树，可作为 UART、IMSIC/APLIC 与时间基准的参考。
 
 公开资料只用于确定方向；具体地址与中断号仍以板端设备树和实测为准。
 
@@ -90,7 +104,7 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 - 控制台使用 SBI DBCN。
 - 定时器使用 SBI TIME。
 - 关机使用 SBI SRST。
-- 不解析 DTB，不初始化 PLIC。
+- 不解析 DTB，不初始化 PLIC、APLIC 或 IMSIC。
 - 不启动其他 hart，第一版保持单核。
 
 ### 5.2 内核侧改动
@@ -106,6 +120,7 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 - 新增 `tools/linker-k3.ld`，`BASE_ADDRESS = 0x102200000`。
 - 使用 `rust-objcopy` 或 `llvm-objcopy` 生成 raw bin。
 - 使用 FIT 镜像并通过 `bootm` 启动，确保 U-Boot 传递 hartid 与 DTB。
+- FIT 当前不含 FDT 节点，启动命令必须带 `$fdtcontroladdr` 作为第三个参数。
 - 不使用裸 `go`，因为无法保证 `a0` 与 `a1` 的取值。
 
 ### 5.4 启动流程
@@ -114,20 +129,34 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 ostool board connect
 → Ctrl+C 停在 U-Boot
 → tftpboot 0x140000000 alien-k3.itb
-→ bootm 0x140000000
+→ bootm 0x140000000 - $fdtcontroladdr
 ```
 
-## 6. 未确认事项
+当前 FIT 不含 FDT 节点。若省略第三个参数，U-Boot 会报
+`Device tree not found or missing FDT support` 并复位开发板。
+
+## 6. 已确认与待确认事项
+
+已确认：
+
+| 项目 | 结论 |
+|---|---|
+| 时间基准频率 | 24 MHz，`CLOCK_FREQ` 不需要修改 |
+| 中断控制器 | IMSIC；APLIC 节点存在但被禁用 |
+| UART | `ns16550`，基址 `0xd4017000`，控制台 `uart0:115200` |
+| 设备树来源 | U-Boot 控制设备树，地址由 `fdtcontroladdr` 给出 |
+| FIT 与 `bootm` | FIT 不含 FDT 时必须显式传入 FDT 地址 |
+| 高地址路径 | 真实硬件与 10 GiB QEMU 回归均可用 |
+
+仍需确认：
 
 | 项目 | 影响 | 处理方式 |
 |---|---|---|
-| 时间基准频率 | `CLOCK_FREQ` 错误会导致时间与调度 tick 不准 | 读取 K3 设备树 `timebase-frequency`，或用 `rdtime` 与墙钟比对 |
-| 中断控制器 | K3 可能使用 PLIC、APLIC 或 IMSIC | 查设备树与 Linux 启动日志；第一版不使用外部中断 |
-| UART 基址与中断号 | 影响交互输入 | 查设备树；必要时改用 SBI DBCN 轮询 |
-| 设备树来源 | 影响内存、UART、PLIC 解析 | 主线 K3 DTS 或板端 `/sys/firmware/fdt` |
-| OpenSBI 旧版 console | 若未启用，`console_putchar` 无输出 | 直接改用 SBI DBCN |
-| FIT 的 `load` 与 `entry` | 错误会导致跳转失败 | 生成后检查 FIT 属性与反汇编 |
-| 内存保留区 | 可能覆盖固件或 RCPU 区域 | 第一版只用 `0x102200000` 之后的内存 |
+| `0x01` 洪泛 | bash 启动后日志不可读 | 对比 bash 终端初始化与 SBI 控制台路径 |
+| SBI 控制台输入 | 交互未验证 | 验证 DBCN read 与旧版 getchar |
+| IMSIC 与 APLIC | 外部中断不可用 | 参考 Linux 设备树与 IMSIC 规范 |
+| SMP 启动 | 只使用一个 hart | 确认 A100 与 X100 的 HSM 启动方式 |
+| 长时间计时 | 调度精度未知 | 运行定时器与 `nanosleep` 测试 |
 
 ## 7. 风险
 

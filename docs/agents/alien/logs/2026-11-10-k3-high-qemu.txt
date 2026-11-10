@@ -1,0 +1,31 @@
+Alien K3 high-address QEMU check, 2026-11-10
+Source: /tmp/opencode/k3-high-qemu.log
+Setup: QEMU virt, 10 GiB RAM, real K3 ELF linked at 0x102200000.
+Note: excerpt only; ANSI escape sequences removed.
+
+OpenSBI v1.8.1
+Platform Name               : riscv-virtio,qemu
+Platform HART Count         : 1
+Platform HART Protection    : pmp
+
+[0] This is a device tree representation of a SpacemiT K3 machine
+SMP:    1
+Memory: 0x102000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0x0..0x0
+[0] Page start:0x12248e,end:0x300000,count:0x1ddb72
+[0] Frame allocator init success
+[0] Relocate initrd data to 0x00000001224ca000
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] no disk filesystem feature, skip /tests disk mount
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] Init task success
+[0] Begin run task...
+[0] kthread_init start...
+Init process is running
+K3_BOOT_OK

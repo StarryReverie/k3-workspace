@@ -9,9 +9,9 @@
 | 0 | 固定 Alien 版本、QEMU 可重复构建 | 完成，2026-11-09 |
 | 1 | K3 最小平台移植 | 完成，2026-11-09 |
 | 2 | QEMU 回归验证 K3 平台代码 | 完成，2026-11-09 |
-| 3 | 开发板首次启动 | 未开始 |
+| 3 | 开发板首次启动 | 完成，2026-11-10 |
 
-尚未连接开发板，尚未向开发板上传文件。
+诊断镜像已在 BananaPi-1 上启动到用户态 init，输出 `K3_BOOT_OK`。含 bash 的完整镜像尚未上板验证。
 
 ## 固定信息
 
@@ -31,6 +31,7 @@
 | `03-progress.md` | 阶段进度与待确认事项 |
 | `04-k3-minimal.md` | 阶段 1 的 K3 平台代码、镜像与静态验收 |
 | `05-k3-qemu.md` | 阶段 2 的 K3 平台 QEMU 回归 |
+| `06-k3-board-boot.md` | 阶段 3 的高地址回归、硬件采集与首次上板 |
 | `logs/` | 关键日志节选 |
 
 ## 源码位置
@@ -49,6 +50,15 @@ nix develop
 
 # 构建 K3 最小镜像
 ./scripts/alien/build-k3.sh
+
+# 构建不含 bash 的诊断镜像
+K3_DIAG=1 ./scripts/alien/build-k3.sh
+
+# 在 QEMU 上以 10 GiB 内存回归真实 K3 ELF
+QEMU_TIMEOUT=45 ./scripts/alien/run-k3-high-qemu.sh
+
+# 连接板卡、上传诊断镜像并启动
+./scripts/alien/boot-k3-board.py
 
 # 构建 K3 平台的 QEMU 回归镜像
 ./scripts/alien/build-k3-qemu.sh

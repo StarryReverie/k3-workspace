@@ -32,7 +32,7 @@ k3 = ["platform/k3_riscv", "interrupt/k3", "mem/initrd"]
 `subsystems/platform/src/k3_riscv/config.rs`：
 
 ```text
-CLOCK_FREQ  24_000_000     # 暂定值，待设备树或实测确认
+CLOCK_FREQ  24_000_000     # 阶段 3 已由设备树确认
 HEAP_SIZE   0x200_00000    # 512 MiB
 MMIO        []             # 第一版不使用外部设备
 ```
@@ -162,18 +162,18 @@ Alien:/#
 
 ## 8. 已知限制
 
-- 未在开发板上启动。
-- `CLOCK_FREQ` 使用暂定的 24 MHz，时间与调度 tick 可能不准。
-- 不解析设备树，UART、PLIC、APIC、IMSIC 的地址与中断号均未确认。
-- 未初始化 PLIC，外部中断不可用。
+- 阶段 3 已在开发板上启动诊断镜像；含 bash 的完整镜像尚未上板验证。
+- `CLOCK_FREQ` 已确认为 24 MHz。
+- 不解析设备树。UART 为 `ns16550@0xd4017000`，中断控制器为 IMSIC，APLIC 节点被禁用。
+- 未初始化 IMSIC 或 APLIC，外部中断不可用。
 - `/dev/tty` 的读取是忙等待轮询，不处理 termios、回显与行编辑。
 - 未启用 SMP，只使用启动 hart。
 - 未接入 UFS、SD、网卡。
-- FIT 不含 DTB。若 U-Boot 的 `bootm` 要求 FDT，需要补充设备树或确认控制 FDT 可用。
+- FIT 不含 FDT 节点，`bootm` 必须显式传入 `$fdtcontroladdr`。
 - 内核堆固定 512 MiB，后续可根据实际内存调整。
 
 ## 9. 下一步
 
-1. 建立 `k3-qemu` 变体，在 QEMU 上运行 K3 平台代码，验证 SBI 控制台与 initramfs。
-2. 确认 K3 的 `timebase-frequency` 与中断控制器类型。
-3. 上板使用 U-Boot `tftpboot` 与 `bootm` 启动 FIT。
+1. 在开发板上运行含 bash 的完整镜像，定位 `0x01` 洪泛。
+2. 验证 SBI 控制台输入路径。
+3. 确认 IMSIC 与 APLIC 的接入方式。

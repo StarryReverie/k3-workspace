@@ -98,10 +98,65 @@ K3_QEMU_INIT_OK
 
 已知问题：initramfs 包含 bash 时，执行 bash 后串口出现连续 0x01。阶段 2 通过不启动 bash 绕开，交互问题留到后续阶段。详细记录见 `05-k3-qemu.md`。
 
-### 待确认
+### 阶段 3：开发板首次启动
 
-- K3 的 `timebase-frequency`。当前使用暂定值 24 MHz。
-- K3 使用 PLIC、APLIC 还是 IMSIC。
-- K3 UART 的基址、兼容字符串与中断号。
-- 开发板 `/boot` 或 `/sys/firmware/fdt` 是否提供可用的 vendor DTB。
-- U-Boot `bootm` 在 FIT 不含 FDT 时是否会传入可用的控制设备树。
+状态：完成。
+
+完成内容：
+
+- 新增高地址 QEMU 回归：使用真实 K3 ELF 与 `-m 10G`，覆盖 `0x102200000..0x300000000`。
+- `build-k3.sh` 增加 `K3_DIAG=1`，生成不含 bash 的诊断镜像。
+- init 检测 `/tests/k3-diag` 后打印 `K3_BOOT_OK` 并循环。
+- 在 U-Boot 中采集时间基准、UART、中断控制器、内存范围与 `fdtcontroladdr`。
+- 新增 `scripts/alien/boot-k3-board.py` 与 `scripts/uboot-probe.py`。
+- 在 BananaPi-1 上通过 `tftpboot` 与 `bootm` 启动诊断镜像。
+
+验收结果：
+
+```text
+Starting kernel ...
+
+[0] Boot hart 0
+[0] This is a device tree representation of a SpacemiT K3 machine
+SMP:    1
+Memory: 0x102000000..0x300000000
+[0] Frame allocator init success
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] Init filesystem success
+[0] Begin run task...
+Init process is running
+K3_BOOT_OK
+```
+
+确认的硬件事实：
+
+- `timebase-frequency` 为 `0x016e3600`，即 24 MHz。
+- UART 为 `ns16550`，基址 `0xd4017000`，控制台 `uart0:115200`。
+- 中断控制器为 IMSIC，APLIC 节点均处于禁用状态。
+- 内存范围 `0x100000000..0x300000000`，Linux 可见 `0x102000000..0x2ffffffff`。
+- FIT 不含 FDT 时，`bootm` 需要显式传入 `$fdtcontroladdr`。
+
+回归验证：
+
+- QEMU 基线仍输出 `Alien:/#`。
+- K3 QEMU 回归仍输出 `K3_QEMU_INIT_OK`。
+- 完整 K3 镜像仍构建成功，initramfs 包含 bash。
+
+详细记录见 `06-k3-board-boot.md`。
+
+### 已确认
+
+- K3 的 `timebase-frequency` 为 24 MHz。
+- K3 使用 IMSIC；APLIC 节点存在但被禁用。
+- K3 UART 为 `ns16550`，基址 `0xd4017000`。
+- 开发板 U-Boot 提供可用的控制设备树，地址由 `fdtcontroladdr` 给出。
+- U-Boot `bootm` 在 FIT 不含 FDT 时需要显式传入 FDT 地址。
+
+### 仍需确认
+
+- bash 与 SBI 控制台的 `0x01` 洪泛原因。
+- SBI 控制台输入路径是否可用。
+- APLIC/IMSIC 的接入方式与外部中断号。
+- SMP 启动方式，尤其是 A100 核。
+- 长时间运行下的定时器与调度精度。
