@@ -3,7 +3,8 @@
 #
 # Optional:
 #   ALIEN_DIR   Alien source directory (default: <workspace>/alien)
-#   OUT_DIR     output directory (default: $ALIEN_DIR/out-k3)
+#   OUT_DIR     output directory (default: $ALIEN_DIR/out-k3[-diag])
+#   K3_DIAG     set to 1 to build a diagnostic image without bash
 #
 # The kernel embeds the initramfs. The initramfs is created before the
 # kernel build because subsystems/platform/src/k3_riscv/mod.rs uses
@@ -19,7 +20,15 @@ if [ ! -d "$ALIEN_DIR" ]; then
     exit 2
 fi
 ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
-OUT_DIR=${OUT_DIR:-$ALIEN_DIR/out-k3}
+
+K3_DIAG=${K3_DIAG:-0}
+if [ "$K3_DIAG" = "1" ]; then
+    OUT_DIR=${OUT_DIR:-$ALIEN_DIR/out-k3-diag}
+    FIT_NAME=alien-k3-diag.itb
+else
+    OUT_DIR=${OUT_DIR:-$ALIEN_DIR/out-k3}
+    FIT_NAME=alien-k3.itb
+fi
 
 TARGET=riscv64gc-unknown-none-elf
 
@@ -43,8 +52,12 @@ echo "[2/7] preparing initramfs"
 rm -rf "$OUT_DIR/initrd"
 mkdir -p "$OUT_DIR/initrd/bin" "$OUT_DIR/initrd/tests"
 cp "$ALIEN_DIR/target/$TARGET/release/init" "$OUT_DIR/initrd/tests/init"
-cp "$ALIEN_DIR/tests/testbin-second-stage/bash" "$OUT_DIR/initrd/tests/bash"
-cp "$ALIEN_DIR/tests/testbin-second-stage/libc.so" "$OUT_DIR/initrd/tests/libc.so"
+if [ "$K3_DIAG" = "1" ]; then
+    touch "$OUT_DIR/initrd/tests/k3-diag"
+else
+    cp "$ALIEN_DIR/tests/testbin-second-stage/bash" "$OUT_DIR/initrd/tests/bash"
+    cp "$ALIEN_DIR/tests/testbin-second-stage/libc.so" "$OUT_DIR/initrd/tests/libc.so"
+fi
 cp "$ALIEN_DIR/tests/testbin-second-stage/busybox" "$OUT_DIR/initrd/bin/busybox"
 ln -s busybox "$OUT_DIR/initrd/bin/sh"
 
@@ -79,11 +92,11 @@ LLVM_OBJCOPY="$SYSROOT/lib/rustlib/$HOST/bin/llvm-objcopy"
     "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin"
 
 echo "[6/7] creating FIT image"
-mkimage -f "$ALIEN_DIR/tools/k3.its" "$OUT_DIR/alien-k3.itb"
+mkimage -f "$ALIEN_DIR/tools/k3.its" "$OUT_DIR/$FIT_NAME"
 
 echo "[7/7] summary"
-ls -lh "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin" "$OUT_DIR/alien-k3.itb"
+ls -lh "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin" "$OUT_DIR/$FIT_NAME"
 echo
 echo "U-Boot:"
-echo "  tftpboot 0x140000000 alien-k3.itb"
-echo "  bootm 0x140000000"
+echo "  tftpboot 0x140000000 $FIT_NAME"
+echo "  bootm 0x140000000 - \$fdtcontroladdr"

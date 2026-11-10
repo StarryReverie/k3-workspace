@@ -90,10 +90,17 @@
               echo
               echo "  Alien K3 image:"
               echo "    ./scripts/alien/build-k3.sh"
+              echo "    K3_DIAG=1 ./scripts/alien/build-k3.sh"
               echo
               echo "  Alien K3 platform QEMU regression:"
               echo "    ./scripts/alien/build-k3-qemu.sh"
               echo "    ./scripts/alien/run-k3-qemu.sh"
+              echo
+              echo "  Alien K3 high-address QEMU check:"
+              echo "    ./scripts/alien/run-k3-high-qemu.sh"
+              echo
+              echo "  Alien K3 board boot:"
+              echo "    ./scripts/alien/boot-k3-board.py"
               echo
               echo "  toolchain: nightly-2025-05-20, targets riscv64gc-unknown-none-elf + riscv64gc-unknown-linux-musl"
               echo

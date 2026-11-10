@@ -13,6 +13,13 @@ use Mstd::{
 #[no_mangle]
 fn main() -> isize {
     println!("Init process is running");
+    // 诊断镜像不包含 bash，用独立标记确认内核与用户态已经启动。
+    if open("/tests/k3-diag\0", OpenFlags::O_RDONLY) >= 0 {
+        println!("K3_BOOT_OK");
+        loop {
+            m_yield();
+        }
+    }
     if open("/tests/bash\0", OpenFlags::O_RDONLY) < 0 {
         println!("K3_QEMU_INIT_OK");
         loop {
