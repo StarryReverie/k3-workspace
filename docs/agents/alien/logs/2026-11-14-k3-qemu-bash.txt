@@ -1,0 +1,12 @@
+Alien K3 QEMU full bash interaction, 2026-11-14
+Source: /tmp/opencode/stage4-final-k3qemu-bash.log
+Image: k3_qemu build with K3_QEMU_SHELL=1, QEMU virt 1024M
+Note: excerpt only; ANSI escape sequences removed.
+Control-character count (0x01) in the full log: 0.
+
+Init process is running
+Alien:/# echo K3_OK
+K3_OK
+Alien:/# /bin/busybox ls /
+bin    dev    etc    proc   root   sys    tests  tmp    var
+Alien:/#

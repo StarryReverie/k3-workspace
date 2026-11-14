@@ -145,6 +145,62 @@ K3_BOOT_OK
 
 详细记录见 `06-k3-board-boot.md`。
 
+### 阶段 4：K3 控制台交互与 `0x01` 洪泛修复
+
+状态：完成。
+
+定位过程：
+
+- 为 `SbiConsoleDevice` 补齐 termios ioctl 后，提示符正常出现，但 `0x01` 洪泛仍在。
+- 串口 trace 与 GDB 断点确认洪泛不经过 `write_at`、`Stdout::write_str` 或内核 SBI putchar。
+- CPU 采样显示时间主要停留在 OpenSBI 的 UART 轮询与输出循环。
+- 临时让 `read_at` 只自旋、不调用 SBI getchar，`0x01` 数量变为 0，确认根因在 SBI 控制台输入轮询路径。
+
+修复内容：
+
+- 新增 `PollingUart`，直接轮询底层 UART。
+- K3 使用 `Uart8250`，基址 `0xd4017000`；QEMU 使用 `Uart16550`，基址 `0x10000000`。
+- `k3_riscv/config.rs` 映射 UART MMIO，长度按页对齐。
+- `kernel/src/lib.rs` 在 VFS 初始化前注册 `UART_DEVICE`。
+- `UARTDevice::ioctl` 对未知命令返回错误，不再 `unwrap` 或 `unimplemented!`。
+- `K3_UARTTEST=1` 增加 UART 输入回显测试；`K3_QEMU_SHELL=1` 增加 QEMU 完整 bash 回归。
+
+验收结果：
+
+```text
+QEMU 完整 bash:
+Alien:/# echo K3_OK
+K3_OK
+Alien:/# /bin/busybox ls /
+bin dev etc proc root sys tests tmp var
+
+K3 UART 自测:
+K3_UART_READY
+uuaarrtt--ookk
+
+K3 完整 bash:
+Alien:/# echo K3_OK
+K3_OK
+Alien:/# /bin/busybox ls /
+bin dev etc proc root sys tests tmp var
+```
+
+三处日志中的 `0x01` 数量均为 0。
+
+回归验证：
+
+- QEMU 基线仍输出 `Alien:/#`。
+- K3 QEMU 诊断镜像仍输出 `K3_QEMU_INIT_OK`。
+- 完整 K3 镜像构建成功并已上板。
+
+上板时间线：
+
+- 2.6 MiB 诊断镜像：连接 9 秒、上传 34 秒、启动 0.4 秒，合计约 62 秒。
+- 5.2 MiB 完整镜像：连接 15 秒、上传 98 秒、启动 0.5 秒，合计约 135 秒。
+- 上传速度约 50–90 KB/s，瓶颈在宿主机到 ostool 服务端。
+
+详细记录见 `07-uart-console.md`。
+
 ### 已确认
 
 - K3 的 `timebase-frequency` 为 24 MHz。
@@ -152,11 +208,14 @@ K3_BOOT_OK
 - K3 UART 为 `ns16550`，基址 `0xd4017000`。
 - 开发板 U-Boot 提供可用的控制设备树，地址由 `fdtcontroladdr` 给出。
 - U-Boot `bootm` 在 FIT 不含 FDT 时需要显式传入 FDT 地址。
+- `0x01` 洪泛来自 SBI 控制台输入轮询，已由轮询 UART 替代。
+- K3 UART 输入、完整 bash、`echo` 与 `/bin/busybox ls` 均已验证。
 
 ### 仍需确认
 
-- bash 与 SBI 控制台的 `0x01` 洪泛原因。
-- SBI 控制台输入路径是否可用。
-- APLIC/IMSIC 的接入方式与外部中断号。
+- UART 中断驱动与 IMSIC 的接入方式。
+- PLIC/APLIC/IMSIC 的外部中断号与路由。
 - SMP 启动方式，尤其是 A100 核。
+- UART 流控、Ctrl-C 与作业控制。
 - 长时间运行下的定时器与调度精度。
+- 完整镜像上传速度优化，例如 FIT gzip。

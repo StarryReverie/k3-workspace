@@ -1,0 +1,12 @@
+Alien K3 full bash image, 2026-11-14
+Source: logs/boot-20261114-184900.log
+Image: alien-k3.itb, initramfs with bash and busybox
+Note: excerpt only; ANSI escape sequences and U-Boot timestamps removed.
+Control-character count (0x01) in the full log: 0.
+
+Init process is running
+Alien:/# echo K3_OK
+K3_OK
+Alien:/# /bin/busybox ls /
+bin    dev    etc    proc   root   sys    tests  tmp    var
+Alien:/# 

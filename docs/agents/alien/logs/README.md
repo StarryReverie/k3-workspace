@@ -13,3 +13,6 @@
 - `2026-11-09-k3-qemu.txt`：K3 平台代码的 QEMU 回归日志。
 - `2026-11-10-k3-high-qemu.txt`：真实 K3 ELF 在 10 GiB QEMU 上的高地址回归。
 - `2026-11-10-k3-board-boot.txt`：K3 诊断镜像的首次上板启动日志。
+- `2026-11-14-k3-uart.txt`：K3 轮询 UART 输入回显测试。
+- `2026-11-14-k3-bash.txt`：K3 完整 bash 镜像的 `echo` 与 `ls`。
+- `2026-11-14-k3-qemu-bash.txt`：QEMU `k3_qemu` 完整 bash 交互回归。

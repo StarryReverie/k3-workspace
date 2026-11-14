@@ -1,0 +1,11 @@
+Alien K3 polling UART input test, 2026-11-14
+Source: logs/boot-20261114-184352.log
+Image: alien-k3-diag.itb built with K3_DIAG=1 K3_UARTTEST=1
+Note: excerpt only; ANSI escape sequences and U-Boot timestamps removed.
+"uuaarrtt--ookk" is double echo: tty ECHO plus the init echo.
+
+Init process is running
+K3_UART_READY
+uuaarrtt--ookk
+
+

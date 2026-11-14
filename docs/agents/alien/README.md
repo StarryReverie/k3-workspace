@@ -10,8 +10,9 @@
 | 1 | K3 最小平台移植 | 完成，2026-11-09 |
 | 2 | QEMU 回归验证 K3 平台代码 | 完成，2026-11-09 |
 | 3 | 开发板首次启动 | 完成，2026-11-10 |
+| 4 | K3 控制台交互与 `0x01` 洪泛修复 | 完成，2026-11-14 |
 
-诊断镜像已在 BananaPi-1 上启动到用户态 init，输出 `K3_BOOT_OK`。含 bash 的完整镜像尚未上板验证。
+完整 bash 镜像已在 BananaPi-1 上验证，可执行 `echo K3_OK` 与 `/bin/busybox ls /`，串口无 `0x01` 洪泛。用户态终端改用 K3 轮询 UART，内核日志仍走 SBI DBCN。
 
 ## 固定信息
 
@@ -32,6 +33,7 @@
 | `04-k3-minimal.md` | 阶段 1 的 K3 平台代码、镜像与静态验收 |
 | `05-k3-qemu.md` | 阶段 2 的 K3 平台 QEMU 回归 |
 | `06-k3-board-boot.md` | 阶段 3 的高地址回归、硬件采集与首次上板 |
+| `07-uart-console.md` | 阶段 4 的 `0x01` 定位、轮询 UART 与完整 bash 验证 |
 | `logs/` | 关键日志节选 |
 
 ## 源码位置
@@ -54,17 +56,26 @@ nix develop
 # 构建不含 bash 的诊断镜像
 K3_DIAG=1 ./scripts/alien/build-k3.sh
 
-# 在 QEMU 上以 10 GiB 内存回归真实 K3 ELF
-QEMU_TIMEOUT=45 ./scripts/alien/run-k3-high-qemu.sh
+# 构建 UART 输入自测镜像
+K3_DIAG=1 K3_UARTTEST=1 ./scripts/alien/build-k3.sh
 
-# 连接板卡、上传诊断镜像并启动
+# 上板启动诊断镜像
 ./scripts/alien/boot-k3-board.py
+
+# 上板并发送后续命令
+./scripts/alien/boot-k3-board.py \
+  --image alien/out-k3-diag/alien-k3-diag.itb \
+  --marker K3_UART_READY \
+  --post-command "uart-ok"
 
 # 构建 K3 平台的 QEMU 回归镜像
 ./scripts/alien/build-k3-qemu.sh
 
 # 运行 K3 平台 QEMU 回归
 QEMU_TIMEOUT=30 ./scripts/alien/run-k3-qemu.sh
+
+# 构建带 bash 的 QEMU 交互镜像
+K3_QEMU_SHELL=1 ./scripts/alien/build-k3-qemu.sh
 
 # 启动 QEMU，默认 60 秒后停止
 ./scripts/alien/run-qemu.sh

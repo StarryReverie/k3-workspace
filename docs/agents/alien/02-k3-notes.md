@@ -101,7 +101,8 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 
 - 内存范围固定为 `0x102000000..0x300000000`。
 - 内核链接地址 `0x102200000`。
-- 控制台使用 SBI DBCN。
+- 内核日志使用 SBI DBCN。
+- 用户态 `/dev/tty` 使用轮询 UART：K3 为 `Uart8250@0xd4017000`，QEMU 为 `Uart16550@0x10000000`。
 - 定时器使用 SBI TIME。
 - 关机使用 SBI SRST。
 - 不解析 DTB，不初始化 PLIC、APLIC 或 IMSIC。
@@ -109,7 +110,8 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 
 ### 5.2 内核侧改动
 
-- `kernel/src/lib.rs`：为 `k3` 跳过 `devices::init_device()` 与 `interrupt::init_plic()`。
+- `kernel/src/lib.rs`：为 `k3` 跳过 `devices::init_device()` 与 `interrupt::init_plic()`，并注册轮询 UART。
+- `subsystems/devices/src/uart.rs`：新增 `PollingUart`，不依赖中断。
 - `subsystems/vfs/src/lib.rs`：为 `k3` 跳过 `/dev/sda` 与 `/tests` 的磁盘挂载。
 - `subsystems/vfs/src/initrd.rs`：允许从 initramfs 解出任意路径，而不只 `bin/` 与 `sbin/`。
 - `kernel/src/task/mod.rs`：初始进程仍读取 `/tests/init`，由 initramfs 提供。
@@ -147,21 +149,24 @@ ostool board connect
 | 设备树来源 | U-Boot 控制设备树，地址由 `fdtcontroladdr` 给出 |
 | FIT 与 `bootm` | FIT 不含 FDT 时必须显式传入 FDT 地址 |
 | 高地址路径 | 真实硬件与 10 GiB QEMU 回归均可用 |
+| 控制台交互 | 轮询 UART 已替代 SBI 输入，完整 bash 可交互 |
+| `0x01` 洪泛 | 来自 SBI getchar 轮询，已消除 |
 
 仍需确认：
 
 | 项目 | 影响 | 处理方式 |
 |---|---|---|
-| `0x01` 洪泛 | bash 启动后日志不可读 | 对比 bash 终端初始化与 SBI 控制台路径 |
-| SBI 控制台输入 | 交互未验证 | 验证 DBCN read 与旧版 getchar |
+| UART 中断与 IMSIC | 当前为忙等轮询 | 接入 IMSIC，改为中断驱动 |
+| UART 流控与作业控制 | Ctrl-C、流控未验证 | 补 termios 与信号处理 |
 | IMSIC 与 APLIC | 外部中断不可用 | 参考 Linux 设备树与 IMSIC 规范 |
 | SMP 启动 | 只使用一个 hart | 确认 A100 与 X100 的 HSM 启动方式 |
 | 长时间计时 | 调度精度未知 | 运行定时器与 `nanosleep` 测试 |
+| 上传速度 | 完整镜像上板较慢 | 考虑 FIT gzip 压缩 |
 
 ## 7. 风险
 
-- 串口输入不可靠，启动早期日志与输入可能互相干扰。
-- 平台会话约 5 分钟回收，首次启动可能需要多次尝试。
+- 用户态 UART 输入为忙等轮询，未接入中断；无输入时会占用 CPU。
+- 平台会话约 5 分钟回收，完整镜像上传可能接近上限。
 - 若完全没有输出，区分“未跳转”“SBI 调用失败”“页表异常”需要提前埋入早期标记。
 - K3 的 16 个 hart 中 A100 的启动方式与 X100 可能不同，SMP 不能直接照搬 VisionFive2。
 - 设备树缺失时只能硬编码，后续增加外设需要重新引入 DTB。

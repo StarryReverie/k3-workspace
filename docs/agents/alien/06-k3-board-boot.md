@@ -202,12 +202,13 @@ K3_BOOT_OK
 
 ## 8. 已知问题
 
-- 含 bash 的完整镜像尚未上板运行，`0x01` 洪泛问题仍未定位。
-- SBI 控制台输入路径未验证，`console_getchar` 只做过代码检查。
+- 阶段 4 已完成完整 bash 上板验证，`0x01` 洪泛由轮询 UART 修复，见 `07-uart-console.md`。
+- 用户态 UART 输入为忙等轮询，尚未接入中断。
 - 未初始化 APLIC 或 IMSIC，外部中断不可用。
 - 未启用 SMP，只使用启动 hart。
 - 未挂载磁盘，根文件系统只来自 initramfs。
 - 未验证长时间运行的定时器与调度精度。
+- 阶段 3 的高地址 QEMU 回归脚本基于 SBI 控制台；UART 接入后不再适用于该路径。
 
 ## 9. 复现命令
 
@@ -218,11 +219,22 @@ K3_BOOT_OK
 # 诊断镜像
 K3_DIAG=1 ./scripts/alien/build-k3.sh
 
-# 高地址 QEMU 回归
-QEMU_TIMEOUT=45 ./scripts/alien/run-k3-high-qemu.sh
+# UART 输入自测镜像
+K3_DIAG=1 K3_UARTTEST=1 ./scripts/alien/build-k3.sh
 
 # 上板
 ./scripts/alien/boot-k3-board.py
 ```
 
-`boot-k3-board.py` 会连接板卡、打断自动启动、上传镜像、执行网络初始化、`tftpboot` 与 `bootm`，并等待 `K3_BOOT_OK`。
+`boot-k3-board.py` 会连接板卡、打断自动启动、上传镜像、执行网络初始化、`tftpboot` 与 `bootm`，并等待指定标记。默认标记为 `K3_BOOT_OK`，可用 `--marker` 与 `--post-command` 指定其他场景。
+
+完整 bash 镜像上板：
+
+```bash
+./scripts/alien/build-k3.sh
+./scripts/alien/boot-k3-board.py \
+  --image alien/out-k3/alien-k3.itb \
+  --marker "Alien:/#" \
+  --post-command "echo K3_OK" \
+  --post-command "/bin/busybox ls /"
+```

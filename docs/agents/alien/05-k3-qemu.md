@@ -93,17 +93,16 @@ K3_QEMU_INIT_OK
 
 ### 5.1 bash 与 SBI 控制台
 
-在 initramfs 包含 `/tests/bash` 时，init 执行 bash 后串口出现连续的 `0x01` 字节。已确认：
+阶段 2 在 initramfs 包含 `/tests/bash` 时观察到连续 `0x01`。阶段 4 已定位并修复：
 
-- 输出不经过 `SbiConsoleDevice::write_at`。
-- `SbiConsoleDevice::read_at` 没有被调用。
-- `UART_DEVICE` 不存在，使用的是 `SbiConsoleDevice`。
+- 根因在 SBI 控制台输入轮询，不在 bash 输出路径。
+- 用户态 `/dev/tty` 改为轮询 UART。
+- 完整镜像已在 QEMU 与真实 K3 上运行 bash。
 
-原因尚未定位，可能来自 bash 的终端初始化与 SBI 控制台的组合。阶段 2 通过不启动 bash 绕开，交互问题留到阶段 4。
+详细记录见 `07-uart-console.md`。
 
 ### 5.2 其他限制
 
-- 未验证 SBI 控制台输入。
 - 阶段 3 已确认真实 K3 的时间基准为 24 MHz、内存范围为 `0x102000000..0x300000000`。
 - 未初始化 PLIC、APLIC 或 IMSIC。
 - 未启用 SMP。
@@ -112,5 +111,5 @@ K3_QEMU_INIT_OK
 ## 6. 下一步
 
 1. 阶段 3 已完成首次上板，见 `06-k3-board-boot.md`。
-2. 阶段 4 处理 bash 交互与 `0x01` 洪泛。
-3. 之后确认 IMSIC、APLIC 与 SMP 的接入方式。
+2. 阶段 4 已完成控制台交互修复，见 `07-uart-console.md`。
+3. 之后确认 IMSIC、APLIC、UART 中断与 SMP 的接入方式。
