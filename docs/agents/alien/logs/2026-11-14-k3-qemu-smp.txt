@@ -1,0 +1,58 @@
+Alien k3_qemu dual-core regression, 2026-11-14
+Source: /tmp/opencode/stage5-boothart-run.log
+Image: k3_qemu with K3_SMP=1 and K3_QEMU_SHELL=1, QEMU -smp 2
+Note: excerpt only; ANSI escape sequences removed.
+
+init_other_hart: cpu_num=2, boot=0
+[0] hart 1 start requested
+[0] Boot hart 0
+[0] This is a device tree representation of a QEMU virt (K3 test) machine
+SMP:    2
+Memory: 0x80000000..0xc0000000
+PLIC:   0x0..0x0
+CLINT:  0x0..0x0
+Initrd: Some(
+    0x8034450b..0x80671249,
+)
+Bootargs: None
+[0] Page start:0xa070b,end:0xc0000,count:0x1f8f5
+[0] Bitmap manage 129265 pages using 4 pages
+[0] Frame allocator init success
+[0] Relocate initrd data to 0x00000000a070f000
+[0] Talloc allocator init success
+[0] kernel text:          0x80200000-0x80343000
+[0] kernel rodata:        0x80343000-0x806de000
+[0] kernel init_array:    0x806de000-0x806de470
+[0] kernel data:          0x806de000-0x80702000
+[0] kernel bss:           0x80702000-0x8070b000
+[0] kernel heap:          0x8070b000-0xc0000000
+[0] map mmio: 0x10000000-0x10001000
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] no disk filesystem feature, skip /tests disk mount
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KB sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] Init task success
+[0] Begin run task...
+[1] ++++ setup interrupt ++++
+[0] kthread_init start...
+[1] ++++ setup interrupt done, enable:true ++++
+[1] hart 1 start
+[1] Begin run task...

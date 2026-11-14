@@ -110,8 +110,9 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 
 ### 5.2 内核侧改动
 
-- `kernel/src/lib.rs`：为 `k3` 跳过 `devices::init_device()` 与 `interrupt::init_plic()`，并注册轮询 UART。
+- `kernel/src/lib.rs`：为 `k3` 跳过 `devices::init_device()` 与 `interrupt::init_plic()`，并注册轮询 UART；主 hart 由 `platform::boot_hart()` 固定，次 hart 等待 `INIT_DONE`。
 - `subsystems/devices/src/uart.rs`：新增 `PollingUart`，不依赖中断。
+- `subsystems/platform/src/lib.rs`：记录启动 hart，启动前用 HSM 查询 hart 状态。
 - `subsystems/vfs/src/lib.rs`：为 `k3` 跳过 `/dev/sda` 与 `/tests` 的磁盘挂载。
 - `subsystems/vfs/src/initrd.rs`：允许从 initramfs 解出任意路径，而不只 `bin/` 与 `sbin/`。
 - `kernel/src/task/mod.rs`：初始进程仍读取 `/tests/init`，由 initramfs 提供。
@@ -122,8 +123,10 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 - 新增 `tools/linker-k3.ld`，`BASE_ADDRESS = 0x102200000`。
 - 使用 `rust-objcopy` 或 `llvm-objcopy` 生成 raw bin。
 - 使用 FIT 镜像并通过 `bootm` 启动，确保 U-Boot 传递 hartid 与 DTB。
+- FIT 使用 gzip 压缩，U-Boot 解压后加载到 `0x102200000`。
 - FIT 当前不含 FDT 节点，启动命令必须带 `$fdtcontroladdr` 作为第三个参数。
 - 不使用裸 `go`，因为无法保证 `a0` 与 `a1` 的取值。
+- 双核构建使用 `K3_SMP=1`，通过 `SMP=2` 设置 `CPU_NUM`。
 
 ### 5.4 启动流程
 
@@ -151,17 +154,20 @@ ostool board connect
 | 高地址路径 | 真实硬件与 10 GiB QEMU 回归均可用 |
 | 控制台交互 | 轮询 UART 已替代 SBI 输入，完整 bash 可交互 |
 | `0x01` 洪泛 | 来自 SBI getchar 轮询，已消除 |
+| FIT gzip | 5.0 MiB 压缩到 4.0 MiB，U-Boot 解压正常 |
+| SMP | 2 个 hart 可启动，主 hart 固定为 0 |
 
 仍需确认：
 
 | 项目 | 影响 | 处理方式 |
 |---|---|---|
+| 4/8 核与 A100 | 只验证 2 个 hart | 逐步提高 `CPU_NUM`，先 X100 后 A100 |
+| 双 hart 日志交错 | 共享 UART 输出可能混乱 | 统一内核日志与用户态输出路径 |
 | UART 中断与 IMSIC | 当前为忙等轮询 | 接入 IMSIC，改为中断驱动 |
 | UART 流控与作业控制 | Ctrl-C、流控未验证 | 补 termios 与信号处理 |
 | IMSIC 与 APLIC | 外部中断不可用 | 参考 Linux 设备树与 IMSIC 规范 |
-| SMP 启动 | 只使用一个 hart | 确认 A100 与 X100 的 HSM 启动方式 |
 | 长时间计时 | 调度精度未知 | 运行定时器与 `nanosleep` 测试 |
-| 上传速度 | 完整镜像上板较慢 | 考虑 FIT gzip 压缩 |
+| 上传速度 | 仍受宿主机网络影响 | 继续压缩或改变传输方式 |
 
 ## 7. 风险
 

@@ -16,3 +16,5 @@
 - `2026-11-14-k3-uart.txt`：K3 轮询 UART 输入回显测试。
 - `2026-11-14-k3-bash.txt`：K3 完整 bash 镜像的 `echo` 与 `ls`。
 - `2026-11-14-k3-qemu-bash.txt`：QEMU `k3_qemu` 完整 bash 交互回归。
+- `2026-11-14-k3-qemu-smp.txt`：QEMU `k3_qemu -smp 2` 双核回归。
+- `2026-11-14-k3-smp.txt`：K3 双核 gzip FIT 上板日志。

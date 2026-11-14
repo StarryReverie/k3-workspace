@@ -201,6 +201,45 @@ bin dev etc proc root sys tests tmp var
 
 详细记录见 `07-uart-console.md`。
 
+### 阶段 5：FIT gzip 与 K3 双核启动
+
+状态：完成。
+
+完成内容：
+
+- FIT 改为 gzip 压缩：`5.0 MiB -> 4.0 MiB`，U-Boot 能正常解压。
+- 增加 `k3_smp` feature，通过 `SMP=2` 设置 `CPU_NUM=2`。
+- 增加 SBI HSM `hart_get_status`，启动前查询 hart 状态，不再用 `assert` 直接 panic。
+- 修复主 hart 竞态：`platform_init` 记录启动 hart，次 hart 等待 `INIT_DONE`。
+- QEMU `-smp 2` 与真实 K3 双核均验证通过。
+
+验收结果：
+
+```text
+init_other_hart: cpu_num=2, boot=0
+[0] hart 1 start requested
+[0] Boot hart 0
+[1] hart 1 start
+Alien:/# echo K3_OK
+K3_OK
+Alien:/# /bin/busybox ls /
+bin dev etc proc root sys tests tmp var
+```
+
+日志中 `0x01` 数量为 0。
+
+关键修正：
+
+- `config/build.rs` 通过 `SMP` 环境变量重写 `CPU_NUM`；SMP 构建使用 `SMP=2`。
+- 构建 SMP 后 `config/src/lib.rs` 会变成 `CPU_NUM=2`，提交前恢复为 1。
+
+上板时间线：
+
+- gzip 双核镜像约 47 秒完成。
+- 上传速度受网络影响，最快约 1 秒，慢时仍可能数十秒。
+
+详细记录见 `08-smp-and-gzip.md`。
+
 ### 已确认
 
 - K3 的 `timebase-frequency` 为 24 MHz。
@@ -210,12 +249,13 @@ bin dev etc proc root sys tests tmp var
 - U-Boot `bootm` 在 FIT 不含 FDT 时需要显式传入 FDT 地址。
 - `0x01` 洪泛来自 SBI 控制台输入轮询，已由轮询 UART 替代。
 - K3 UART 输入、完整 bash、`echo` 与 `/bin/busybox ls` 均已验证。
+- FIT gzip 可用，双核 `Boot hart 0` + `hart 1 start` 已验证。
 
 ### 仍需确认
 
+- 4 核、8 核与 A100 核的启动情况。
+- 双 hart 内核日志在共享 UART 上的交错问题。
 - UART 中断驱动与 IMSIC 的接入方式。
 - PLIC/APLIC/IMSIC 的外部中断号与路由。
-- SMP 启动方式，尤其是 A100 核。
 - UART 流控、Ctrl-C 与作业控制。
 - 长时间运行下的定时器与调度精度。
-- 完整镜像上传速度优化，例如 FIT gzip。
