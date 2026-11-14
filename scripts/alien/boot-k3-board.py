@@ -25,12 +25,16 @@ import struct
 import subprocess
 import sys
 import termios
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+
+def log(message: str) -> None:
+    print(f"[{datetime.now():%H:%M:%S.%f}] {message}", flush=True)
 ANSI = re.compile(rb"\x1b\[[0-9;?]*[A-Za-z]")
 SESSION_RE = re.compile(r"session_id:\s*([A-Za-z0-9_-]+)")
 TFTP_RE = re.compile(r"tftp_url:\s*(\S+)")
@@ -40,7 +44,7 @@ NET_INIT = [
     ("setexpr.l sm10_dline *0xd4282bf0", 1.0),
     ('setexpr sm10_dline $sm10_dline "|" 0x10001', 1.0),
     ("mw.l 0xd4282bf0 $sm10_dline 1", 1.0),
-    ("setenv netretry no && setenv autoload no && dhcp && setenv autoload yes", 7.0),
+    ("setenv netretry no && setenv autoload no && dhcp && setenv autoload yes", 5.0),
 ]
 
 
@@ -80,13 +84,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--boot-timeout",
         type=int,
-        default=120,
+        default=30,
         help="seconds to wait for the marker after bootm (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--post-command",
+        action="append",
+        default=[],
+        help="command to send after the marker; may be repeated",
+    )
+    parser.add_argument(
+        "--post-wait",
+        type=float,
+        default=2.0,
+        help="seconds to wait after the last post command (default: %(default)s)",
     )
     parser.add_argument(
         "--timeout",
         type=int,
-        default=300,
+        default=240,
         help="overall timeout in seconds (default: %(default)s)",
     )
     parser.add_argument(
@@ -112,6 +128,9 @@ def main() -> int:
 
     remote = args.remote or f"boot/{image.name}"
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    log(f"args: boot_timeout={args.boot_timeout} post={args.post_command}")
+    log("connect start")
+
     log_path = args.log or ROOT / "logs" / f"boot-{stamp}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     upload_log = log_path.with_suffix(".upload.log")
@@ -142,11 +161,16 @@ def main() -> int:
     seen_prompt = False
     prompt_at = 0.0
     upload_started = False
+    upload_done = threading.Event()
+    upload_result: list[object] = [False, ""]
+    commands_started = False
     stage = "net"
     path = ""
     command_index = 0
     next_command_at = 0.0
     marker_seen = False
+    post_index = 0
+    post_next_at = 0.0
     exit_sent = False
 
     def send(data: bytes) -> None:
@@ -155,20 +179,21 @@ def main() -> int:
     def finish() -> None:
         nonlocal exit_sent
         if not exit_sent:
+            log("finish")
             try:
                 send(b"\x01x")
             except OSError:
                 pass
             exit_sent = True
 
-    def upload() -> tuple[bool, str]:
+    def start_upload() -> bool:
         text = bytes(raw)
         match = SESSION_RE.search(text.decode("utf-8", "replace"))
         if not match:
             print("error: session id not found in board output", file=sys.stderr)
-            return False, ""
+            return False
         sid = match.group(1)
-        print(f"session: {sid}", flush=True)
+        log(f"session: {sid}")
 
         # The session log is still growing; session-env.sh only needs the SID
         # and the token store, so parse the SID here and pass it explicitly.
@@ -177,34 +202,43 @@ def main() -> int:
             f"source {ROOT / 'scripts' / 'session-env.sh'} {log_path} >/dev/null 2>&1; "
             f"SID={sid} {ROOT / 'scripts' / 'upload.sh'} {image} {remote}"
         )
-        try:
-            result = subprocess.run(
-                ["bash", "-c", cmd],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=120,
-            )
-        except subprocess.TimeoutExpired:
-            print("error: upload timed out", file=sys.stderr)
-            return False, ""
 
-        upload_log.write_text(result.stdout + result.stderr)
-        print(result.stdout, end="", flush=True)
-        if result.returncode != 0:
-            print(result.stderr, end="", file=sys.stderr, flush=True)
-            return False, ""
+        def worker() -> None:
+            try:
+                result = subprocess.run(
+                    ["bash", "-c", cmd],
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    timeout=120,
+                )
+            except subprocess.TimeoutExpired:
+                log("error: upload timed out")
+                upload_done.set()
+                return
 
-        match = TFTP_RE.search(result.stdout)
-        if match:
-            parsed = urlparse(match.group(1))
-            path = parsed.path.lstrip("/")
-            print(f"tftp path: {path}", flush=True)
-            return True, path
+            upload_log.write_text(result.stdout + result.stderr)
+            print(result.stdout, end="", flush=True)
+            if result.returncode != 0:
+                print(result.stderr, end="", file=sys.stderr, flush=True)
+                upload_done.set()
+                return
 
-        fallback = f"ostool/sessions/{sid}/{remote}"
-        print(f"tftp path (fallback): {fallback}", flush=True)
-        return True, fallback
+            match = TFTP_RE.search(result.stdout)
+            if match:
+                parsed = urlparse(match.group(1))
+                path = parsed.path.lstrip("/")
+                log(f"tftp path: {path}")
+            else:
+                path = f"ostool/sessions/{sid}/{remote}"
+                log(f"tftp path (fallback): {path}")
+            upload_result[0] = True
+            upload_result[1] = path
+            log("upload done")
+            upload_done.set()
+
+        threading.Thread(target=worker, daemon=True).start()
+        return True
 
     try:
         while time.monotonic() - start < args.timeout:
@@ -223,19 +257,24 @@ def main() -> int:
             if seen_prompt and not exit_sent:
                 if not upload_started and now - prompt_at >= 1.0:
                     upload_started = True
-                    ok, path = upload()
+                    if not start_upload():
+                        finish()
+                elif upload_started and not commands_started and upload_done.is_set():
+                    ok = bool(upload_result[0])
+                    path = str(upload_result[1])
                     if not ok:
                         finish()
                     else:
+                        commands_started = True
                         stage = "net"
                         command_index = 0
                         next_command_at = time.monotonic() + 0.5
-                elif upload_started and now >= next_command_at:
+                elif commands_started and now >= next_command_at:
                     if stage == "net":
                         if command_index < len(NET_INIT):
                             cmd, delay = NET_INIT[command_index]
                             send(cmd.encode() + b"\r")
-                            print(f"> {cmd}", flush=True)
+                            log(f"> {cmd}")
                             command_index += 1
                             next_command_at = now + delay
                         else:
@@ -244,21 +283,33 @@ def main() -> int:
                     elif stage == "tftp":
                         cmd = f"tftpboot {args.load_addr} {path}"
                         send(cmd.encode() + b"\r")
-                        print(f"> {cmd}", flush=True)
+                        log(f"> {cmd}")
                         stage = "bootm_wait"
-                        next_command_at = now + 12.0
+                        next_command_at = now + 2.0
                     elif stage == "bootm_wait":
                         if args.fdt:
                             cmd = f"bootm {args.load_addr} - {args.fdt}"
                         else:
                             cmd = f"bootm {args.load_addr}"
                         send(cmd.encode() + b"\r")
-                        print(f"> {cmd}", flush=True)
+                        log(f"> {cmd}")
                         stage = "wait"
                         next_command_at = now + args.boot_timeout
                     elif stage == "wait":
-                        print("boot timeout without marker", flush=True)
-                        finish()
+                        if not marker_seen:
+                            log("boot timeout without marker")
+                            finish()
+
+            if marker_seen and not exit_sent and time.monotonic() >= post_next_at:
+                if post_index < len(args.post_command):
+                    cmd = args.post_command[post_index]
+                    send(cmd.encode() + b"\r")
+                    log(f"> {cmd}")
+                    post_index += 1
+                    post_next_at = time.monotonic() + 0.8
+                else:
+                    time.sleep(args.post_wait)
+                    finish()
 
             ready, _, _ = select.select([master], [], [], 0.2)
             if not ready:
@@ -280,14 +331,14 @@ def main() -> int:
 
             if not seen_prompt and b"=>" in text:
                 seen_prompt = True
+                log("U-Boot prompt seen")
                 prompt_at = time.monotonic()
                 interrupting = False
 
-            if args.marker.encode() in text:
+            if args.marker.encode() in text and not marker_seen and stage == "wait":
                 marker_seen = True
-                print(f"marker seen: {args.marker}", flush=True)
-                time.sleep(0.5)
-                finish()
+                log(f"marker seen: {args.marker}")
+                post_next_at = time.monotonic() + 0.5
 
             if exit_sent and proc.poll() is not None:
                 break

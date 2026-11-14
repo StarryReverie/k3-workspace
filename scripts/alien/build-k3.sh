@@ -5,6 +5,7 @@
 #   ALIEN_DIR   Alien source directory (default: <workspace>/alien)
 #   OUT_DIR     output directory (default: $ALIEN_DIR/out-k3[-diag])
 #   K3_DIAG     set to 1 to build a diagnostic image without bash
+#   K3_UARTTEST set to 1 with K3_DIAG=1 to add a UART echo test
 #
 # The kernel embeds the initramfs. The initramfs is created before the
 # kernel build because subsystems/platform/src/k3_riscv/mod.rs uses
@@ -54,6 +55,9 @@ mkdir -p "$OUT_DIR/initrd/bin" "$OUT_DIR/initrd/tests"
 cp "$ALIEN_DIR/target/$TARGET/release/init" "$OUT_DIR/initrd/tests/init"
 if [ "$K3_DIAG" = "1" ]; then
     touch "$OUT_DIR/initrd/tests/k3-diag"
+    if [ "${K3_UARTTEST:-0}" = "1" ]; then
+        touch "$OUT_DIR/initrd/tests/k3-uarttest"
+    fi
 else
     cp "$ALIEN_DIR/tests/testbin-second-stage/bash" "$OUT_DIR/initrd/tests/bash"
     cp "$ALIEN_DIR/tests/testbin-second-stage/libc.so" "$OUT_DIR/initrd/tests/libc.so"

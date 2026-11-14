@@ -3,6 +3,9 @@
 #
 # This is a regression build: it uses the K3 platform module and SBI
 # console, but runs on QEMU virt with 0x80200000 as the entry address.
+#
+# Optional:
+#   K3_QEMU_SHELL  set to 1 to include bash and test interactive I/O
 
 set -euo pipefail
 
@@ -37,6 +40,10 @@ echo "[2/5] preparing initramfs"
 rm -rf "$OUT_DIR/initrd"
 mkdir -p "$OUT_DIR/initrd/bin" "$OUT_DIR/initrd/tests"
 cp "$ALIEN_DIR/target/$TARGET/release/init" "$OUT_DIR/initrd/tests/init"
+if [ "${K3_QEMU_SHELL:-0}" = "1" ]; then
+    cp "$ALIEN_DIR/tests/testbin-second-stage/bash" "$OUT_DIR/initrd/tests/bash"
+    cp "$ALIEN_DIR/tests/testbin-second-stage/libc.so" "$OUT_DIR/initrd/tests/libc.so"
+fi
 cp "$ALIEN_DIR/tests/testbin-second-stage/busybox" "$OUT_DIR/initrd/bin/busybox"
 ln -s busybox "$OUT_DIR/initrd/bin/sh"
 

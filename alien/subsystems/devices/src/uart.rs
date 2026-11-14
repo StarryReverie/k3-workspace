@@ -1,10 +1,11 @@
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 
 use constants::{
     io::{LocalModes, TeletypeCommand, Termios, WinSize},
     DeviceId,
 };
-use device_interface::UartDevice;
+use device_interface::{DeviceBase, UartDevice};
+use drivers::uart::LowUartDriver;
 use ksync::Mutex;
 use spin::Once;
 use vfscore::{
@@ -20,6 +21,79 @@ pub static UART_DEVICE: Once<Arc<dyn UartDevice>> = Once::new();
 
 pub fn init_uart(uart: Arc<dyn UartDevice>) {
     UART_DEVICE.call_once(|| uart);
+}
+
+/// 轮询模式的 UART。适用于没有接入中断控制器的平台。
+///
+/// `get` 会阻塞直到读到字节，避免调用方处理 `None`。
+pub struct PollingUart {
+    inner: Mutex<PollingInner>,
+}
+
+struct PollingInner {
+    raw: Box<dyn LowUartDriver>,
+    pending: Option<u8>,
+}
+
+impl PollingUart {
+    pub fn new(raw: Box<dyn LowUartDriver>) -> Self {
+        Self {
+            inner: Mutex::new(PollingInner {
+                raw,
+                pending: None,
+            }),
+        }
+    }
+}
+
+impl UartDevice for PollingUart {
+    fn put(&self, c: u8) {
+        self.inner.lock().raw._put(c);
+    }
+
+    fn get(&self) -> Option<u8> {
+        loop {
+            let mut inner = self.inner.lock();
+            if let Some(c) = inner.pending.take() {
+                return Some(c);
+            }
+            if let Some(c) = inner.raw._read() {
+                return Some(c);
+            }
+            drop(inner);
+            core::hint::spin_loop();
+        }
+    }
+
+    fn put_bytes(&self, bytes: &[u8]) {
+        for &c in bytes {
+            if c == b'\n' {
+                self.put(b'\r');
+            }
+            self.put(c);
+        }
+    }
+
+    fn have_data_to_get(&self) -> bool {
+        let mut inner = self.inner.lock();
+        if inner.pending.is_some() {
+            return true;
+        }
+        if let Some(c) = inner.raw._read() {
+            inner.pending = Some(c);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn have_space_to_put(&self) -> bool {
+        true
+    }
+}
+
+impl DeviceBase for PollingUart {
+    fn handle_irq(&self) {}
 }
 
 #[derive(Debug, Default)]
@@ -98,7 +172,7 @@ impl VfsFile for UARTDevice {
     }
     fn ioctl(&self, cmd: u32, arg: usize) -> VfsResult<usize> {
         let mut io = self.io.lock();
-        let cmd = TeletypeCommand::try_from(cmd).unwrap();
+        let cmd = TeletypeCommand::try_from(cmd).map_err(|_| VfsError::Invalid)?;
         return match cmd {
             TeletypeCommand::TCGETS | TeletypeCommand::TCGETA => {
                 shim::copy_data_to_task(&io.termios, arg as *mut Termios);
@@ -127,7 +201,7 @@ impl VfsFile for UARTDevice {
                 Ok(0)
             }
             _ => {
-                unimplemented!("ioctl cmd: {:?}", cmd)
+                Err(VfsError::NoSys)
             }
         };
     }

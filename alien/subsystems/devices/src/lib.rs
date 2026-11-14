@@ -28,7 +28,21 @@ use interrupt::register_device_to_plic;
 use log::info;
 use platform::println;
 pub use rtc::{RTCDevice, RTC_DEVICE};
-pub use uart::{UARTDevice, UART_DEVICE};
+pub use uart::{PollingUart, UARTDevice, UART_DEVICE};
+
+/// 为 K3 注册轮询模式的 ns16550。K3 使用 32 位寄存器与 reg-shift=2。
+pub fn init_k3_uart(base_addr: usize) {
+    let raw = Uart8250::new(base_addr);
+    let uart = Arc::new(uart::PollingUart::new(Box::new(raw)));
+    uart::init_uart(uart);
+}
+
+/// 为 K3 QEMU 回归注册轮询模式的 16550。QEMU virt 使用 8 位寄存器。
+pub fn init_k3_qemu_uart(base_addr: usize) {
+    let raw = Uart16550::new(base_addr);
+    let uart = Arc::new(uart::PollingUart::new(Box::new(raw)));
+    uart::init_uart(uart);
+}
 use virtio_drivers::transport::{
     mmio::{MmioTransport, VirtIOHeader},
     DeviceType, Transport,

@@ -1,6 +1,9 @@
 use alloc::{collections::BTreeMap, sync::Arc};
 
-use constants::DeviceId;
+use constants::{
+    io::{TeletypeCommand, Termios, WinSize},
+    DeviceId,
+};
 use devfs::DevKernelProvider;
 use devices::{
     BLKDevice, GPUDevice, INPUTDevice, RTCDevice, UARTDevice, BLOCK_DEVICE, GPU_DEVICE,
@@ -83,11 +86,22 @@ impl DeviceIdManager {
 /// 在没有 UART 驱动时，用 SBI 控制台提供 /dev/tty。
 struct SbiConsoleDevice {
     device_id: DeviceId,
+    io: Mutex<IoData>,
+}
+
+#[derive(Default)]
+struct IoData {
+    foreground_pgid: u32,
+    winsize: WinSize,
+    termios: Termios,
 }
 
 impl SbiConsoleDevice {
     fn new(device_id: DeviceId) -> Self {
-        Self { device_id }
+        Self {
+            device_id,
+            io: Mutex::new(IoData::default()),
+        }
     }
 
     fn device_id(&self) -> DeviceId {
@@ -114,6 +128,40 @@ impl VfsFile for SbiConsoleDevice {
         let text = core::str::from_utf8(buf).unwrap_or("");
         platform::console::console_write(text);
         Ok(buf.len())
+    }
+
+    fn ioctl(&self, cmd: u32, arg: usize) -> VfsResult<usize> {
+        let cmd = TeletypeCommand::try_from(cmd).map_err(|_| VfsError::NoSys)?;
+        let mut io = self.io.lock();
+        match cmd {
+            TeletypeCommand::TCGETS | TeletypeCommand::TCGETA => {
+                shim::copy_data_to_task(&io.termios, arg as *mut Termios);
+                Ok(0)
+            }
+            TeletypeCommand::TCSETS
+            | TeletypeCommand::TCSETSW
+            | TeletypeCommand::TCSETSF => {
+                shim::copy_data_from_task(arg as *const Termios, &mut io.termios);
+                Ok(0)
+            }
+            TeletypeCommand::TIOCGPGRP => {
+                shim::copy_data_to_task(&io.foreground_pgid, arg as *mut u32);
+                Ok(0)
+            }
+            TeletypeCommand::TIOCSPGRP => {
+                shim::copy_data_from_task(arg as *const u32, &mut io.foreground_pgid);
+                Ok(0)
+            }
+            TeletypeCommand::TIOCGWINSZ => {
+                shim::copy_data_to_task(&io.winsize, arg as *mut WinSize);
+                Ok(0)
+            }
+            TeletypeCommand::TIOCSWINSZ => {
+                shim::copy_data_from_task(arg as *const WinSize, &mut io.winsize);
+                Ok(0)
+            }
+            _ => Err(VfsError::NoSys),
+        }
     }
 }
 

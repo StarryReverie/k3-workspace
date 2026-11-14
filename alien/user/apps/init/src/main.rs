@@ -4,7 +4,7 @@
 extern crate alloc;
 
 use Mstd::{
-    fs::{open, OpenFlags},
+    fs::{open, read, write, OpenFlags},
     println,
     process::{exec, exit, fork, wait, waitpid},
     thread::m_yield,
@@ -13,6 +13,17 @@ use Mstd::{
 #[no_mangle]
 fn main() -> isize {
     println!("Init process is running");
+    // 小型 UART 输入测试：读一个字节并回显。
+    if open("/tests/k3-uarttest\0", OpenFlags::O_RDONLY) >= 0 {
+        println!("K3_UART_READY");
+        let mut buf = [0u8; 1];
+        loop {
+            let n = read(0, &mut buf);
+            if n > 0 {
+                write(1, &buf[..n as usize]);
+            }
+        }
+    }
     // 诊断镜像不包含 bash，用独立标记确认内核与用户态已经启动。
     if open("/tests/k3-diag\0", OpenFlags::O_RDONLY) >= 0 {
         println!("K3_BOOT_OK");
