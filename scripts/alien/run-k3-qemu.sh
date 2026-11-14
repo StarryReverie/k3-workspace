@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Run the k3_qemu regression kernel built by build-k3-qemu.sh.
+#
+# Optional:
+#   QEMU_SMP      number of harts passed to QEMU (default: 1)
+#   QEMU_TIMEOUT  seconds before QEMU is stopped (default: 60; 0 = forever)
 
 set -euo pipefail
 
@@ -23,7 +27,7 @@ QEMU_ARGS=(
     -M virt
     -bios default
     -m 1024M
-    -smp 1
+    -smp "${QEMU_SMP:-1}"
     -nographic
     -kernel "$OUT_DIR/kernel-k3-qemu"
 )

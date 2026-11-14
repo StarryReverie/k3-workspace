@@ -39,10 +39,18 @@ pub use k3_riscv::{config, console_getchar, set_timer, system_shutdown};
 
 use crate::console::PrePrint;
 #[cfg(feature = "smp")]
-use crate::common_riscv::sbi::hart_start;
+use crate::common_riscv::sbi::{hart_get_status, hart_start};
+
+static BOOT_HART: Once<usize> = Once::new();
+
+/// 返回执行 `platform_init` 的启动 hart。
+pub fn boot_hart() -> usize {
+    *BOOT_HART.get().unwrap()
+}
 
 #[no_mangle]
 pub fn platform_init(hart_id: usize, _dtb: usize) {
+    BOOT_HART.call_once(|| hart_id);
     println!("{}", ::config::FLAG);
     #[cfg(feature = "hifive")]
     hifive_riscv::init_dtb(None);
@@ -67,6 +75,7 @@ pub fn platform_init(hart_id: usize, _dtb: usize) {
 /// 对于visionfive2/unmatched 来说，0号核只有M态，因此不进行唤醒
 #[cfg(feature = "smp")]
 fn init_other_hart(hart_id: usize) {
+    println!("init_other_hart: cpu_num={}, boot={}", CPU_NUM, hart_id);
     let start_hart = if cfg!(any(feature = "vf2", feature = "hifive")) {
         1
     } else {
@@ -74,8 +83,21 @@ fn init_other_hart(hart_id: usize) {
     };
     for i in start_hart..CPU_NUM {
         if i != hart_id {
+            let status = hart_get_status(i);
+            if status.error != 0 {
+                println!("hart {} get_status failed: {}", i, status.error);
+                continue;
+            }
+            if status.value != 1 {
+                println!("hart {} not stopped (state {}), skip", i, status.value);
+                continue;
+            }
             let res = hart_start(i, _start_secondary as usize, 0);
-            assert_eq!(res.error, 0);
+            if res.error != 0 {
+                println!("hart {} start failed: {}", i, res.error);
+            } else {
+                println!("hart {} start requested", i);
+            }
         }
     }
 }

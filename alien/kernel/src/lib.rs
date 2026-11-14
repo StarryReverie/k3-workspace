@@ -40,15 +40,12 @@ use platform::platform_machine_info;
 
 use crate::task::DriverTaskImpl;
 
-/// 多核启动标志
-static STARTED: AtomicBool = AtomicBool::new(false);
+/// 主 hart 完成初始化后置位。
+static INIT_DONE: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]
 fn main(hart_id: usize) {
-    if STARTED
-        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
-        .is_ok()
-    {
+    if hart_id == platform::boot_hart() {
         println!("Boot hart {}", hart_id);
         let machine_info = platform_machine_info();
         println!("{:#?}", machine_info);
@@ -69,9 +66,9 @@ fn main(hart_id: usize) {
         task::init_task();
         // register all syscall
         syscall_table::init_init_array!();
-        STARTED.store(false, Ordering::Relaxed);
+        INIT_DONE.store(true, Ordering::Release);
     } else {
-        while STARTED.load(Ordering::Relaxed) {
+        while !INIT_DONE.load(Ordering::Acquire) {
             spin_loop();
         }
         mem::init_memory_system(0, false);

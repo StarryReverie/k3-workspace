@@ -6,6 +6,7 @@
 #   OUT_DIR     output directory (default: $ALIEN_DIR/out-k3[-diag])
 #   K3_DIAG     set to 1 to build a diagnostic image without bash
 #   K3_UARTTEST set to 1 with K3_DIAG=1 to add a UART echo test
+#   K3_SMP      set to 1 to build with CPU_NUM=2 and SBI HSM startup
 #
 # The kernel embeds the initramfs. The initramfs is created before the
 # kernel build because subsystems/platform/src/k3_riscv/mod.rs uses
@@ -75,10 +76,16 @@ echo "[3/7] building kernel"
 # include_bytes! does not always trigger a rebuild when only the included
 # file changes, so touch the platform module.
 touch "$ALIEN_DIR/subsystems/platform/src/k3_riscv/mod.rs"
+FEATURES=k3
+SMP_VALUE=1
+if [ "${K3_SMP:-0}" = "1" ]; then
+    FEATURES="k3,k3_smp"
+    SMP_VALUE=2
+fi
 (
     cd "$ALIEN_DIR"
-    cargo build --release -p kernel --target "$TARGET" \
-        --no-default-features --features k3
+    SMP="$SMP_VALUE" cargo build --release -p kernel --target "$TARGET" \
+        --no-default-features --features "$FEATURES"
 )
 
 echo "[4/7] linking kernel-k3"
@@ -94,12 +101,13 @@ echo "[5/7] creating raw binary"
 LLVM_OBJCOPY="$SYSROOT/lib/rustlib/$HOST/bin/llvm-objcopy"
 "$LLVM_OBJCOPY" --strip-all -O binary \
     "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin"
+gzip -9 -c "$ALIEN_DIR/alien-k3.bin" > "$ALIEN_DIR/alien-k3.bin.gz"
 
 echo "[6/7] creating FIT image"
 mkimage -f "$ALIEN_DIR/tools/k3.its" "$OUT_DIR/$FIT_NAME"
 
 echo "[7/7] summary"
-ls -lh "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin" "$OUT_DIR/$FIT_NAME"
+ls -lh "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin" "$ALIEN_DIR/alien-k3.bin.gz" "$OUT_DIR/$FIT_NAME"
 echo
 echo "U-Boot:"
 echo "  tftpboot 0x140000000 $FIT_NAME"

@@ -14,11 +14,11 @@
     images {
         kernel {
             description = "Alien kernel for SpacemiT K3";
-            data = /incbin/("../alien-k3.bin");
+            data = /incbin/("../alien-k3.bin.gz");
             type = "kernel";
             arch = "riscv";
             os = "linux";
-            compression = "none";
+            compression = "gzip";
             load = <0x1 0x02200000>;
             entry = <0x1 0x02200000>;
         };

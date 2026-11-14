@@ -122,7 +122,7 @@ const FUNCTION_DBCN_READ: usize = 2;
 /// SBI HSM扩展的启动cpu功能
 const FUNCTION_HSM_HART_START: usize = 0x0;
 // const FUNCTION_HSM_HART_STOP: usize = 0x1;
-// const FUNCTION_HSM_HART_GET_STATUS: usize = 0x2;
+const FUNCTION_HSM_HART_GET_STATUS: usize = 0x2;
 const FUNCTION_HSM_HART_SUSPEND: usize = 0x3;
 
 /// 第三种类型的SBI调用
@@ -160,6 +160,19 @@ pub fn hart_start(hart_id: usize, start_addr: usize, opaque: usize) -> SbiRet {
         hart_id,
         start_addr,
         opaque,
+    )
+}
+
+/// wrap sbi FUNCTION_HSM_HART_GET_STATUS call
+///
+/// 返回值含义：0 = STARTED，1 = STOPPED，2 = START_PENDING，3 = STOP_PENDING。
+pub fn hart_get_status(hart_id: usize) -> SbiRet {
+    sbi_call_3(
+        EXTENSION_HSM,
+        FUNCTION_HSM_HART_GET_STATUS,
+        hart_id,
+        0,
+        0,
     )
 }
 

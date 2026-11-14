@@ -2,6 +2,7 @@ use std::{fs, path::Path};
 
 fn main() {
     println!("cargo:rerun-if-changed={}", "src/lib.rs");
+    println!("cargo:rerun-if-env-changed=SMP");
     let cpus = option_env!("SMP").unwrap_or("1");
     let cpus = cpus.parse::<usize>().unwrap();
     let config_file = Path::new("src/lib.rs");

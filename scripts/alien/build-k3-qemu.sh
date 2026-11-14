@@ -6,6 +6,7 @@
 #
 # Optional:
 #   K3_QEMU_SHELL  set to 1 to include bash and test interactive I/O
+#   K3_SMP         set to 1 to enable CPU_NUM=2 and SBI HSM startup
 
 set -euo pipefail
 
@@ -55,10 +56,16 @@ mkdir -p "$ALIEN_DIR/tools/initrd"
 
 echo "[3/5] building kernel (k3_qemu)"
 touch "$ALIEN_DIR/subsystems/platform/src/k3_riscv/mod.rs"
+FEATURES=k3_qemu
+SMP_VALUE=1
+if [ "${K3_SMP:-0}" = "1" ]; then
+    FEATURES="k3_qemu,k3_smp"
+    SMP_VALUE=2
+fi
 (
     cd "$ALIEN_DIR"
-    cargo build --release -p kernel --target "$TARGET" \
-        --no-default-features --features k3_qemu
+    SMP="$SMP_VALUE" cargo build --release -p kernel --target "$TARGET" \
+        --no-default-features --features "$FEATURES"
 )
 
 echo "[4/5] linking kernel-k3-qemu"

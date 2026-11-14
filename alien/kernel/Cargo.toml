@@ -51,6 +51,7 @@ qemu = ["platform/qemu_riscv", "interrupt/qemu", "mem/initrd"]
 vf2 = ["platform/vf2", "interrupt/vf2", "devices/vf2", "mem/initrd"]
 k3 = ["platform/k3_riscv", "interrupt/k3", "mem/initrd"]
 k3_qemu = ["platform/k3_riscv", "platform/k3_qemu", "interrupt/k3", "mem/initrd"]
+k3_smp = ["smp"]
 hifive = ["platform/hifive", "interrupt/hifive", "devices/hifive"]
 smp = ["platform/smp"]
 
