@@ -42,6 +42,7 @@
               "llvm-tools"
               "rustfmt"
               "clippy"
+              "rust-analyzer"
             ];
           };
         in
