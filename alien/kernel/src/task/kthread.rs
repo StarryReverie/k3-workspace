@@ -1,7 +1,6 @@
 use alloc::{collections::BTreeMap, string::ToString, sync::Arc, vec::Vec};
 
-use bit_field::BitField;
-use config::{CPU_NUM, FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
+use config::{CPU_MASK, FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use constants::{
     ipc::RobustList,
     signal::{SignalStack, *},
@@ -69,11 +68,7 @@ pub fn ktread_create(func: fn(), name: &str) -> AlienResult<()> {
             signal_set_siginfo: false,
             robust: RobustList::default(),
             shm: BTreeMap::new(),
-            cpu_affinity: {
-                let mut affinity = 0;
-                affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
-                affinity
-            },
+            cpu_affinity: CPU_MASK,
             unmask: 0o022,
             // user mode stack info
             stack: 0..0,

@@ -6,7 +6,8 @@
 #   OUT_DIR     output directory (default: $ALIEN_DIR/out-k3[-diag])
 #   K3_DIAG     set to 1 to build a diagnostic image without bash
 #   K3_UARTTEST set to 1 with K3_DIAG=1 to add a UART echo test
-#   K3_SMP      set to 1 to build with CPU_NUM=2 and SBI HSM startup
+#   K3_CPUS     number of harts: 1, 2, 4, 8, or 16 (default: 1)
+#   K3_SMP      legacy alias; set to 1 for two harts
 #
 # The kernel embeds the initramfs. The initramfs is created before the
 # kernel build because subsystems/platform/src/k3_riscv/mod.rs uses
@@ -77,14 +78,24 @@ echo "[3/7] building kernel"
 # file changes, so touch the platform module.
 touch "$ALIEN_DIR/subsystems/platform/src/k3_riscv/mod.rs"
 FEATURES=k3
-SMP_VALUE=1
-if [ "${K3_SMP:-0}" = "1" ]; then
-    FEATURES="k3,k3_smp"
-    SMP_VALUE=2
+CPUS=${K3_CPUS:-1}
+if [ -z "${K3_CPUS:-}" ] && [ "${K3_SMP:-0}" = "1" ]; then
+    CPUS=2
 fi
+case "$CPUS" in
+    1|2|4|8|16) ;;
+    *)
+        echo "invalid K3_CPUS: $CPUS (expected 1, 2, 4, 8, or 16)" >&2
+        exit 2
+        ;;
+esac
+if [ "$CPUS" -gt 1 ]; then
+    FEATURES="k3,k3_smp"
+fi
+echo "$CPUS" > "$OUT_DIR/smp"
 (
     cd "$ALIEN_DIR"
-    SMP="$SMP_VALUE" cargo build --release -p kernel --target "$TARGET" \
+    SMP="$CPUS" cargo build --release -p kernel --target "$TARGET" \
         --no-default-features --features "$FEATURES"
 )
 

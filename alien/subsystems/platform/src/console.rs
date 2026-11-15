@@ -72,7 +72,16 @@ pub fn __print(args: Arguments) {
 ///
 /// 在riscv平台上，由于没有实现串口驱动，所以在系统启动初期使用SBI进行输出
 pub fn console_write(s: &str) {
-    Stdout.write_str(s).unwrap();
+    STDOUT.lock().write_str(s).unwrap();
+}
+
+/// 在内核日志与用户态控制台之间共享的输出锁。
+///
+/// 调用方在闭包内完成一次完整的控制台写入，避免多 hart 或内核/用户态
+/// 输出逐字符交错。
+pub fn with_console_lock<F: FnOnce()>(f: F) {
+    let _guard = STDOUT.lock();
+    f()
 }
 
 pub struct PrePrint;

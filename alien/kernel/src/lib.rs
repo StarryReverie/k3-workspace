@@ -33,7 +33,7 @@ mod trap;
 
 use core::{
     hint::spin_loop,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 use platform::platform_machine_info;
@@ -42,6 +42,9 @@ use crate::task::DriverTaskImpl;
 
 /// 主 hart 完成初始化后置位。
 static INIT_DONE: AtomicBool = AtomicBool::new(false);
+/// 已完成初始化并进入调度的 hart 位图。
+#[cfg(feature = "smp")]
+static HART_ONLINE: AtomicUsize = AtomicUsize::new(0);
 
 #[no_mangle]
 fn main(hart_id: usize) {
@@ -67,6 +70,8 @@ fn main(hart_id: usize) {
         // register all syscall
         syscall_table::init_init_array!();
         INIT_DONE.store(true, Ordering::Release);
+        #[cfg(feature = "smp")]
+        HART_ONLINE.fetch_or(1usize << hart_id, Ordering::Release);
     } else {
         while !INIT_DONE.load(Ordering::Acquire) {
             spin_loop();
@@ -74,7 +79,24 @@ fn main(hart_id: usize) {
         mem::init_memory_system(0, false);
         arch::allow_access_user_memory();
         trap::init_trap_subsystem();
+        #[cfg(feature = "smp")]
+        HART_ONLINE.fetch_or(1usize << hart_id, Ordering::Release);
         println!("hart {} start", arch::hart_id());
+    }
+    #[cfg(feature = "smp")]
+    if hart_id == platform::boot_hart() {
+        let start = arch::read_timer();
+        let timeout = platform::config::CLOCK_FREQ / 20;
+        while HART_ONLINE.load(Ordering::Acquire) != config::CPU_MASK
+            && arch::read_timer() - start < timeout
+        {
+            spin_loop();
+        }
+        println!(
+            "SMP: {}/{} harts online",
+            HART_ONLINE.load(Ordering::Acquire).count_ones(),
+            config::CPU_NUM
+        );
     }
     #[cfg(feature = "kprobe_test")]
     kprobe::kprobe_test::kprobe_test();

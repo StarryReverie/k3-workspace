@@ -2,7 +2,7 @@
 # Run the k3_qemu regression kernel built by build-k3-qemu.sh.
 #
 # Optional:
-#   QEMU_SMP      number of harts passed to QEMU (default: 1)
+#   QEMU_SMP      number of harts passed to QEMU (default: $OUT_DIR/smp, else 1)
 #   QEMU_TIMEOUT  seconds before QEMU is stopped (default: 60; 0 = forever)
 
 set -euo pipefail
@@ -16,6 +16,7 @@ fi
 ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
 OUT_DIR=${OUT_DIR:-$ALIEN_DIR/out-k3-qemu}
 QEMU_TIMEOUT=${QEMU_TIMEOUT:-60}
+QEMU_SMP=${QEMU_SMP:-$(cat "$OUT_DIR/smp" 2>/dev/null || echo 1)}
 
 if [ ! -f "$OUT_DIR/kernel-k3-qemu" ]; then
     echo "missing $OUT_DIR/kernel-k3-qemu; run build-k3-qemu.sh first" >&2
@@ -27,7 +28,7 @@ QEMU_ARGS=(
     -M virt
     -bios default
     -m 1024M
-    -smp "${QEMU_SMP:-1}"
+    -smp "$QEMU_SMP"
     -nographic
     -kernel "$OUT_DIR/kernel-k3-qemu"
 )

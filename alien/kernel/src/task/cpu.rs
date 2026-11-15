@@ -39,6 +39,8 @@ pub struct CPU {
     pub task: Option<Arc<Task>>,
     /// 当前线程的上下文
     pub context: Context,
+    /// 切换离已释放任务时使用的临时上下文
+    pub scratch: Context,
 }
 
 impl CPU {
@@ -47,6 +49,7 @@ impl CPU {
         Self {
             task: None,
             context: Context::empty(),
+            scratch: Context::empty(),
         }
     }
 
@@ -58,6 +61,11 @@ impl CPU {
     /// 获取线程上下文的一个 可变引用 的指针
     pub fn get_context_mut_raw_ptr(&mut self) -> *mut Context {
         &mut self.context as *mut Context
+    }
+
+    /// 获取临时上下文的一个可变引用指针
+    pub fn get_scratch_mut_raw_ptr(&mut self) -> *mut Context {
+        &mut self.scratch as *mut Context
     }
 }
 pub struct SafeRefCell<T>(UnsafeCell<T>);

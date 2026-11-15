@@ -16,7 +16,6 @@ use core::{
     ops::Range,
 };
 
-use bit_field::BitField;
 use config::*;
 use constants::{aux::*, io::MMapFlags, ipc::RobustList, signal::*, task::CloneFlags, time::*, *};
 use gmanager::MinimalManager;
@@ -1446,11 +1445,7 @@ impl Task {
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
                 shm: BTreeMap::new(),
-                cpu_affinity: {
-                    let mut affinity = 0;
-                    affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
-                    affinity
-                },
+                cpu_affinity: CPU_MASK,
                 unmask: 0o022,
                 stack: stack_info,
                 need_wait: 0,
@@ -1651,11 +1646,7 @@ impl Task {
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
                 shm: inner.shm.clone(),
-                cpu_affinity: {
-                    let mut affinity = 0;
-                    affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
-                    affinity
-                },
+                cpu_affinity: CPU_MASK,
                 unmask: 0o022,
                 stack: inner.stack.clone(),
                 need_wait: 0,

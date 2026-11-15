@@ -21,6 +21,8 @@ pub const STACK_SIZE_BITS: usize = 16;
 
 /// 可配置的启动cpu数量
 pub const CPU_NUM: usize = 1;
+/// 全部可用 CPU 的位掩码。
+pub const CPU_MASK: usize = (1usize << CPU_NUM) - 1;
 
 // todo!(if the app linker script changed, this should be changed too)
 /// 进程的堆空间上限

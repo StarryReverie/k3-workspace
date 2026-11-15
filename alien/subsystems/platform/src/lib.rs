@@ -76,11 +76,18 @@ pub fn platform_init(hart_id: usize, _dtb: usize) {
 #[cfg(feature = "smp")]
 fn init_other_hart(hart_id: usize) {
     println!("init_other_hart: cpu_num={}, boot={}", CPU_NUM, hart_id);
+    assert!(
+        hart_id < CPU_NUM,
+        "boot hart {} is outside CPU_NUM={}",
+        hart_id,
+        CPU_NUM
+    );
     let start_hart = if cfg!(any(feature = "vf2", feature = "hifive")) {
         1
     } else {
         0
     };
+    let mut requested = 0;
     for i in start_hart..CPU_NUM {
         if i != hart_id {
             let status = hart_get_status(i);
@@ -97,9 +104,14 @@ fn init_other_hart(hart_id: usize) {
                 println!("hart {} start failed: {}", i, res.error);
             } else {
                 println!("hart {} start requested", i);
+                requested += 1;
             }
         }
     }
+    println!(
+        "SMP: requested {} secondary harts, target {}",
+        requested, CPU_NUM
+    );
 }
 
 extern "C" {

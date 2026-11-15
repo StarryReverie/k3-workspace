@@ -1,7 +1,7 @@
 //! CPU 调度
 use alloc::sync::Arc;
-use core::hint::spin_loop;
 
+use config::CPU_NUM;
 use constants::signal::SignalNumber;
 use smpscheduler::FifoTask;
 
@@ -12,6 +12,13 @@ use crate::{
         GLOBAL_TASK_MANAGER,
     },
 };
+
+/// 每个 hart 的待发布任务槽位。
+///
+/// 任务让出 CPU 时先切换到 idle，由 `__switch` 保存上下文；idle 循环随后才把
+/// 任务放回调度队列。这样其他 hart 不会窃取到上下文尚未保存的任务。
+const EMPTY_PENDING: spin::Mutex<Option<Arc<Task>>> = spin::Mutex::new(None);
+static PENDING: [spin::Mutex<Option<Arc<Task>>>; CPU_NUM] = [EMPTY_PENDING; CPU_NUM];
 
 /// 在 CPU 启动并初始化完毕后初次进入用户态时，或者在一个任务将要让渡 CPU 时 将会执行该函数。
 ///
@@ -24,6 +31,10 @@ use crate::{
 /// 否则该 CPU 将进入等待状态，等待其它核的中断信号。
 pub fn run_task() -> ! {
     loop {
+        let hart = arch::hart_id();
+        if let Some(task) = PENDING[hart].lock().take() {
+            GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
+        }
         let cpu = current_cpu();
         if let Some(task) = GLOBAL_TASK_MANAGER.pick_next_task() {
             // update state to running
@@ -37,7 +48,8 @@ pub fn run_task() -> ! {
             drop(task);
             switch(cpu_context, context);
         } else {
-            spin_loop();
+            // 无任务时等待中断；下一个时间片会把本 hart 唤醒。
+            unsafe { core::arch::asm!("wfi") };
         }
     }
 }
@@ -48,9 +60,9 @@ pub fn schedule() {
     schedule_now(task)
 }
 
-// todo!(fix bugs)
 pub fn schedule_now(task: Arc<Task>) {
     let context = task.get_context_mut_raw_ptr();
+    let mut published = false;
     match task.state() {
         TaskState::Waiting => {
             drop(task);
@@ -70,10 +82,17 @@ pub fn schedule_now(task: Arc<Task>) {
             task.terminate(); // release some resources
         }
         _ => {
-            GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
+            let hart = arch::hart_id();
+            *PENDING[hart].lock() = Some(task);
+            published = true;
         }
     }
     let cpu = current_cpu();
+    let prev = if published {
+        context
+    } else {
+        cpu.get_scratch_mut_raw_ptr()
+    };
     let cpu_context = cpu.get_context_raw_ptr();
-    switch(context, cpu_context);
+    switch(prev, cpu_context);
 }

@@ -161,25 +161,41 @@ pub fn sched_getparam() -> isize {
     0
 }
 
-/// (待实现)一个系统调用，设置进程CPU亲和力(位掩码)，使进程绑定在某一个或几个CPU上运行，避免在CPU之间来回切换，从而提高该进程的实时性能。目前直接返回0。
+/// 设置进程 CPU 亲和力(位掩码)。
+///
+/// 调度器目前不按亲和力过滤任务，因此这里明确返回未实现，避免用户态
+/// 误认为绑定已经生效。
 #[syscall_func(122)]
-pub fn sched_setaffinity() -> isize {
-    0
+pub fn sched_setaffinity(_pid: usize, _size: usize, _mask: usize) -> isize {
+    LinuxErrno::ENOSYS as isize
 }
 
-/// (待完善)一个系统调用，获取某进程对CPU的亲和力(位掩码)。当前进程的cpu亲和力将保存到`mask`所指向的位置。函数执行成功后返回8。
+/// 获取某进程对 CPU 的亲和力(位掩码)。
+///
+/// 当前只支持查询当前进程；其他 pid 返回 `ESRCH`。成功时返回实际写入的
+/// 字节数。
 #[syscall_func(123)]
 pub fn sched_getaffinity(pid: usize, size: usize, mask: usize) -> isize {
     warn!(
         "sched_getaffinity: pid: {}, size: {}, mask: {}",
         pid, size, mask
     );
-    assert_eq!(pid, 0);
     let task = current_task().unwrap();
-    let res = task.access_inner().cpu_affinity;
-    let mask = task.access_inner().transfer_raw_ptr_mut(mask as *mut usize);
-    *mask = res;
-    8
+    if pid != 0 && pid != task.get_pid() as usize {
+        return LinuxErrno::ESRCH as isize;
+    }
+    if mask == 0 || size == 0 {
+        return LinuxErrno::EINVAL as isize;
+    }
+    let bytes = min(size, core::mem::size_of::<usize>());
+    let affinity = task.access_inner().cpu_affinity;
+    let dst: *mut u8 = task.access_inner().transfer_raw_ptr_mut(mask as *mut u8);
+    for i in 0..bytes {
+        unsafe {
+            *dst.add(i) = (affinity >> (i * 8)) as u8;
+        }
+    }
+    bytes as isize
 }
 
 /// (待实现)一个系统调用，用于获取当前CPU的调度策略。目前直接返回0。

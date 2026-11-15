@@ -40,6 +40,15 @@ extern "C" {
 /// 交换前后两个线程的上下文，调用 `switch.asm` 中的 `__switch`
 #[inline(always)]
 pub fn switch(current_task_cx_ptr: *mut Context, next_task_cx_ptr: *const Context) {
+    if (current_task_cx_ptr as usize) < 0x1000 || (next_task_cx_ptr as usize) < 0x1000 {
+        println!(
+            "invalid switch: prev={:#x}, next={:#x}, hart={}",
+            current_task_cx_ptr as usize,
+            next_task_cx_ptr as usize,
+            arch::hart_id()
+        );
+        panic!("invalid context pointer");
+    }
     unsafe {
         __switch(current_task_cx_ptr, next_task_cx_ptr);
     }

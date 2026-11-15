@@ -120,6 +120,16 @@ impl UARTDevice {
     pub fn device_id(&self) -> DeviceId {
         self.device_id
     }
+
+    /// 在控制台输出锁内写入单个字节。
+    fn put_locked(&self, ch: u8) {
+        platform::console::with_console_lock(|| self.device.put(ch));
+    }
+
+    /// 在控制台输出锁内写入一段字节。
+    fn put_bytes_locked(&self, buf: &[u8]) {
+        platform::console::with_console_lock(|| self.device.put_bytes(buf));
+    }
 }
 
 impl VfsFile for UARTDevice {
@@ -137,14 +147,14 @@ impl VfsFile for UARTDevice {
                 if LocalModes::from_bits_truncate(self.io.lock().termios.lflag)
                     .contains(LocalModes::ECHO)
                 {
-                    self.device.put(b'\n');
+                    self.put_locked(b'\n');
                 }
                 break;
             }
             if LocalModes::from_bits_truncate(self.io.lock().termios.lflag)
                 .contains(LocalModes::ECHO)
             {
-                self.device.put(ch);
+                self.put_locked(ch);
             }
             if read_count >= buf.len() {
                 break;
@@ -153,7 +163,7 @@ impl VfsFile for UARTDevice {
         Ok(read_count)
     }
     fn write_at(&self, _offset: u64, buf: &[u8]) -> VfsResult<usize> {
-        self.device.put_bytes(buf);
+        self.put_bytes_locked(buf);
         Ok(buf.len())
     }
     fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
