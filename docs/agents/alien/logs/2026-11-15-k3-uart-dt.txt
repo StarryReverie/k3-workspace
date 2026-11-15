@@ -1,0 +1,16 @@
+Alien K3 U-Boot control device tree UART query, 2026-11-15
+Source: logs/boot-20261115-183642.log and logs/boot-20261115-191119.log
+Note: excerpt only; U-Boot timestamps removed.
+
+uart@d4017000 {
+ 	u-boot,dm-spl;
+ 	compatible = "ns16550";
+ 	reg = <0x00000000 0xd4017000 0x00000000 0x00000100>;
+ 	reg-shift = <0x00000002>;
+ 	reg-io-width = <0x00000004>;
+ 	clock-frequency = <0x00e10000>;
+ 	status = "okay";
+ };
+
+=>  md.l 0xd4017000 8
+d4017000: 00000000 00000040 000000c1 00000003  ....@...........

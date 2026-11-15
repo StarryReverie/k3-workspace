@@ -275,11 +275,40 @@ QEMU 八核负载      CPU 时间倍率 7.97
 
 详细记录见 `09-more-cores.md`。
 
+### 阶段 7：设备树与中断基础设施
+
+状态：部分完成。
+
+完成内容：
+
+- 解析内存、CPU、UART、IMSIC、APLIC 设备树信息。
+- 增加 PLIC/AIA 统一中断控制器抽象，PLIC 基线不回归。
+- QEMU `aia=aplic-imsic` 下 UART IRQ 10 已由中断驱动。
+- K3 上 `simsic` 与 `saplic` 可探测并完成 IMSIC/APLIC 初始化。
+- 上板脚本增加 `--pre-command`，支持 U-Boot 设备树查询。
+
+验证结果：
+
+```text
+QEMU 默认 PLIC      轮询 UART，Alien:/#
+QEMU AIA 双核       中断 UART，nproc=2，IRQ 10 计数 6
+K3 双核             AIA 初始化成功，轮询 UART，nproc=2，K3_OK
+```
+
+阻塞：
+
+- K3 写 UART IER 后主 hart 停止推进，无 panic、无 trap。
+- 已尝试 8/32 位写入、延迟到陷阱就绪、关闭 APLIC 投递、清空 eie、清空 RX FIFO、绕过 Uart 锁直接写 MMIO。
+- 当前 K3 回退 `PollingUart`；QEMU AIA 保持中断驱动。
+
+详细记录见 `10-interrupts.md`。
+
 ### 已确认
 
 - K3 的 `timebase-frequency` 为 24 MHz。
-- K3 使用 IMSIC；APLIC 节点存在但被禁用。
-- K3 UART 为 `ns16550`，基址 `0xd4017000`。
+- K3 使用 IMSIC；`simsic` 位于 `0xe0400000`，`saplic` 位于 `0xe0804000`。
+- U-Boot 控制设备树的 UART 节点为 `/soc/uart@d4017000`，未提供 `interrupts` 属性。
+- K3 UART 为 `ns16550`，基址 `0xd4017000`，默认中断号 42。
 - 开发板 U-Boot 提供可用的控制设备树，地址由 `fdtcontroladdr` 给出。
 - U-Boot `bootm` 在 FIT 不含 FDT 时需要显式传入 FDT 地址。
 - `0x01` 洪泛来自 SBI 控制台输入轮询，已由轮询 UART 替代。
@@ -288,15 +317,17 @@ QEMU 八核负载      CPU 时间倍率 7.97
 - X100 的 4 核与 8 核均可在 QEMU 和真实 K3 上启动。
 - `nproc` 与 `/sys/devices/system/cpu/online` 能正确反映 4/8 核。
 - 内核日志与用户态 UART 输出已共用输出锁。
+- QEMU AIA 的 IMSIC/APLIC 与 UART IRQ 10 已完整验证。
+- K3 的 IMSIC/APLIC 初始化成功，UART 中断尚未启用。
 
 ### 仍需确认
 
+- K3 UART IER 使能后卡住的原因。
+- K3 UART IRQ 42 与 APLIC/IMSIC 的实际路由。
 - A100（CPU8–15）的 HSM 状态与启动方式。
 - 八核日志偶发单字节串口噪声，需要确认是抓取还是 UART 传输问题。
 - `sched_setaffinity` 尚未实现，调度器不强制亲和性。
 - `taskset -p` 需要全局 pid 到任务的查询接口。
 - U-Boot DHCP 偶发失败，需要重试上板脚本。
-- UART 中断驱动与 IMSIC 的接入方式。
-- PLIC/APLIC/IMSIC 的外部中断号与路由。
 - UART 流控、Ctrl-C 与作业控制。
 - 长时间运行下的定时器与调度精度。

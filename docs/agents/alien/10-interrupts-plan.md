@@ -1,8 +1,8 @@
 # 阶段 7 详细计划：设备树与中断基础设施
 
 日期：2026-11-15
-状态：计划，尚未实施
-前置提交：`6b3192c docs: record K3 multi-core validation`
+状态：部分实施，进展见 `10-interrupts.md`
+前置提交：`3b2db72 docs: add stage 7 interrupt plan`
 目标平台：QEMU `virt` 与 BananaPi BPI-SM10（SpacemiT K3）
 
 ## 0. 文档范围
@@ -78,14 +78,14 @@ QEMU 生成的设备树中：
 
 | 对象 | 地址 | 说明 |
 |---|---|---|
-| `simsic` | `0xe0400000`，大小 `0x200000` | S-level IMSIC，CPU0–7 |
+| `simsic` | `0xe0400000`，大小 `0x400000`（U-Boot DT） | S-level IMSIC，枚举 16 个 hart |
 | `saplic` | `0xe0804000`，大小 `0x4000` | S-level APLIC |
 | UART0 | `0xd4017000` | 中断号 42，`reg-shift=2` |
 | `simsic` 属性 | `hart-index-bits=4`、`guest-index-bits=6`、`num-ids=511` | 每个 hart 64 页 |
 | `saplic` 属性 | `num-sources=512`、`msi-parent=<&simsic>` | 源 42 为 UART0 |
 | `mimsic` / `maplic` | `0xf1000000` / `0xf1800000` | `reserved`，不使用 |
 
-K3 的 `simsic` 只覆盖 CPU0–7，与当前 8 个 X100 hart 一致。A100 不在阶段 7 范围内。
+K3 的 U-Boot 控制设备树枚举了 CPU0–15，`simsic` 覆盖 `0x400000`。当前内核只启动 `CPU_NUM` 指定的 hart。A100 不在阶段 7 范围内。
 
 ## 3. 目标与非目标
 
@@ -154,7 +154,7 @@ s_file(hart) = imsic_base + (hart << (12 + guest_index_bits))
 
 - QEMU 没有 `guest-index-bits`，按 0 处理，步长为 `0x1000`。
 - K3 `guest-index-bits=6`，步长为 `0x40000`。
-- K3 8 个 hart 覆盖 `0x200000`，与 `simsic` 大小一致。
+- K3 16 个 hart 覆盖 `0x400000`，与 U-Boot 设备树的 `simsic` 大小一致。
 
 ### 4.5 APLIC MSI 目标
 
@@ -306,7 +306,7 @@ platform_init
 Memory: 0x102000000..0x300000000
 CPUs:   0..7
 UART:   0xd4017000 irq 42 reg-shift 2
-IMSIC:  0xe0400000 size 0x200000 num-ids 511
+IMSIC:  0xe0400000 size 0x400000 num-ids 511
 APLIC:  0xe0804000 size 0x4000 num-sources 512
 ```
 
@@ -445,7 +445,7 @@ bash 可交互
 
 ```text
 simsic base       0xe0400000
-simsic size       0x200000
+simsic size       0x400000
 hart index bits   4
 guest index bits  6
 num ids           511
@@ -727,7 +727,7 @@ serial@10000000 {
 ```text
 simsic: interrupt-controller@e0400000 {
     compatible = "spacemit,k3-imsics", "riscv,imsics";
-    reg = <0x0 0xe0400000 0x0 0x200000>;
+    reg = <0x0 0xe0400000 0x0 0x400000>;
     interrupts-extended = <&cpu0_intc 9>, ... <&cpu7_intc 9>;
     riscv,guest-index-bits = <6>;
     riscv,hart-index-bits = <4>;

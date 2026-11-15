@@ -13,9 +13,9 @@
 | 4 | K3 控制台交互与 `0x01` 洪泛修复 | 完成，2026-11-14 |
 | 5 | FIT gzip 与 K3 双核启动 | 完成，2026-11-14 |
 | 6 | K3 四核与八核启动、亲和性与输出锁 | 完成，2026-11-15 |
-| 7 | 设备树与中断基础设施 | 计划中，2026-11-15 |
+| 7 | 设备树与中断基础设施 | 部分完成，2026-11-15 |
 
-完整 bash 镜像已在 BananaPi-1 上验证；当前支持 gzip FIT 与 8 个 X100 hart。串口无 `0x01` 洪泛。
+完整 bash 镜像已在 BananaPi-1 上验证；当前支持 gzip FIT 与 8 个 X100 hart。QEMU AIA 的 UART 中断已可用；K3 仍使用轮询 UART，IMSIC/APLIC 初始化已验证。
 
 ## 固定信息
 
@@ -40,6 +40,7 @@
 | `08-smp-and-gzip.md` | 阶段 5 的 gzip FIT、双核启动与主 hart 修复 |
 | `09-more-cores.md` | 阶段 6 的四核/八核、亲和性、调度竞态与输出锁 |
 | `10-interrupts-plan.md` | 阶段 7 的设备树、IMSIC/APLIC 与 UART 中断详细计划 |
+| `10-interrupts.md` | 阶段 7 的实施记录、QEMU AIA 成功与 K3 UART IER 阻塞 |
 | `logs/` | 关键日志节选 |
 
 ## 源码位置
@@ -97,6 +98,10 @@ QEMU_SMP=2 QEMU_TIMEOUT=10 ./scripts/alien/run-k3-qemu.sh
 # 构建并运行 QEMU 八核回归
 K3_CPUS=8 K3_QEMU_SHELL=1 ./scripts/alien/build-k3-qemu.sh
 QEMU_SMP=8 QEMU_TIMEOUT=15 ./scripts/alien/run-k3-qemu.sh
+
+# 构建并运行 QEMU AIA 中断回归
+K3_CPUS=2 K3_QEMU_SHELL=1 ./scripts/alien/build-k3-qemu.sh
+QEMU_AIA=aplic-imsic QEMU_SMP=2 QEMU_TIMEOUT=15 ./scripts/alien/run-k3-qemu.sh
 
 # 启动 QEMU，默认 60 秒后停止
 ./scripts/alien/run-qemu.sh

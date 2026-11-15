@@ -1,0 +1,55 @@
+Alien k3_qemu AIA interrupt validation, 2026-11-15
+Source: /tmp/opencode/stage7-qemu2-aia-interact.log
+Image: k3_qemu with K3_CPUS=2 and K3_QEMU_SHELL=1, QEMU -M virt,aia=aplic-imsic -smp 2
+Note: excerpt only; ANSI escape sequences removed.
+
+AIA: imsic=0x28000000 size=0x2000 ids=255 aplic=0xd000000 size=0x8000 sources=96
+[0] AIA: hart_bits=0 guest_bits=0
+[0] K3 console: interrupt UART deferred, irq 10
+[0] DT memory: 0x80000000..0xc0000000
+[0] DT cpus: [0, 1]
+[0] DT uart: base=0x10000000 irq=10 compatible=ns16550a
+[0] DT imsic: base=0x28000000 size=0x2000 num_ids=255 hart_bits=0 guest_bits=0
+[0] DT aplic: base=0xd000000 size=0x8000 num_sources=96
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] no disk filesystem feature, skip /tests disk mount
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KB sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] AIA: enabled irq 10 for hart 0
+[0] K3 console: interrupt-driven, irq 10
+[0] Init task success
+[1] ++++ setup interrupt ++++
+[1] ++++ setup interrupt done, enable:true ++++
+[1] hart 1 start
+[0] SMP: 2/2 harts online
+[1] Begin run task...
+[0] Begin run task...
+[0] kthread_init start...
+Init process is running
+Alien:/# /bin/busybox nproc
+2
+Alien:/# <0m# /bin/busybox cat /sys/devices/system/cpu/online
+0-1Alien:/# /bin/busybox cat /proc/interrupts
+1: 30
+10: 6
+Alien:/# echo K3_OK
+K3_OK
+Alien:/# /bin/busybox ls /
+bin    dev    etc    proc   root   sys    tests  tmp    var
+Alien:/#

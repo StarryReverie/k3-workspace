@@ -147,8 +147,9 @@ ostool board connect
 | 项目 | 结论 |
 |---|---|
 | 时间基准频率 | 24 MHz，`CLOCK_FREQ` 不需要修改 |
-| 中断控制器 | IMSIC；APLIC 节点存在但被禁用 |
+| 中断控制器 | `simsic` 位于 `0xe0400000`，`saplic` 位于 `0xe0804000` |
 | UART | `ns16550`，基址 `0xd4017000`，控制台 `uart0:115200` |
+| UART 中断号 | K3 默认 42；U-Boot 控制设备树未提供该属性 |
 | 设备树来源 | U-Boot 控制设备树，地址由 `fdtcontroladdr` 给出 |
 | FIT 与 `bootm` | FIT 不含 FDT 时必须显式传入 FDT 地址 |
 | 高地址路径 | 真实硬件与 10 GiB QEMU 回归均可用 |
@@ -158,24 +159,27 @@ ostool board connect
 | SMP | X100 的 CPU0–7 可启动，4 核与 8 核已验证 |
 | CPU 亲和性 | 默认掩码为全部 CPU，`nproc` 与 `/sys` 输出正确 |
 | 控制台输出 | 内核日志与用户态 UART 共用输出锁 |
+| QEMU AIA | `aia=aplic-imsic` 下 UART IRQ 10 中断驱动已可用 |
+| K3 AIA | IMSIC/APLIC 初始化成功，UART 中断未启用 |
 
 仍需确认：
 
 | 项目 | 影响 | 处理方式 |
 |---|---|---|
+| K3 UART IER | 写 IER 后主 hart 停止推进 | 对照 Linux `8250_pxa` 与厂商驱动 |
+| K3 UART IRQ 路由 | 默认 42，实际 APLIC 路由未确认 | 检查 APLIC source/target 与 U-Boot 配置 |
 | A100（CPU8–15） | 尚未探测与启用 | 先用 `hart_get_status` 查询 8–15，再单独实验 |
 | 调度器亲和性 | `sched_setaffinity` 返回 `ENOSYS` | 在任务选择路径检查 `cpu_affinity` |
 | 八核串口噪声 | 偶发单字节损坏 | 确认是抓取丢字节还是 UART 传输问题 |
 | U-Boot DHCP | 偶发 `ipaddr not set` | 上板脚本增加 DHCP 重试 |
-| UART 中断与 IMSIC | 当前为忙等轮询 | 接入 IMSIC，改为中断驱动 |
 | UART 流控与作业控制 | Ctrl-C、流控未验证 | 补 termios 与信号处理 |
-| IMSIC 与 APLIC | 外部中断不可用 | 参考 Linux 设备树与 IMSIC 规范 |
 | 长时间计时 | 调度精度未知 | 运行定时器与 `nanosleep` 测试 |
 | 上传速度 | 仍受宿主机网络影响 | 继续压缩或改变传输方式 |
 
 ## 7. 风险
 
 - 用户态 UART 输入为忙等轮询，未接入中断；无输入时会占用 CPU。
+- K3 写 UART IER 会导致 hart 停止推进，中断控制台暂时不可用。
 - 平台会话约 5 分钟回收，完整镜像上传可能接近上限。
 - 若完全没有输出，区分“未跳转”“SBI 调用失败”“页表异常”需要提前埋入早期标记。
 - K3 的 16 个 hart 中 A100 的启动方式与 X100 可能不同，SMP 不能直接照搬 VisionFive2。
