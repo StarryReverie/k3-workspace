@@ -12,6 +12,7 @@ extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::ptr::NonNull;
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 pub use block::{BLKDevice, BLOCK_DEVICE};
 use config::MAX_INPUT_EVENT_NUM;
@@ -19,29 +20,134 @@ use device_interface::{DeviceBase, GpuDevice, LowBlockDevice};
 use drivers::{
     block_device::GenericBlockDevice,
     rtc::GoldFishRtc,
-    uart::{Uart, Uart16550, Uart8250},
+    uart::{LowUartDriver, Uart, Uart16550, Uart8250},
 };
 use fdt::Fdt;
 pub use gpu::{GPUDevice, GPU_DEVICE};
 pub use input::{INPUTDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
-use interrupt::register_device_to_plic;
+use interrupt::{init_aia, register_device, AiaConfig};
 use log::info;
 use platform::println;
 pub use rtc::{RTCDevice, RTC_DEVICE};
 pub use uart::{PollingUart, UARTDevice, UART_DEVICE};
 
-/// 为 K3 注册轮询模式的 ns16550。K3 使用 32 位寄存器与 reg-shift=2。
-pub fn init_k3_uart(base_addr: usize) {
-    let raw = Uart8250::new(base_addr);
-    let uart = Arc::new(uart::PollingUart::new(Box::new(raw)));
-    uart::init_uart(uart);
+static K3_IRQ_UART: spin::Once<Arc<Uart>> = spin::Once::new();
+static K3_UART_IRQ: AtomicUsize = AtomicUsize::new(0);
+
+/// 为 K3 注册控制台。
+///
+/// QEMU AIA 使用中断驱动 UART；K3 目前保留轮询输入，AIA 初始化仅用于
+/// 验证 IMSIC/APLIC。K3 的 UART IER 使能仍待硬件确认。
+pub fn init_k3_console(base_addr: usize, qemu_uart: bool) {
+    let dtb_ptr = platform::platform_dtb_ptr();
+    let dtb = unsafe { Fdt::from_ptr(dtb_ptr as *const u8) };
+    let mut irq = 0;
+    let mut aia_ok = false;
+    if let Ok(dtb) = dtb {
+        if let (Some(uart), Some(imsic), Some(aplic)) = (
+            dtb.probe_uart(),
+            dtb.probe_imsic(),
+            dtb.probe_aplic(),
+        ) {
+            irq = if uart.irq != 0 {
+                uart.irq
+            } else {
+                platform::config::UART_IRQ
+            };
+            aia_ok = init_aia(AiaConfig {
+                imsic_base: imsic.base,
+                imsic_size: imsic.size,
+                imsic_num_ids: imsic.num_ids,
+                hart_index_bits: imsic.hart_index_bits,
+                guest_index_bits: imsic.guest_index_bits,
+                aplic_base: aplic.base,
+                aplic_size: aplic.size,
+                aplic_num_sources: aplic.num_sources,
+                uart_irq: irq,
+                target_hart: platform::boot_hart(),
+            });
+        }
+    }
+
+    let raw: Box<dyn LowUartDriver> = if qemu_uart {
+        Box::new(Uart16550::new(base_addr))
+    } else {
+        Box::new(Uart8250::new(base_addr))
+    };
+
+    if qemu_uart && aia_ok && irq != 0 {
+        let uart = Arc::new(Uart::new_deferred(raw));
+        uart::init_uart(uart.clone());
+        K3_IRQ_UART.call_once(|| uart);
+        K3_UART_IRQ.store(irq, Ordering::Release);
+        println!("K3 console: interrupt UART deferred, irq {}", irq);
+    } else {
+        let uart = Arc::new(PollingUart::new(raw));
+        uart::init_uart(uart);
+        println!("K3 console: polling");
+    }
 }
 
-/// 为 K3 QEMU 回归注册轮询模式的 16550。QEMU virt 使用 8 位寄存器。
+/// 在陷阱子系统就绪后注册 UART 中断并使能 IER。
+pub fn enable_k3_uart_irq() {
+    let Some(uart) = K3_IRQ_UART.get() else {
+        return;
+    };
+    let irq = K3_UART_IRQ.load(Ordering::Acquire);
+    if irq == 0 {
+        return;
+    }
+    register_device(irq, uart.clone());
+    uart.enable_irq();
+    println!("K3 console: interrupt-driven, irq {}", irq);
+}
+
+/// 为 K3 注册轮询模式的 ns16550。K3 使用 32 位寄存器与 reg-shift=2。
+pub fn init_k3_uart(base_addr: usize) {
+    init_k3_console(base_addr, false);
+}
+
+/// 为 K3 QEMU 回归注册 16550。QEMU virt 使用 8 位寄存器。
 pub fn init_k3_qemu_uart(base_addr: usize) {
-    let raw = Uart16550::new(base_addr);
-    let uart = Arc::new(uart::PollingUart::new(Box::new(raw)));
-    uart::init_uart(uart);
+    init_k3_console(base_addr, true);
+}
+
+/// 打印 K3 设备树中的内存、CPU、UART、IMSIC 与 APLIC。
+///
+/// 阶段 7A 只读探测，用于核对硬编码平台信息。
+pub fn probe_k3_platform() {
+    let dtb_ptr = platform::platform_dtb_ptr();
+    let dtb = unsafe { Fdt::from_ptr(dtb_ptr as *const u8) };
+    let dtb = match dtb {
+        Ok(dtb) => dtb,
+        Err(error) => {
+            println!("DT: parse failed: {:?}", error);
+            return;
+        }
+    };
+
+    if let Some(memory) = dtb.probe_memory() {
+        println!("DT memory: {:#x}..{:#x}", memory.start, memory.end);
+    }
+    println!("DT cpus: {:?}", dtb.probe_harts());
+    if let Some(uart) = dtb.probe_uart() {
+        println!(
+            "DT uart: base={:#x} irq={} compatible={}",
+            uart.base_addr, uart.irq, uart.compatible
+        );
+    }
+    if let Some(imsic) = dtb.probe_imsic() {
+        println!(
+            "DT imsic: base={:#x} size={:#x} num_ids={} hart_bits={} guest_bits={}",
+            imsic.base, imsic.size, imsic.num_ids, imsic.hart_index_bits, imsic.guest_index_bits
+        );
+    }
+    if let Some(aplic) = dtb.probe_aplic() {
+        println!(
+            "DT aplic: base={:#x} size={:#x} num_sources={}",
+            aplic.base, aplic.size, aplic.num_sources
+        );
+    }
 }
 use virtio_drivers::transport::{
     mmio::{MmioTransport, VirtIOHeader},
@@ -122,7 +228,7 @@ fn init_rtc(rtc: prob::DeviceInfo) {
             let rtc = Arc::new(GoldFishRtc::new(info.base_addr));
             let current_time = rtc.read_time_string();
             rtc::init_rtc(rtc.clone());
-            register_device_to_plic(info.irq, rtc);
+            register_device(info.irq, rtc);
             println!("Init rtc success, current time: {:?}", current_time);
         }
         name => {
@@ -140,14 +246,14 @@ fn init_uart(uart: prob::DeviceInfo) {
             let uart = Uart16550::new(base_addr);
             let uart = Arc::new(Uart::new(Box::new(uart)));
             uart::init_uart(uart.clone());
-            register_device_to_plic(irq, uart);
+            register_device(irq, uart);
         }
         "snps,dw-apb-uart" => {
             // vf2
             let uart = Uart8250::new(base_addr);
             let uart = Arc::new(Uart::new(Box::new(uart)));
             uart::init_uart(uart.clone());
-            register_device_to_plic(irq, uart);
+            register_device(irq, uart);
         }
         name => {
             panic!("Don't support uart: {}", name);
@@ -219,7 +325,7 @@ fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport
             println!("Block device size is {}MB", size * 512 / 1024 / 1024);
             let block_device = Arc::new(GenericBlockDevice::new(Box::new(block_device)));
             block::init_block_device(block_device);
-            // register_device_to_plic(irq, block_device);
+            // register_device(irq, block_device);
             println!("Init block device success");
         }
         "starfive,jh7110-sdio" => {
@@ -233,7 +339,7 @@ fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport
                 println!("Block device size is {}MB", size * 512 / 1024 / 1024);
                 let block_device = Arc::new(GenericBlockDevice::new(Box::new(block_device)));
                 block::init_block_device(block_device);
-                // register_device_to_plic(irq, block_device);
+                // register_device(irq, block_device);
                 println!("Init SDIO block device success");
             }
             #[cfg(feature = "ramdisk")]
@@ -277,7 +383,7 @@ fn init_gpu(gpu: prob::DeviceInfo, mmio_transport: Option<MmioTransport>) {
             println!("GPU resolution: {:?}", resolution);
             let gpu = Arc::new(gpu);
             gpu::init_gpu(gpu);
-            // let _ = register_device_to_plic(irq, gpu);
+            // let _ = register_device(irq, gpu);
             println!("Init gpu success");
         }
         name => {
@@ -304,7 +410,7 @@ fn init_input_device(input: prob::DeviceInfo, name: &str, mmio_transport: Option
                 "keyboard" => input::init_keyboard_input_device(input.clone()),
                 _ => panic!("Don't support {} input device", name),
             }
-            let _ = register_device_to_plic(irq, input);
+            let _ = register_device(irq, input);
             println!("Init keyboard input device success");
         }
         name => {

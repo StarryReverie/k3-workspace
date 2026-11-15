@@ -102,8 +102,21 @@ struct UartInner {
 
 impl Uart {
     pub fn new(uart_raw: Box<dyn LowUartDriver>) -> Self {
+        Self::new_with_init(uart_raw, true)
+    }
+
+    /// 创建 UART，但暂不使能中断。
+    ///
+    /// 某些平台需要先配置中断控制器，再使能 UART 的 IER。
+    pub fn new_deferred(uart_raw: Box<dyn LowUartDriver>) -> Self {
+        Self::new_with_init(uart_raw, false)
+    }
+
+    fn new_with_init(uart_raw: Box<dyn LowUartDriver>, init: bool) -> Self {
         let mut uart_raw = uart_raw;
-        uart_raw._init();
+        if init {
+            uart_raw._init();
+        }
         let inner = UartInner {
             rx_buf: VecDeque::new(),
             wait_queue: VecDeque::new(),
@@ -111,6 +124,11 @@ impl Uart {
         Uart {
             inner: Mutex::new((uart_raw, inner)),
         }
+    }
+
+    /// 在中断控制器配置完成后使能 UART 接收中断。
+    pub fn enable_irq(&self) {
+        self.inner.lock().0._init();
     }
 }
 

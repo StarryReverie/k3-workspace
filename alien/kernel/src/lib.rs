@@ -58,13 +58,19 @@ fn main(hart_id: usize) {
         shim::register_task_func(Box::new(DriverTaskImpl));
         #[cfg(not(any(feature = "k3", feature = "k3_qemu")))]
         devices::init_device();
+        #[cfg(any(feature = "k3", feature = "k3_qemu"))]
+        trap::set_kernel_trap_entry();
         #[cfg(feature = "k3")]
         devices::init_k3_uart(0xd401_7000);
         #[cfg(feature = "k3_qemu")]
         devices::init_k3_qemu_uart(0x1000_0000);
+        #[cfg(any(feature = "k3", feature = "k3_qemu"))]
+        devices::probe_k3_platform();
         vfs::init_filesystem().expect("init filesystem failed");
         ksym::init_kallsyms();
         trap::init_trap_subsystem();
+        #[cfg(any(feature = "k3", feature = "k3_qemu"))]
+        devices::enable_k3_uart_irq();
         arch::allow_access_user_memory();
         task::init_task();
         // register all syscall

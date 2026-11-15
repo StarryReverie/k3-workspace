@@ -3,6 +3,7 @@
 #
 # Optional:
 #   QEMU_SMP      number of harts passed to QEMU (default: $OUT_DIR/smp, else 1)
+#   QEMU_AIA      set to aplic-imsic to enable IMSIC/APLIC (default: off)
 #   QEMU_TIMEOUT  seconds before QEMU is stopped (default: 60; 0 = forever)
 
 set -euo pipefail
@@ -17,6 +18,12 @@ ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
 OUT_DIR=${OUT_DIR:-$ALIEN_DIR/out-k3-qemu}
 QEMU_TIMEOUT=${QEMU_TIMEOUT:-60}
 QEMU_SMP=${QEMU_SMP:-$(cat "$OUT_DIR/smp" 2>/dev/null || echo 1)}
+QEMU_AIA=${QEMU_AIA:-}
+if [ -n "$QEMU_AIA" ]; then
+    QEMU_MACHINE="virt,aia=$QEMU_AIA"
+else
+    QEMU_MACHINE="virt"
+fi
 
 if [ ! -f "$OUT_DIR/kernel-k3-qemu" ]; then
     echo "missing $OUT_DIR/kernel-k3-qemu; run build-k3-qemu.sh first" >&2
@@ -25,7 +32,7 @@ fi
 
 QEMU_ARGS=(
     qemu-system-riscv64
-    -M virt
+    -M "$QEMU_MACHINE"
     -bios default
     -m 1024M
     -smp "$QEMU_SMP"

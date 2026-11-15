@@ -88,6 +88,12 @@ def parse_args() -> argparse.Namespace:
         help="seconds to wait for the marker after bootm (default: %(default)s)",
     )
     parser.add_argument(
+        "--pre-command",
+        action="append",
+        default=[],
+        help="U-Boot command to send before upload; may be repeated",
+    )
+    parser.add_argument(
         "--post-command",
         action="append",
         default=[],
@@ -128,7 +134,7 @@ def main() -> int:
 
     remote = args.remote or f"boot/{image.name}"
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    log(f"args: boot_timeout={args.boot_timeout} post={args.post_command}")
+    log(f"args: boot_timeout={args.boot_timeout} pre={args.pre_command} post={args.post_command}")
     log("connect start")
 
     log_path = args.log or ROOT / "logs" / f"boot-{stamp}.log"
@@ -160,6 +166,8 @@ def main() -> int:
     last_interrupt = 0.0
     seen_prompt = False
     prompt_at = 0.0
+    pre_index = 0
+    pre_next_at = 0.0
     upload_started = False
     upload_done = threading.Event()
     upload_result: list[object] = [False, ""]
@@ -255,7 +263,18 @@ def main() -> int:
                 last_interrupt = now
 
             if seen_prompt and not exit_sent:
-                if not upload_started and now - prompt_at >= 1.0:
+                if pre_index < len(args.pre_command):
+                    if pre_next_at == 0.0:
+                        pre_next_at = now + 1.0
+                    elif now >= pre_next_at:
+                        cmd = args.pre_command[pre_index]
+                        send(cmd.encode() + b"\r")
+                        log(f"> {cmd}")
+                        pre_index += 1
+                        pre_next_at = now + 1.0
+                        if pre_index == len(args.pre_command):
+                            prompt_at = now
+                elif not upload_started and now - prompt_at >= 1.0:
                     upload_started = True
                     if not start_upload():
                         finish()
