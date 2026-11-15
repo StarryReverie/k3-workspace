@@ -8,6 +8,14 @@ pub const CLOCK_FREQ: usize = 24_000_000;
 pub const UART_IRQ: usize = 10;
 #[cfg(not(feature = "k3_qemu"))]
 pub const UART_IRQ: usize = 42;
+
+/// 磁盘文件系统的挂载点。
+///
+/// K3 上 `init` 由 initramfs 提供，磁盘挂到 `/mnt` 以免遮蔽 `/tests/init`。
+#[cfg(feature = "k3_qemu")]
+pub const DISK_MOUNT: &str = "/tests";
+#[cfg(not(feature = "k3_qemu"))]
+pub const DISK_MOUNT: &str = "/mnt";
 pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 pub const HEAP_SIZE: usize = 0x200_00000;
 
@@ -22,6 +30,7 @@ pub const MMIO: &[(usize, usize)] = &[
 #[cfg(not(feature = "k3_qemu"))]
 pub const MMIO: &[(usize, usize)] = &[
     (0xd401_7000, 0x1000),    // UART0
+    (0xd428_0000, 0x1000),    // SDHCI0
     (0xe040_0000, 0x40_0000), // K3 simsic
     (0xe080_0000, 0x1_0000),  // K3 saplic
 ];

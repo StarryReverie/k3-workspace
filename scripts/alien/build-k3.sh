@@ -92,6 +92,8 @@ esac
 if [ "$CPUS" -gt 1 ]; then
     FEATURES="k3,k3_smp"
 fi
+# 存储阶段需要 FAT 挂载支持。
+FEATURES="$FEATURES,fat"
 echo "$CPUS" > "$OUT_DIR/smp"
 (
     cd "$ALIEN_DIR"

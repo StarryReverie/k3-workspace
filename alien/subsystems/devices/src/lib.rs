@@ -142,6 +142,23 @@ pub fn init_k3_virtio_block() {
     }
 }
 
+/// 为 K3 初始化 SD 卡块设备。
+///
+/// 驱动读取主引导记录并选取第一个 FAT 分区，因此 `/dev/sda`
+/// 表示该分区而不是整块设备。
+pub fn init_k3_storage() {
+    let base = 0xd428_0000;
+    let mut device = drivers::sdhci::SdhciBlockDevice::new(base);
+    if !device.init() {
+        println!("K3 storage: no usable SD card");
+        return;
+    }
+    let blocks = device.capacity();
+    let generic = Arc::new(GenericBlockDevice::new(Box::new(device)));
+    block::init_block_device(generic);
+    println!("K3 storage: partition blocks={}", blocks);
+}
+
 /// 打印 K3 设备树中的内存、CPU、UART、IMSIC 与 APLIC。
 ///
 /// 阶段 7A 只读探测，用于核对硬编码平台信息。

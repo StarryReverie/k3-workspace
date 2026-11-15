@@ -153,17 +153,20 @@ pub fn init_filesystem() -> AlienResult<()> {
 
     #[cfg(any(feature = "fat", feature = "ext"))]
     {
+        let disk_mount = platform::config::DISK_MOUNT;
+        let disk_path = path.join(disk_mount.trim_start_matches('/'))?;
+        disk_path.open(Some(VfsInodeMode::from_bits_truncate(0o040755)))?;
         let block = path
             .join("/dev/sda")
             .ok()
             .and_then(|p| p.open(None).ok());
         if let Some(block) = block {
             let blk_inode = block.inode()?;
-            let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
-            tests_path.mount(diskfs_root, 0)?;
-            println!("mount fs success");
+            let diskfs_root = diskfs.i_mount(0, disk_mount, Some(blk_inode), &[])?;
+            disk_path.mount(diskfs_root, 0)?;
+            println!("mount fs success at {}", disk_mount);
         } else {
-            println!("no block device, skip /tests disk mount");
+            println!("no block device, skip {} disk mount", disk_mount);
         }
     }
     #[cfg(not(any(feature = "fat", feature = "ext")))]
