@@ -106,6 +106,22 @@ def parse_args() -> argparse.Namespace:
         help="seconds to wait after the last post command (default: %(default)s)",
     )
     parser.add_argument(
+        "--sd-image",
+        type=Path,
+        default=None,
+        help="image written to the SD card before booting",
+    )
+    parser.add_argument(
+        "--sd-start",
+        default="0x2000",
+        help="SD write start sector in hex (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--sd-sectors",
+        default=None,
+        help="SD write sector count in hex; default is the image size / 512",
+    )
+    parser.add_argument(
         "--timeout",
         type=int,
         default=240,
@@ -131,6 +147,19 @@ def main() -> int:
     if not ostool:
         print("error: ostool not found; enter the dev shell first", file=sys.stderr)
         return 2
+
+    sd_image = args.sd_image.resolve() if args.sd_image else None
+    sd_sectors = args.sd_sectors
+    if sd_image is not None:
+        if not sd_image.is_file():
+            print(f"error: SD image not found: {sd_image}", file=sys.stderr)
+            return 2
+        size = sd_image.stat().st_size
+        if size % 512:
+            print(f"error: SD image size {size} is not a multiple of 512", file=sys.stderr)
+            return 2
+        if sd_sectors is None:
+            sd_sectors = f"0x{size // 512:x}"
 
     remote = args.remote or f"boot/{image.name}"
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -171,6 +200,12 @@ def main() -> int:
     upload_started = False
     upload_done = threading.Event()
     upload_result: list[object] = [False, ""]
+    sd_upload_started = False
+    sd_done = threading.Event()
+    sd_result: list[object] = [False, ""]
+    sd_path = ""
+    sd_log = log_path.with_name(log_path.stem + ".sd.upload.log")
+    SD_ADDR = "0x150000000"
     commands_started = False
     stage = "net"
     path = ""
@@ -194,7 +229,9 @@ def main() -> int:
                 pass
             exit_sent = True
 
-    def start_upload() -> bool:
+    def start_upload(
+        local: Path, remote_name: str, result: list[object], done: threading.Event, out_log: Path
+    ) -> bool:
         text = bytes(raw)
         match = SESSION_RE.search(text.decode("utf-8", "replace"))
         if not match:
@@ -208,42 +245,42 @@ def main() -> int:
         log_path.write_bytes(text)
         cmd = (
             f"source {ROOT / 'scripts' / 'session-env.sh'} {log_path} >/dev/null 2>&1; "
-            f"SID={sid} {ROOT / 'scripts' / 'upload.sh'} {image} {remote}"
+            f"SID={sid} {ROOT / 'scripts' / 'upload.sh'} {local} {remote_name}"
         )
 
         def worker() -> None:
             try:
-                result = subprocess.run(
+                run = subprocess.run(
                     ["bash", "-c", cmd],
                     capture_output=True,
                     text=True,
                     env=env,
-                    timeout=120,
+                    timeout=180,
                 )
             except subprocess.TimeoutExpired:
                 log("error: upload timed out")
-                upload_done.set()
+                done.set()
                 return
 
-            upload_log.write_text(result.stdout + result.stderr)
-            print(result.stdout, end="", flush=True)
-            if result.returncode != 0:
-                print(result.stderr, end="", file=sys.stderr, flush=True)
-                upload_done.set()
+            out_log.write_text(run.stdout + run.stderr)
+            print(run.stdout, end="", flush=True)
+            if run.returncode != 0:
+                print(run.stderr, end="", file=sys.stderr, flush=True)
+                done.set()
                 return
 
-            match = TFTP_RE.search(result.stdout)
-            if match:
-                parsed = urlparse(match.group(1))
-                path = parsed.path.lstrip("/")
-                log(f"tftp path: {path}")
+            found = TFTP_RE.search(run.stdout)
+            if found:
+                parsed = urlparse(found.group(1))
+                tftp_path = parsed.path.lstrip("/")
+                log(f"tftp path: {tftp_path}")
             else:
-                path = f"ostool/sessions/{sid}/{remote}"
-                log(f"tftp path (fallback): {path}")
-            upload_result[0] = True
-            upload_result[1] = path
+                tftp_path = f"ostool/sessions/{sid}/{remote_name}"
+                log(f"tftp path (fallback): {tftp_path}")
+            result[0] = True
+            result[1] = tftp_path
             log("upload done")
-            upload_done.set()
+            done.set()
 
         threading.Thread(target=worker, daemon=True).start()
         return True
@@ -276,20 +313,59 @@ def main() -> int:
                             prompt_at = now
                 elif not upload_started and now - prompt_at >= 1.0:
                     upload_started = True
-                    if not start_upload():
+                    if not start_upload(image, remote, upload_result, upload_done, upload_log):
                         finish()
                 elif upload_started and not commands_started and upload_done.is_set():
                     ok = bool(upload_result[0])
                     path = str(upload_result[1])
                     if not ok:
                         finish()
+                    elif sd_image is not None and not sd_upload_started:
+                        sd_upload_started = True
+                        if not start_upload(
+                            sd_image, "boot/sdcard.img", sd_result, sd_done, sd_log
+                        ):
+                            finish()
+                    elif sd_image is not None and not sd_done.is_set():
+                        pass
                     else:
                         commands_started = True
-                        stage = "net"
+                        if sd_image is not None:
+                            if not sd_result[0]:
+                                finish()
+                            sd_path = str(sd_result[1])
+                            stage = "sd_tftp"
+                        else:
+                            stage = "net"
                         command_index = 0
                         next_command_at = time.monotonic() + 0.5
                 elif commands_started and now >= next_command_at:
-                    if stage == "net":
+                    if stage == "sd_tftp":
+                        cmd = f"tftpboot {SD_ADDR} {sd_path}"
+                        send(cmd.encode() + b"\r")
+                        log(f"> {cmd}")
+                        stage = "sd_write"
+                        next_command_at = now + 6.0
+                    elif stage == "sd_write":
+                        cmd = f"mmc write {SD_ADDR} {args.sd_start} {sd_sectors}"
+                        send(cmd.encode() + b"\r")
+                        log(f"> {cmd}")
+                        stage = "sd_verify"
+                        next_command_at = now + 40.0
+                    elif stage == "sd_verify":
+                        cmd = f"mmc read {SD_ADDR} {args.sd_start} 1"
+                        send(cmd.encode() + b"\r")
+                        log(f"> {cmd}")
+                        stage = "sd_dump"
+                        next_command_at = now + 2.0
+                    elif stage == "sd_dump":
+                        cmd = f"md.l {SD_ADDR} 4"
+                        send(cmd.encode() + b"\r")
+                        log(f"> {cmd}")
+                        stage = "net"
+                        command_index = 0
+                        next_command_at = now + 1.0
+                    elif stage == "net":
                         if command_index < len(NET_INIT):
                             cmd, delay = NET_INIT[command_index]
                             send(cmd.encode() + b"\r")
