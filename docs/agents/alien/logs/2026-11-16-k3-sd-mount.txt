@@ -1,0 +1,47 @@
+Alien K3 SD card FAT mount, single hart, 2026-11-16
+Source: logs/boot-20261116-001615.log
+Image: alien-k3.itb, gzip FIT, K3_CPUS=1, fat feature
+Card: partition 1 at LBA 8192, FAT32, 48 MiB test image
+Note: excerpt only; ANSI escape sequences removed.
+
+SDHCI: base=0xd4280000 base_clock=200MHz host2=0x0 state=0x1f70000 clock=0x0 power=0xf caps=0x35fc0080
+[0] SDHCI: card ready rca=0xaaaa v2=true high_capacity=true
+[0] SDHCI: partition lba=8192 blocks=62325760 (30432 MiB)
+[0] K3 storage: partition blocks=62325760
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] mount fs success at /mnt
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KB sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+drwxr-xr-x      4KB mnt 
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] AIA: �rq 42 sourcecfg=0x6 target=0x2a eie0(42)=0x40000000000
+[0] AIA: enabled irq 42 for hart 0
+[0] K3 console: interrupt-driven, irq 42 (IER=0x41 MCR=0xb)
+[0] Init task success
+[0] Begin run task...
+[0] kthread_init start...
+Init process is running
+Alien:/# /bin/busybox nproc
+1
+Alien:/# /bin/busybox ls /mnt
+HELLO.TXT
+Alien:/# /bin/busybox cat /mnt/HELLO.TXT
+alien k3 sd mount ok
+Alien:/# echo K3_OK
+K3_OK
+Alien:/#

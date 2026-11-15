@@ -1,7 +1,7 @@
 # 阶段 8–10 路线：存储与 NVMe
 
 日期：2026-11-15
-状态：路线规划，尚未实施
+状态：路线规划；阶段 8 已完成，记录见 `12-storage.md`
 前置提交：`ba39b1c docs: record stage 7 UART interrupt completion`
 
 ## 0. 文档范围

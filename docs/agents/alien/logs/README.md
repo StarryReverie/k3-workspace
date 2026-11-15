@@ -28,3 +28,6 @@
 - `2026-11-15-k3-uart-uue.txt`：U-Boot 下 IER、MCR 读回与内核状态。
 - `2026-11-15-k3-aia.txt`：K3 早期轮询控制台的 AIA 初始化。
 - `2026-11-15-k3-uart-dt.txt`：K3 U-Boot UART 设备树与寄存器查询。
+- `2026-11-16-k3-qemu-disk.txt`：QEMU virtio-blk 与 FAT 挂载。
+- `2026-11-16-k3-sd-write.txt`：用 U-Boot 向 SD 卡写入 FAT 镜像。
+- `2026-11-16-k3-sd-mount.txt`：K3 挂载 SD 卡 FAT 分区并读取文件。

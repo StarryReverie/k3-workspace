@@ -1,0 +1,47 @@
+Alien k3_qemu virtio-blk FAT mount, 2026-11-16
+Source: QEMU -M virt -smp 2 with virtio-blk and 72 MiB FAT32 image
+Note: excerpt only; ANSI escape sequences removed.
+
+Init block device, base_addr:0x10008000,irq:8
+[0] Block device size is 72MB
+[0] Init block device success
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] mount fs success at /tests
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KB sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] Init task success
+[1] ++++ setup interrupt ++++
+[1] ++++ setup interrupt done, enable:true ++++
+[1] hart 1 start
+[0] SMP: 2/2 harts online
+[1] Begin run task...
+[0] Begin run task...
+[0] kthread_init start...
+Init process is running
+Alien:/# /bin/busybox ls /tests
+bash     init     libc.so
+Alien:/# echo disk_rw_ok > /tests/probe.txt
+Alien:/# /bin/busybox cat /tests/probe.txt
+disk_rw_ok
+Alien:/# /bin/busybox df /tests
+Filesystem           1K-blocks      Used Available Use% Mounted on
+devfs                18014398509481980         0 18014398509481980   0% /dev
+Alien:/# echo K3_OK
+K3_OK
+Alien:/#

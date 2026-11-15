@@ -1,7 +1,7 @@
 # 阶段 8 实施记录：存储与块设备
 
 日期：2026-11-16
-状态：进行中（8A 完成，8B 完成，8C 部分完成，8D 未完成）
+状态：完成（8A–8D 均已完成）
 范围：QEMU virtio-blk 与 FAT、K3 SDHCI 块设备
 相关计划：`11-roadmap.md`
 
@@ -9,8 +9,9 @@
 
 - 8A 完成：`k3_qemu` 可以用 virtio-blk 挂载 FAT32，读写文件正常。
 - 8B 完成：K3 的 SD 卡、分区表、控制器节点与时钟现状已取证。
-- 8C 部分完成：SDHCI 驱动可以识别卡、读取 MBR、稳定读取扇区；但卡上
-  分区 1 未格式化，FAT 挂载无法验证。
+- 8C 完成：SDHCI 驱动识别卡、解析 MBR，挂载 FAT32 分区到 `/mnt`，
+  文件读取正常。
+- 8D 完成：K3 单核与八核回归通过，日志与文档已归档。
 
 ## 2. QEMU：virtio-blk 与 FAT
 
@@ -128,35 +129,44 @@ sdh@d4280000 {
 
    U-Boot 的 `SDHCI_DATA_AVAILABLE` 同样是 `0x800`，与该结论一致。
 
-### 4.3 当前结果
+### 4.3 结果
 
 ```text
 SDHCI: base=0xd4280000 base_clock=200MHz host2=0x0 state=0x1f70000 clock=0x0 power=0xf caps=0x35fc0080
 SDHCI: card ready rca=0xaaaa v2=true high_capacity=true
-SDHCI: partition 8192 is not formatted (signature 0000)
-K3 storage: no usable SD card
-no block device, skip /mnt disk mount
+SDHCI: partition lba=8192 blocks=62325760 (30432 MiB)
+K3 storage: partition blocks=62325760
+mount fs success at /mnt
+
+Alien:/# /bin/busybox ls /mnt
+HELLO.TXT
+Alien:/# /bin/busybox cat /mnt/HELLO.TXT
+alien k3 sd mount ok
 ```
 
 读取稳定：同一扇区重复读取结果一致，MBR 内容与 U-Boot 的 `mmc info`
-和 `part list` 完全吻合。
+和 `part list` 完全吻合。U-Boot 在 `mmc write` 之后会留下 1.8V 信号与
+开启的时钟，驱动通过主机复位与重新上电回到默认状态。
 
-## 5. 未完成事项
+## 5. 分区格式化
 
-SD 卡的分区 1 起始于 8192 号扇区、类型为 `0x0c`，但该扇区全零，
-分区没有 FAT 文件系统。因此：
+SD 卡的分区 1 起始于 8192 号扇区、类型为 `0x0c`，但该扇区原本全零，
+分区没有 FAT 文件系统。写入前先抽样确认前 64 MiB 为空，然后：
 
-- FAT 挂载路径在 K3 上尚未验证。
-- 需要一张已格式化的卡，或允许向该分区写入一个测试 FAT 镜像。
+1. 宿主机生成 48 MiB FAT32 镜像，放入 `HELLO.TXT`。
+2. 通过 TFTP 加载到 `0x150000000`。
+3. `mmc write 0x150000000 0x2000 0x18000` 写入分区 1。
+4. `mmc read` 与 `md.l` 校验，读到 `EB 58 90` 与 `mkfs.fat` 字样。
 
-写入方案（待确认）：
+写入影响范围是分区 1 的前 48 MiB，占该分区约 0.16%，不触碰 MBR 与
+其余区域。该流程已纳入上板脚本：
 
-1. 宿主机生成 64 MiB FAT32 镜像，放入少量测试文件。
-2. 通过 TFTP 加载到板卡内存。
-3. 用 `mmc write` 写入分区 1。
-4. 重启 Alien，验证 `/mnt` 挂载与读取。
+```bash
+./scripts/alien/boot-k3-board.py   --image alien/out-k3/alien-k3.itb   --sd-image alien/out-sd-test/sdcard.img   --sd-start 0x2000
+```
 
-该操作会覆盖分区 1 的现有内容。
+`--sd-image` 会在启动前完成上传、写入与校验；`--sd-sectors` 默认为
+镜像大小除以 512。
 
 ## 6. 验证矩阵
 
@@ -165,6 +175,8 @@ SD 卡的分区 1 起始于 8192 号扇区、类型为 `0x0c`，但该扇区全�
 | QEMU PLIC + 磁盘 | `/tests` 列出文件，写入与读回正常 |
 | QEMU AIA + 磁盘 | 同上，中断控制台正常 |
 | QEMU 无磁盘 | 回退 initramfs，正常启动 |
+| K3 单核 | `/mnt` 挂载，读取 `HELLO.TXT` 成功 |
+| K3 八核 | `8/8` hart，`/mnt` 挂载与读取正常，`42` 中断计数递增 |
 | K3 无卡或无有效分区 | 打印原因后继续启动，无 panic |
 
 ## 7. 修改文件
@@ -181,9 +193,11 @@ subsystems/vfs/src/lib.rs                   按平台挂载点挂载
 scripts/alien/build-k3.sh                   启用 fat 特性
 ```
 
-## 8. 下一步
+## 8. 后续
 
-1. 取得已格式化的 SD 卡，或在确认后写入测试镜像。
-2. 验证 `/mnt` 挂载、列目录与文件读取。
-3. K3 一、二、八核回归。
-4. 补充日志节选并提交文档。
+1. 写入支持：当前驱动已实现单块写，但尚未做完整写入测试与掉电保护。
+2. 传输方式：使用 SDMA 或 ADMA2 替代 PIO，提高吞吐并消除缓冲区竞态。
+3. 分区层：支持多分区与分区设备节点，而不是只取第一个 FAT 分区。
+4. 热插拔与卡检测：使用 DT 中的 `cd-gpios`。
+5. 文件系统：按需增加 ext4 支持。
+6. 阶段 9：PCIe 与 NVMe，见 `11-roadmap.md`。

@@ -1,0 +1,27 @@
+Writing a FAT image to the K3 SD card with U-Boot, 2026-11-16
+Source: logs/boot-20261116-001333.log
+Image: 48 MiB FAT32 written at sector 0x2000 (8192)
+Note: excerpt only; ANSI escape sequences and timestamps removed.
+
+tftpboot 0x150000000 ostool/sessions/7a71f1c4-1abd-4d51-b26d-c23558d01779/boot/sdcard.img
+Net:   eth0: ethernet@cac82000
+ ethernet@cac82000 Waiting for PHY auto negotiation to complete....... done
+ Using ethernet@cac82000 device
+ TFTP from server 192.168.1.2; our IP address is 192.168.1.157
+Filename 'ostool/sessions/7a71f1c4-1abd-4d51-b26d-c23558d01779/boot/sdcard.img'.
+Load address: 0x150000000
+Loading: *#################################################################
+	 #################################################################
+	 ########################
+	  84.1 MiB/s
+done
+Bytes transferred = 50331648 (3000000 hex)
+=>  mmc write 0x150000000 0x2000 0x18000
+
+MMC write: dev # 0, block # 8192, count 98304 ... 98304 blocks written: OK
+=>  mmc read 0x150000000 0x2000 1
+
+MMC read: dev # 0, block # 8192, count 1 ... 1 blocks read: OK
+=>  md.l 0x150000000 4
+150000000: 6d9058eb 2e73666b 00746166 00200102  .X.mkfs.fat... .
+=>
