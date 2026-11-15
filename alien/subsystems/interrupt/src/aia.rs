@@ -27,6 +27,11 @@ const APLIC_SETIENUM: usize = 0x1edc;
 const APLIC_CLRIENUM: usize = 0x1fdc;
 const APLIC_TARGET: usize = 0x3004;
 
+/// APLIC 源模式：高电平触发（AIA 规范表 2，SM=6 为 Level1）。
+///
+/// K3 的 UART0 在设备树中标注为 IRQ_TYPE_LEVEL_HIGH；SM=4 表示上升沿。
+const APLIC_SOURCECFG_LEVEL_HIGH: u32 = 6;
+
 const IMSIC_EIDELIVERY: usize = 0x70;
 const IMSIC_EITHRESHOLD: usize = 0x72;
 const IMSIC_EIE: usize = 0xc0;
@@ -53,6 +58,10 @@ unsafe fn stopei_claim() -> usize {
 
 unsafe fn write32(address: usize, value: u32) {
     (address as *mut u32).write_volatile(value);
+}
+
+unsafe fn read32(address: usize) -> u32 {
+    (address as *const u32).read_volatile()
 }
 
 impl AiaController {
@@ -96,6 +105,16 @@ impl AiaController {
             sireg_write(0);
             siselect(IMSIC_EIDELIVERY);
             sireg_write(1);
+            siselect(IMSIC_EIDELIVERY);
+            let eidelivery = sireg_read();
+            siselect(IMSIC_EITHRESHOLD);
+            let eithreshold = sireg_read();
+            println!(
+                "AIA: eidelivery={:#x} eithreshold={:#x} domaincfg={:#x}",
+                eidelivery,
+                eithreshold,
+                read32(aplic + APLIC_DOMAINCFG)
+            );
         }
 
         println!(
@@ -135,17 +154,30 @@ impl AiaController {
 
         let aplic = self.config.aplic_base;
         let target = ((self.config.target_hart << 18) | (irq & 0x7ff)) as u32;
+        let sourcecfg = aplic + APLIC_SOURCECFG + 4 * (irq - 1);
+        let target_reg = aplic + APLIC_TARGET + 4 * (irq - 1);
         unsafe {
-            write32(aplic + APLIC_SOURCECFG + 4 * (irq - 1), 6);
-            write32(aplic + APLIC_TARGET + 4 * (irq - 1), target);
+            write32(sourcecfg, APLIC_SOURCECFG_LEVEL_HIGH);
+            write32(target_reg, target);
             write32(aplic + APLIC_SETIENUM, irq as u32);
 
             siselect(IMSIC_EIE + 2 * (irq / 64));
             let old = sireg_read();
             sireg_write(old | (1usize << (irq % 64)));
+            let eie = sireg_read();
 
             // 设备源配置完成后才打开 APLIC 全局投递。
             write32(aplic + APLIC_DOMAINCFG, 0x104);
+
+            println!(
+                "AIA: irq {} sourcecfg={:#x} target={:#x} eie{}({})={:#x}",
+                irq,
+                read32(sourcecfg),
+                read32(target_reg),
+                irq / 64,
+                irq % 64,
+                eie
+            );
         }
         println!("AIA: enabled irq {} for hart {}", irq, self.config.target_hart);
     }

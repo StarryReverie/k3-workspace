@@ -36,8 +36,8 @@ static K3_UART_IRQ: AtomicUsize = AtomicUsize::new(0);
 
 /// 为 K3 注册控制台。
 ///
-/// QEMU AIA 使用中断驱动 UART；K3 目前保留轮询输入，AIA 初始化仅用于
-/// 验证 IMSIC/APLIC。K3 的 UART IER 使能仍待硬件确认。
+/// AIA 初始化成功且取得 UART 中断号时使用中断驱动输入；否则回退轮询。
+/// K3 的 UART 属于 XScale 型，写 IER 时必须保留单元使能位。
 pub fn init_k3_console(base_addr: usize, qemu_uart: bool) {
     let dtb_ptr = platform::platform_dtb_ptr();
     let dtb = unsafe { Fdt::from_ptr(dtb_ptr as *const u8) };
@@ -72,10 +72,11 @@ pub fn init_k3_console(base_addr: usize, qemu_uart: bool) {
     let raw: Box<dyn LowUartDriver> = if qemu_uart {
         Box::new(Uart16550::new(base_addr))
     } else {
-        Box::new(Uart8250::new(base_addr))
+        // K3 的 UART 为 XScale 型，IER bit6 是单元使能位。
+        Box::new(Uart8250::new_xscale(base_addr))
     };
 
-    if qemu_uart && aia_ok && irq != 0 {
+    if aia_ok && irq != 0 {
         let uart = Arc::new(Uart::new_deferred(raw));
         uart::init_uart(uart.clone());
         K3_IRQ_UART.call_once(|| uart);
@@ -98,8 +99,15 @@ pub fn enable_k3_uart_irq() {
         return;
     }
     register_device(irq, uart.clone());
-    uart.enable_irq();
-    println!("K3 console: interrupt-driven, irq {}", irq);
+    let state = uart.enable_irq();
+    if let Some((ier, mcr)) = state {
+        println!(
+            "K3 console: interrupt-driven, irq {} (IER={:#x} MCR={:#x})",
+            irq, ier, mcr
+        );
+    } else {
+        println!("K3 console: interrupt-driven, irq {}", irq);
+    }
 }
 
 /// 为 K3 注册轮询模式的 ns16550。K3 使用 32 位寄存器与 reg-shift=2。
