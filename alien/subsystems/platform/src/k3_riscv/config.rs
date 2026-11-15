@@ -15,6 +15,7 @@ pub const HEAP_SIZE: usize = 0x200_00000;
 #[cfg(feature = "k3_qemu")]
 pub const MMIO: &[(usize, usize)] = &[
     (0x1000_0000, 0x1000),   // UART0
+    (0x1000_1000, 0x8000),   // virtio-mmio 槽位
     (0x0d00_0000, 0x1_0000), // QEMU AIA S-level APLIC
     (0x2800_0000, 0x1_0000), // QEMU AIA S-level IMSIC
 ];

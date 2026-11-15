@@ -120,6 +120,28 @@ pub fn init_k3_qemu_uart(base_addr: usize) {
     init_k3_console(base_addr, true);
 }
 
+/// 为 k3_qemu 探测 virtio-mmio 块设备。
+///
+/// 磁盘镜像由 `build-k3-qemu.sh` 的 `K3_QEMU_DISK` 模式生成，
+/// 挂载点由 `vfs` 统一处理为 `/tests`。
+pub fn init_k3_virtio_block() {
+    let dtb_ptr = platform::platform_dtb_ptr();
+    let dtb = unsafe { Fdt::from_ptr(dtb_ptr as *const u8) };
+    let dtb = match dtb {
+        Ok(dtb) => dtb,
+        Err(error) => {
+            println!("virtio: device tree unavailable: {:?}", error);
+            return;
+        }
+    };
+    match dtb.probe_virtio() {
+        Some(devices) => init_virtio_mmio(devices),
+        None => {
+            println!("virtio: no virtio-mmio node");
+        }
+    }
+}
+
 /// 打印 K3 设备树中的内存、CPU、UART、IMSIC 与 APLIC。
 ///
 /// 阶段 7A 只读探测，用于核对硬编码平台信息。

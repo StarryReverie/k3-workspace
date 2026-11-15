@@ -66,6 +66,8 @@ fn main(hart_id: usize) {
         devices::init_k3_qemu_uart(0x1000_0000);
         #[cfg(any(feature = "k3", feature = "k3_qemu"))]
         devices::probe_k3_platform();
+        #[cfg(feature = "k3_qemu")]
+        devices::init_k3_virtio_block();
         vfs::init_filesystem().expect("init filesystem failed");
         ksym::init_kallsyms();
         trap::init_trap_subsystem();

@@ -4,6 +4,7 @@
 # Optional:
 #   QEMU_SMP      number of harts passed to QEMU (default: $OUT_DIR/smp, else 1)
 #   QEMU_AIA      set to aplic-imsic to enable IMSIC/APLIC (default: off)
+#   QEMU_DISK     set to 1 for $OUT_DIR/sdcard.img, or a path to an image
 #   QEMU_TIMEOUT  seconds before QEMU is stopped (default: 60; 0 = forever)
 
 set -euo pipefail
@@ -39,6 +40,21 @@ QEMU_ARGS=(
     -nographic
     -kernel "$OUT_DIR/kernel-k3-qemu"
 )
+
+QEMU_DISK=${QEMU_DISK:-}
+if [ "$QEMU_DISK" = "1" ]; then
+    QEMU_DISK=$OUT_DIR/sdcard.img
+fi
+if [ -n "$QEMU_DISK" ]; then
+    if [ ! -f "$QEMU_DISK" ]; then
+        echo "missing disk image: $QEMU_DISK" >&2
+        exit 2
+    fi
+    QEMU_ARGS+=(
+        -drive "file=$QEMU_DISK,if=none,format=raw,id=x0"
+        -device virtio-blk-device,drive=x0
+    )
+fi
 
 if [ "$QEMU_TIMEOUT" = "0" ]; then
     exec "${QEMU_ARGS[@]}"
