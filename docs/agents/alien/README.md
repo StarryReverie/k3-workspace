@@ -14,8 +14,9 @@
 | 5 | FIT gzip 与 K3 双核启动 | 完成，2026-11-14 |
 | 6 | K3 四核与八核启动、亲和性与输出锁 | 完成，2026-11-15 |
 | 7 | 设备树与中断基础设施 | 完成，2026-11-15 |
+| 8 | 存储与块设备 | 进行中，2026-11-16 |
 
-完整 bash 镜像已在 BananaPi-1 上验证；当前支持 gzip FIT 与 8 个 X100 hart。QEMU AIA 与 K3 的 UART 输入均已由中断驱动。
+完整 bash 镜像已在 BananaPi-1 上验证；当前支持 gzip FIT 与 8 个 X100 hart。QEMU AIA 与 K3 的 UART 输入均已由中断驱动；QEMU 已可从 FAT 磁盘加载用户态，K3 的 SD 卡驱动待格式化分区验证。
 
 ## 固定信息
 
@@ -41,6 +42,8 @@
 | `09-more-cores.md` | 阶段 6 的四核/八核、亲和性、调度竞态与输出锁 |
 | `10-interrupts-plan.md` | 阶段 7 的设备树、IMSIC/APLIC 与 UART 中断详细计划 |
 | `10-interrupts.md` | 阶段 7 的实施记录、QEMU AIA 成功与 K3 UART IER 阻塞 |
+| `11-roadmap.md` | 阶段 8–10 路线：存储、PCIe 与 NVMe |
+| `12-storage.md` | 阶段 8 的实施记录：QEMU 磁盘与 K3 SDHCI |
 | `logs/` | 关键日志节选 |
 
 ## 源码位置
