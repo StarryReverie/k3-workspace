@@ -1,0 +1,51 @@
+Alien K3 interrupt-driven console, single hart, 2026-11-15
+Source: logs/boot-20261115-213319.log
+Image: alien-k3.itb, gzip FIT, K3_CPUS=1
+Note: excerpt only; ANSI escape sequences and U-Boot timestamps removed.
+
+AIA: eidelivery=0x1 eithreshold=0x0 domaincfg=0x80000104
+[0] AIA: imsic=0xe0400000 size=0x400000 ids=511 aplic=0xe0804000 size=0x4000 sources=512
+[0] AIA: hart_bits=4 guest_bits=6
+[0] K3 console: interrupt UART deferred, irq 42
+[0] DT memory: 0x102000000..0x300000000
+[0] DT cpus: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+[0] DT uart: base=0xd4017000 irq=0 compatible=ns16550
+[0] DT imsic: base=0xe0400000 size=0x400000 num_ids=511 hart_bits=4 guest_bits=6
+[0] DT aplic: base=0xe0804000 size=0x4000 num_sources=512
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] no disk filesystem feature, skip /tests disk mount
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KB sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] AIA: irq 42 sourcecfg=0x6 target=0x2a eie0(42)=0x40000000000
+[0] AIA: enabled irq 42 for hart 0
+[0] K3 console: interrupt-driven, irq 42 (IER=0x41 MCR=0xb)
+[0] Init task success
+[0] Begin run task...
+[0] kthread_init start...
+Init process is running
+Alien:/# /bin/busybox nproc
+1
+Alien:/# /bin/busybox cat /proc/interrupts
+1: 15
+42: 53
+Alien:/# ecjo K3_OK
+K3_OK
+Alien:/# /bin/busybox ls /
+bin    dev    etc    proc   root   sys    tests  tmp    var
+Alien:/#

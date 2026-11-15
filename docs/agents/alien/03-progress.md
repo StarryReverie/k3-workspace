@@ -277,29 +277,28 @@ QEMU 八核负载      CPU 时间倍率 7.97
 
 ### 阶段 7：设备树与中断基础设施
 
-状态：部分完成。
+状态：完成。
 
 完成内容：
 
 - 解析内存、CPU、UART、IMSIC、APLIC 设备树信息。
 - 增加 PLIC/AIA 统一中断控制器抽象，PLIC 基线不回归。
-- QEMU `aia=aplic-imsic` 下 UART IRQ 10 已由中断驱动。
-- K3 上 `simsic` 与 `saplic` 可探测并完成 IMSIC/APLIC 初始化。
-- 上板脚本增加 `--pre-command`，支持 U-Boot 设备树查询。
+- QEMU `aia=aplic-imsic` 下 UART IRQ 10 由中断驱动。
+- K3 上 `simsic` 与 `saplic` 探测并完成初始化，UART IRQ 42 由中断驱动。
+- 上板脚本增加 `--pre-command`，支持 U-Boot 寄存器与设备树查询。
 
 验证结果：
 
 ```text
-QEMU 默认 PLIC      轮询 UART，Alien:/#
-QEMU AIA 双核       中断 UART，nproc=2，IRQ 10 计数 6
-K3 双核             AIA 初始化成功，轮询 UART，nproc=2，K3_OK
+QEMU 默认 PLIC 1/2 核   轮询 UART，Alien:/#
+QEMU AIA 1/2/4/8 核     中断 UART，IRQ 10 计数递增
+K3 1/2/4/8 核           中断 UART，IRQ 42 计数递增
 ```
 
-阻塞：
+K3 卡住的两个根因：
 
-- K3 写 UART IER 后主 hart 停止推进，无 panic、无 trap。
-- 已尝试 8/32 位写入、延迟到陷阱就绪、关闭 APLIC 投递、清空 eie、清空 RX FIFO、绕过 Uart 锁直接写 MMIO。
-- 当前 K3 回退 `PollingUart`；QEMU AIA 保持中断驱动。
+- IER bit6 是 XScale 型 UART 的单元使能位（UUE），通用 16550 写法会清掉它。
+- MCR bit3 是中断输出使能（OUT2），U-Boot 未置位，UART 不会拉高中断线。
 
 详细记录见 `10-interrupts.md`。
 
@@ -308,7 +307,9 @@ K3 双核             AIA 初始化成功，轮询 UART，nproc=2，K3_OK
 - K3 的 `timebase-frequency` 为 24 MHz。
 - K3 使用 IMSIC；`simsic` 位于 `0xe0400000`，`saplic` 位于 `0xe0804000`。
 - U-Boot 控制设备树的 UART 节点为 `/soc/uart@d4017000`，未提供 `interrupts` 属性。
-- K3 UART 为 `ns16550`，基址 `0xd4017000`，默认中断号 42。
+- K3 UART 为 XScale 型，基址 `0xd4017000`，中断号 42，高电平触发。
+- 写 UART IER 必须保留 bit6（UUE），否则 UART 停止工作。
+- 中断线需要 MCR bit3（OUT2）置位才会拉高。
 - 开发板 U-Boot 提供可用的控制设备树，地址由 `fdtcontroladdr` 给出。
 - U-Boot `bootm` 在 FIT 不含 FDT 时需要显式传入 FDT 地址。
 - `0x01` 洪泛来自 SBI 控制台输入轮询，已由轮询 UART 替代。
@@ -318,14 +319,14 @@ K3 双核             AIA 初始化成功，轮询 UART，nproc=2，K3_OK
 - `nproc` 与 `/sys/devices/system/cpu/online` 能正确反映 4/8 核。
 - 内核日志与用户态 UART 输出已共用输出锁。
 - QEMU AIA 的 IMSIC/APLIC 与 UART IRQ 10 已完整验证。
-- K3 的 IMSIC/APLIC 初始化成功，UART 中断尚未启用。
+- K3 的 IMSIC/APLIC 初始化成功，UART IRQ 42 由中断驱动，单核至八核均已验证。
+- K3 控制台读取改为任务等待，无输入时不再忙等。
 
 ### 仍需确认
 
-- K3 UART IER 使能后卡住的原因。
-- K3 UART IRQ 42 与 APLIC/IMSIC 的实际路由。
 - A100（CPU8–15）的 HSM 状态与启动方式。
-- 八核日志偶发单字节串口噪声，需要确认是抓取还是 UART 传输问题。
+- 内核日志与用户态控制台为两条输出路径，字符可能交错。
+- QEMU 八核的在线统计窗口为 0.5 秒，可能只报告 6/8 或 7/8。
 - `sched_setaffinity` 尚未实现，调度器不强制亲和性。
 - `taskset -p` 需要全局 pid 到任务的查询接口。
 - U-Boot DHCP 偶发失败，需要重试上板脚本。

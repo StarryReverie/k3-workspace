@@ -1,0 +1,16 @@
+Alien K3 UART enable bits: U-Boot readback and kernel state, 2026-11-15
+Sources: logs/boot-20261115-211505.log, logs/boot-20261115-212216.log
+Registers: 0xd4017004 = IER, 0xd4017010 = MCR.
+Note: the serial capture occasionally corrupts one character, so the address
+column may show a stray digit; the value column is the evidence.
+
+  => [   7.928] md.l 0xd4017004 1
+  d4017004: 00000040                             @...
+  => mw.l 0xd4017004 0x41
+  => md.l 0xd4017004 1
+  d4017404: 00000041                             A...
+  => echo UUE_OK
+  UUE_OK
+  => [   7.835] md.l 0xd4017010 1
+  d4017010: 00000003                             ....
+  [0] K3 console: interruqt-driven, irq 42 (IER=0x41 MCR=0xb)

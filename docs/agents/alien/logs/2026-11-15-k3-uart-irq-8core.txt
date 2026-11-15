@@ -1,0 +1,106 @@
+Alien K3 interrupt-driven console, eight harts, 2026-11-15
+Source: logs/boot-20261115-212658.log
+Image: alien-k3.itb, gzip FIT, K3_CPUS=8
+Note: excerpt only; ANSI escape sequences and U-Boot timestamps removed.
+
+SMP: requested 7 secondary harts, target 8
+[0] Boot hart 0
+[0] This is a device tree representation of a SpacemiT K3 machine
+SMP:    8
+Memory: 0x102000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0x0..0x0
+Initrd: Some(
+    0x102349513..0x102676248,
+)
+Bootargs: None
+[0] Page start:0x122772,end:0x300000,count:0x1dd88e
+[0] Bitmap manage 1955922 pages using 60 pages
+[0] Frame allocator init success
+[0] Relocate initrd data to 0x00000001227ae000
+[0] Talloc allocator init success
+[0] kernel text:          0x102200000-0x102348000
+[0] kernel rodata:        0x102348000-0x1026e4000
+[0] kernel init_array:    0x1026u4000-0x1026e4470
+[0] kernel data:          0x1026e4000-0x102768000
+[0] kernel bss:           0x102768000-0x102772000
+[0] kernel heap:          0x102772000-0x300000000
+[0] map mmio: 0xd4017000-0xd4018000
+[0] map mmio: 0xe0400000-0xe0800000
+[0] map mmio: 0xe0800000-0xe0810000
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] AIA: eidelivery=0x1 eithreshold=0x0 domaincfg=0x80000104
+[0] AIA: imsic=0xe0400000 size=0x400000 ids=511 aplic=0xe0804000 size=0x4000 sources=512
+[0] AIA: hart_bits=4 guest_bits=6
+[0] K3 console: interrupt UART deferred, irq 42
+[0] DT memory: 0x102000000..0x300000000
+[0] DT cpus: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+[0] DT uart: base=0xd4017000 irq=0 compqtible=ns16550
+[0] DT imsic: base=0xe0400000 size=0x400000 num_ids=511 hart_bits=4 guest_bits=6
+[0] DT aplic: base=0xe0804000 size=0x4000 num_sources=512
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] no disk filesystem feature, skip /tests disk mount
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KR sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] AIA: irq 42 sourcecfg=0x6 target=0x2a eie0(42)=0x40000000000
+[0] AIA: enabled irq 42 for hart 0
+[0] K3 console: interrupt-driven, irq 42 (IER=0x41 MCR=0xb)
+[0] Init task success
+[1] ++++ setup interrupt ++++
+[2] ++++ setup interrupt ++++
+[5] ++++ setup interrupt ++++
+[4] ++++ setup interrupt ++++
+[6] ++++ setup interrupt ++++
+[3] ++++ setup interrupt ++++
+[7] ++++ setup interrupt ++++
+[1] ++++ setup interrupt done, enable:true ++++
+[2] ++++ setup interrupt done, enable:true ++++
+[5] ++++ setup interrupt done, enable:true ++++
+[4] ++++ setup interrupt done, enable:true ++++
+[6] ++++ setup interrupt done, enable:true ++++
+[3] ++++ setup interrupt done, enable:true ++++
+[7] ++++ setup interrupt done, enable:true ++++
+[1] hart 1 start
+[2] hart 2 start
+[5] hart 5 start
+[4] hart 4 start
+[6] hart 6 start
+[3] hart 3 start
+[0] SMP: 8/8 harts online
+[7] hart 7 start
+[1] Begin run task...
+[2] Begin run task...
+[5] Begin run task...
+[4] Begin run task...
+[6] Begin run task...
+[3] Begin run task...
+[0] Begin run task...
+[7] Begin run task...
+[1] kthread_init start...
+Init process is running
+Alien:/# /bin/busybox nproc
+8
+Alien:/# /<0m# /bin/busybox cat /sys/devices/system/cpu/online
+0-7Alien:/# /bin/busybox cat /proc/interrupts
+1: 192
+42: 101
+Alien:/# echo K3_OK
+K3_OK
+Alien:/#

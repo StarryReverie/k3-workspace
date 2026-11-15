@@ -22,6 +22,9 @@
 - `2026-11-15-k3-qemu-8core.txt`：QEMU `k3_qemu -smp 8` 八核回归。
 - `2026-11-15-k3-4core.txt`：K3 四核上板日志。
 - `2026-11-15-k3-8core.txt`：K3 八核上板日志。
-- `2026-11-15-k3-qemu-aia.txt`：QEMU AIA 中断 UART 与 `/proc/interrupts`。
-- `2026-11-15-k3-aia.txt`：K3 AIA 初始化与轮询控制台。
+- `2026-11-15-k3-qemu-aia.txt`：QEMU AIA 四核中断 UART 与 `/proc/interrupts`。
+- `2026-11-15-k3-uart-irq.txt`：K3 单核中断控制台与 `/proc/interrupts`。
+- `2026-11-15-k3-uart-irq-8core.txt`：K3 八核中断控制台。
+- `2026-11-15-k3-uart-uue.txt`：U-Boot 下 IER、MCR 读回与内核状态。
+- `2026-11-15-k3-aia.txt`：K3 早期轮询控制台的 AIA 初始化。
 - `2026-11-15-k3-uart-dt.txt`：K3 U-Boot UART 设备树与寄存器查询。

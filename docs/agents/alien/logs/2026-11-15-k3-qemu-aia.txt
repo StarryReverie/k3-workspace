@@ -1,15 +1,15 @@
 Alien k3_qemu AIA interrupt validation, 2026-11-15
-Source: /tmp/opencode/stage7-qemu2-aia-interact.log
-Image: k3_qemu with K3_CPUS=2 and K3_QEMU_SHELL=1, QEMU -M virt,aia=aplic-imsic -smp 2
+Source: QEMU -M virt,aia=aplic-imsic -smp 4, kernel built with K3_CPUS=4
 Note: excerpt only; ANSI escape sequences removed.
 
-AIA: imsic=0x28000000 size=0x2000 ids=255 aplic=0xd000000 size=0x8000 sources=96
+AIA: eidelivery=0x1 eithreshold=0x0 domaincfg=0x80000104
+[0] AIA: imsic=0x28000000 size=0x4000 ids=255 aplic=0xd000000 size=0x8000 sources=96
 [0] AIA: hart_bits=0 guest_bits=0
 [0] K3 console: interrupt UART deferred, irq 10
 [0] DT memory: 0x80000000..0xc0000000
-[0] DT cpus: [0, 1]
+[0] DT cpus: [0, 1, 2, 3]
 [0] DT uart: base=0x10000000 irq=10 compatible=ns16550a
-[0] DT imsic: base=0x28000000 size=0x2000 num_ids=255 hart_bits=0 guest_bits=0
+[0] DT imsic: base=0x28000000 size=0x4000 num_ids=255 hart_bits=0 guest_bits=0
 [0] DT aplic: base=0xd000000 size=0x8000 num_sources=96
 [0] register fs success
 [0] ramfs init success
@@ -31,23 +31,32 @@ drwxr-xr-x      4KB tests
 [0] kallsyms not found, skip symbol mapping
 [0] ++++ setup interrupt ++++
 [0] ++++ setup interrupt done, enable:true ++++
+[0] AIA: irq 10 sourcecfg=0x6 target=0xa eie0(10)=0x400
 [0] AIA: enabled irq 10 for hart 0
 [0] K3 console: interrupt-driven, irq 10
 [0] Init task success
+[3] ++++ setup interrupt ++++
+[2] ++++ setup interrupt ++++
 [1] ++++ setup interrupt ++++
+[3] ++++ setup interrupt done, enable:true ++++
+[2] ++++ setup interrupt done, enable:true ++++
 [1] ++++ setup interrupt done, enable:true ++++
+[3] hart 3 start
+[2] hart 2 start
 [1] hart 1 start
-[0] SMP: 2/2 harts online
+[0] SMP: 4/4 harts online
+[3] Begin run task...
 [1] Begin run task...
+[2] Begin run task...
 [0] Begin run task...
-[0] kthread_init start...
+[3] kthread_init start...
 Init process is running
 Alien:/# /bin/busybox nproc
-2
+4
 Alien:/# <0m# /bin/busybox cat /sys/devices/system/cpu/online
-0-1Alien:/# /bin/busybox cat /proc/interrupts
-1: 30
-10: 6
+0-3Alien:/# /bin/busybox cat /proc/interrupts
+1: 56
+10: 94
 Alien:/# echo K3_OK
 K3_OK
 Alien:/# /bin/busybox ls /

@@ -1,7 +1,7 @@
 # 阶段 7 详细计划：设备树与中断基础设施
 
 日期：2026-11-15
-状态：部分实施，进展见 `10-interrupts.md`
+状态：已完成，记录见 `10-interrupts.md`
 前置提交：`3b2db72 docs: add stage 7 interrupt plan`
 目标平台：QEMU `virt` 与 BananaPi BPI-SM10（SpacemiT K3）
 
