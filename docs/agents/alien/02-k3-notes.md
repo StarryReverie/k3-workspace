@@ -126,7 +126,7 @@ node 0: [mem 0x0000000102000000-0x00000002ffffffff]
 - FIT 使用 gzip 压缩，U-Boot 解压后加载到 `0x102200000`。
 - FIT 当前不含 FDT 节点，启动命令必须带 `$fdtcontroladdr` 作为第三个参数。
 - 不使用裸 `go`，因为无法保证 `a0` 与 `a1` 的取值。
-- 双核构建使用 `K3_SMP=1`，通过 `SMP=2` 设置 `CPU_NUM`。
+- 多核构建使用 `K3_CPUS=2|4|8`，构建脚本通过 `SMP=<核数>` 设置 `CPU_NUM`。
 
 ### 5.4 启动流程
 
@@ -155,14 +155,18 @@ ostool board connect
 | 控制台交互 | 轮询 UART 已替代 SBI 输入，完整 bash 可交互 |
 | `0x01` 洪泛 | 来自 SBI getchar 轮询，已消除 |
 | FIT gzip | 5.0 MiB 压缩到 4.0 MiB，U-Boot 解压正常 |
-| SMP | 2 个 hart 可启动，主 hart 固定为 0 |
+| SMP | X100 的 CPU0–7 可启动，4 核与 8 核已验证 |
+| CPU 亲和性 | 默认掩码为全部 CPU，`nproc` 与 `/sys` 输出正确 |
+| 控制台输出 | 内核日志与用户态 UART 共用输出锁 |
 
 仍需确认：
 
 | 项目 | 影响 | 处理方式 |
 |---|---|---|
-| 4/8 核与 A100 | 只验证 2 个 hart | 逐步提高 `CPU_NUM`，先 X100 后 A100 |
-| 双 hart 日志交错 | 共享 UART 输出可能混乱 | 统一内核日志与用户态输出路径 |
+| A100（CPU8–15） | 尚未探测与启用 | 先用 `hart_get_status` 查询 8–15，再单独实验 |
+| 调度器亲和性 | `sched_setaffinity` 返回 `ENOSYS` | 在任务选择路径检查 `cpu_affinity` |
+| 八核串口噪声 | 偶发单字节损坏 | 确认是抓取丢字节还是 UART 传输问题 |
+| U-Boot DHCP | 偶发 `ipaddr not set` | 上板脚本增加 DHCP 重试 |
 | UART 中断与 IMSIC | 当前为忙等轮询 | 接入 IMSIC，改为中断驱动 |
 | UART 流控与作业控制 | Ctrl-C、流控未验证 | 补 termios 与信号处理 |
 | IMSIC 与 APLIC | 外部中断不可用 | 参考 Linux 设备树与 IMSIC 规范 |
@@ -175,6 +179,7 @@ ostool board connect
 - 平台会话约 5 分钟回收，完整镜像上传可能接近上限。
 - 若完全没有输出，区分“未跳转”“SBI 调用失败”“页表异常”需要提前埋入早期标记。
 - K3 的 16 个 hart 中 A100 的启动方式与 X100 可能不同，SMP 不能直接照搬 VisionFive2。
+- 多 hart 会放大调度器竞态；任务上下文必须在保存完成后才能发布到其他 hart。
 - 设备树缺失时只能硬编码，后续增加外设需要重新引入 DTB。
 
 ## 8. 参考

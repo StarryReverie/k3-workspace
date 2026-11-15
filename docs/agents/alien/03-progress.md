@@ -240,6 +240,41 @@ bin dev etc proc root sys tests tmp var
 
 详细记录见 `08-smp-and-gzip.md`。
 
+### 阶段 6：四核、八核与亲和性
+
+状态：完成。
+
+完成内容：
+
+- 增加 `K3_CPUS` 参数，支持 1、2、4、8、16 个 hart；`K3_SMP=1` 保留为双核别名。
+- 构建时写入 `$OUT_DIR/smp`，QEMU 运行脚本自动读取核数。
+- 默认 CPU 亲和掩码改为全部 CPU，修正 `sched_getaffinity` 与 `/sys/devices/system/cpu/online`。
+- `sched_setaffinity` 明确返回 `ENOSYS`。
+- 修复八核暴露的调度竞态：任务上下文保存完成后才发布到调度器。
+- 为等待/僵尸任务增加临时上下文，避免向已释放任务写入寄存器。
+- 空闲循环改为 `wfi`。
+- 内核日志与用户态 UART 输出共用 `STDOUT` 锁。
+
+验收结果：
+
+```text
+QEMU -smp 4        4/4 harts，nproc=4，online=0-3
+QEMU -smp 8        8/8 harts，nproc=8，online=0-7
+K3 四核            4/4 harts，nproc=4，online=0-3
+K3 八核            8/8 harts，nproc=8，online=0-7
+QEMU 八核负载      CPU 时间倍率 7.97
+```
+
+四核与八核上板均执行 `echo K3_OK` 与 `/bin/busybox ls /`，`0x01` 数量为 0。
+
+关键修正：
+
+- 八核时任务在 `__switch` 保存上下文前被其他 hart 窃取，触发内核 `LoadPageFault`。
+- 现由每 hart 的 `PENDING` 槽位在保存完成后发布任务。
+- 用户态 UART 输出与内核 SBI 日志改用同一把输出锁，`Alien:/#` 不再被逐字符拆散。
+
+详细记录见 `09-more-cores.md`。
+
 ### 已确认
 
 - K3 的 `timebase-frequency` 为 24 MHz。
@@ -250,11 +285,17 @@ bin dev etc proc root sys tests tmp var
 - `0x01` 洪泛来自 SBI 控制台输入轮询，已由轮询 UART 替代。
 - K3 UART 输入、完整 bash、`echo` 与 `/bin/busybox ls` 均已验证。
 - FIT gzip 可用，双核 `Boot hart 0` + `hart 1 start` 已验证。
+- X100 的 4 核与 8 核均可在 QEMU 和真实 K3 上启动。
+- `nproc` 与 `/sys/devices/system/cpu/online` 能正确反映 4/8 核。
+- 内核日志与用户态 UART 输出已共用输出锁。
 
 ### 仍需确认
 
-- 4 核、8 核与 A100 核的启动情况。
-- 双 hart 内核日志在共享 UART 上的交错问题。
+- A100（CPU8–15）的 HSM 状态与启动方式。
+- 八核日志偶发单字节串口噪声，需要确认是抓取还是 UART 传输问题。
+- `sched_setaffinity` 尚未实现，调度器不强制亲和性。
+- `taskset -p` 需要全局 pid 到任务的查询接口。
+- U-Boot DHCP 偶发失败，需要重试上板脚本。
 - UART 中断驱动与 IMSIC 的接入方式。
 - PLIC/APLIC/IMSIC 的外部中断号与路由。
 - UART 流控、Ctrl-C 与作业控制。

@@ -1,0 +1,79 @@
+Alien K3 four-core validation, 2026-11-15
+Source: logs/boot-20261115-162528.log
+Image: alien-k3.itb, gzip FIT, K3_CPUS=4 (CPU_NUM=4)
+Note: excerpt only; ANSI escape sequences and U-Boot timestamps removed.
+
+init_other_hart: cpu_num=4, boot=0
+[0] hart 1 start requestgd
+[0] hart 2 start requested
+[0] hart 3 start requested
+[0] SMP: requested 3 secondary harts, target 4
+[0] Boot hart 0
+[0] This is a device tree representation of a SpacemiT K3 machine
+SMP:    4
+Memory: 0x102000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0x0..0x0
+Initrd: Some(
+    0x10234650b..0x102673247,
+)
+Bootargs: None
+[0] Page start:0x12272d,end:0x300000,count:0x1dd8d3
+[0] Bitmap manage 1955991 pages using 60 pages
+[0] Frame allocator init success
+[0] Relocate initrd data to 0x0000000122769000
+[0] Talloc allocator init success
+[0] kernel text:          0x102200000-0x102345000
+[0] kernel rodata:        0x102345000-0x1026e0000
+[0] kernel inmt_array:    0x1026e0000-0x1026e0470
+[0] kernel data:          0x1026e0000-0x102724000
+[0] kernel bss:           0x102724000-0x10272d000
+[0] kernel heap:          0x10272d000-0x300000000
+[0] map mmio: 0xd4017000-0xd4018000
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] no disk filesystem feature, skip /tests disk mount
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KB sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] Init task success
+[3] ++++ setup interrupt!++++
+[1] ++++ setup interrupt ++++
+[2] ++++ setup interrupt ++++
+[3] ++++ setup interrupt done, enable:true ++++
+[1] ++++ setup interrupt done, enable:true ++++
+[2] ++++ setup interrupt done, enable:true ++++
+[3] hart 3 start
+[1] hart 1 start
+[2] hart 2 start
+[0] SMP: 4/4 harts online
+[3] Begin run task...
+[1] Begin run task...
+[2] Begin run task...
+[0] Begin run task...
+[3] kthread_init start...
+Init process is running
+Alien:/# /bin/busybox nproc
+4
+Alien:/# /<0m# /bin/busybox cat /sys/devices/system/cpu/online
+0-3Alien:/# echo K3_OK
+K3_OK
+Alien:/# /bin/busybox ls /
+bin    dev    etc    proc   root   sys    tests  tmp    var
+Alien:/# 

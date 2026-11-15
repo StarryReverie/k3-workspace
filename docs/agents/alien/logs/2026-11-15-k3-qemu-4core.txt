@@ -1,0 +1,72 @@
+Alien k3_qemu four-core regression, 2026-11-15
+Source: /tmp/opencode/stage6-qemu4-interact.log
+Image: k3_qemu with K3_CPUS=4 and K3_QEMU_SHELL=1, QEMU -smp 4
+Note: excerpt only; ANSI escape sequences removed.
+
+init_other_hart: cpu_num=4, boot=0
+[0] hart 1 start requested
+[0] hart 2 start requested
+[0] hart 3 start requested
+[0] SMP: requested 3 secondary harts, target 4
+[0] Boot hart 0
+[0] This is a device tree representation of a QEMU virt (K3 test) machine
+SMP:    4
+Memory: 0x80000000..0xc0000000
+PLIC:   0x0..0x0
+CLINT:  0x0..0x0
+Initrd: Some(
+    0x80346513..0x8067324d,
+)
+Bootargs: None
+[0] Page start:0xa072d,end:0xc0000,count:0x1f8d3
+[0] Bitmap manage 129231 pages using 4 pages
+[0] Frame allocator init success
+[0] Relocate initrd data to 0x00000000a0731000
+[0] Talloc allocator init success
+[0] kernel text:          0x80200000-0x80345000
+[0] kernel rodata:        0x80345000-0x806e0000
+[0] kernel init_array:    0x806e0000-0x806e0470
+[0] kernel data:          0x806e0000-0x80724000
+[0] kernel bss:           0x80724000-0x8072d000
+[0] kernel heap:          0x8072d000-0xc0000000
+[0] map mmio: 0x10000000-0x10001000
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] register fs success
+[0] ramfs init success
+[0] procfs init success
+[0] devfs init success
+[0] sysfs init success
+[0] pipefs init success
+[0] no disk filesystem feature, skip /tests disk mount
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KB sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+[0] Initrd populate success
+[0] Init filesystem success
+[0] kallsyms not found, skip symbol mapping
+[0] ++++ setup interrupt ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[0] Init task success
+[3] ++++ setup interrupt ++++
+[2] ++++ setup interrupt ++++
+[1] ++++ setup interrupt ++++
+[2] ++++ setup interrupt done, enable:true ++++
+[3] ++++ setup interrupt done, enable:true ++++
+[1] ++++ setup interrupt done, enable:true ++++
+[2] hart 2 start
+[3] hart 3 start
+[1] hart 1 start
+[0] SMP: 4/4 harts online
+[2] Begin run task...
+[3] Begin run task...
+[1] Begin run task...
+[0] Begin run task...
+[2] kthread_init start...
+Init process is running
+Alien:/# 

@@ -1,0 +1,92 @@
+Alien k3_qemu eight-core regression, 2026-11-15
+Source: /tmp/opencode/stage6-qemu8-interact.log
+Image: k3_qemu with K3_CPUS=8 and K3_QEMU_SHELL=1, QEMU -smp 8
+Note: excerpt only; ANSI escape sequences removed.
+
+init_other_hart: cpu_num=8, boot=2
+[2] hart 0 start requested
+[2] hart 1 start requested
+[2] hart 3 start requested
+[2] hart 4 start requested
+[2] hart 5 start requested
+[2] hart 6 start requested
+[2] hart 7 start requested
+[2] SMP: requested 7 secondary harts, target 8
+[2] Boot hart 2
+[2] This is a device tree representation of a QEMU virt (K3 test) machine
+SMP:    8
+Memory: 0x80000000..0xc0000000
+PLIC:   0x0..0x0
+CLINT:  0x0..0x0
+Initrd: Some(
+    0x80346513..0x80673248,
+)
+Bootargs: None
+[2] Page start:0xa076e,end:0xc0000,count:0x1f892
+[2] Bitmap manage 129166 pages using 4 pages
+[2] Frame allocator init success
+[2] Relocate initrd data to 0x00000000a0772000
+[2] Talloc allocator init success
+[2] kernel text:          0x80200000-0x80345000
+[2] kernel rodata:        0x80345000-0x806e0000
+[2] kernel init_array:    0x806e0000-0x806e0470
+[2] kernel data:          0x806e0000-0x80764000
+[2] kernel bss:           0x80764000-0x8076e000
+[2] kernel heap:          0x8076e000-0xc0000000
+[2] map mmio: 0x10000000-0x10001000
+[2] Build kernel address space success
+[2] Activate paging mode success
+[2] register fs success
+[2] ramfs init success
+[2] procfs init success
+[2] devfs init success
+[2] sysfs init success
+[2] pipefs init success
+[2] no disk filesystem feature, skip /tests disk mount
+drwxr-xr-x      4KB root 
+drwxr-xr-x      4KB var 
+drwxr-xr-x      4KB etc 
+drwxr-xr-x      4KB dev 
+drwxr-xr-x      4KB proc 
+drwxr-xr-x      4KB sys 
+drwxrwxrwx      4KB tmp 
+drwxr-xr-x      4KB tests 
+[2] Initrd populate success
+[2] Init filesystem success
+[2] kallsyms not found, skip symbol mapping
+[2] ++++ setup interrupt ++++
+[2] ++++ setup interrupt done, enable:true ++++
+[2] Init task success
+[4] ++++ setup interrupt ++++
+[5] ++++ setup interrupt ++++
+[7] ++++ setup interrupt ++++
+[0] ++++ setup interrupt ++++
+[1] ++++ setup interrupt ++++
+[6] ++++ setup interrupt ++++
+[3] ++++ setup interrupt ++++
+[4] ++++ setup interrupt done, enable:true ++++
+[5] ++++ setup interrupt done, enable:true ++++
+[7] ++++ setup interrupt done, enable:true ++++
+[0] ++++ setup interrupt done, enable:true ++++
+[1] ++++ setup interrupt done, enable:true ++++
+[6] ++++ setup interrupt done, enable:true ++++
+[3] ++++ setup interrupt done, enable:true ++++
+[4] hart 4 start
+[5] hart 5 start
+[7] hart 7 start
+[0] hart 0 start
+[1] hart 1 start
+[6] hart 6 start
+[3] hart 3 start
+[2] SMP: 8/8 harts online
+[4] Begin run task...
+[5] Begin run task...
+[7] Begin run task...
+[0] Begin run task...
+[1] Begin run task...
+[6] Begin run task...
+[3] Begin run task...
+[2] Begin run task...
+[5] kthread_init start...
+Init process is running
+Alien:/# 

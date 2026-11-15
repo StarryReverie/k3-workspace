@@ -18,3 +18,7 @@
 - `2026-11-14-k3-qemu-bash.txt`：QEMU `k3_qemu` 完整 bash 交互回归。
 - `2026-11-14-k3-qemu-smp.txt`：QEMU `k3_qemu -smp 2` 双核回归。
 - `2026-11-14-k3-smp.txt`：K3 双核 gzip FIT 上板日志。
+- `2026-11-15-k3-qemu-4core.txt`：QEMU `k3_qemu -smp 4` 四核回归。
+- `2026-11-15-k3-qemu-8core.txt`：QEMU `k3_qemu -smp 8` 八核回归。
+- `2026-11-15-k3-4core.txt`：K3 四核上板日志。
+- `2026-11-15-k3-8core.txt`：K3 八核上板日志。
