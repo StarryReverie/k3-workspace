@@ -1,0 +1,19 @@
+Alien k3_qemu NVMe block reads, 2026-11-16
+Source: QEMU 11.1.2, -M virt, -device nvme,drive=x0,serial=deadbeef
+Image: alien/out-k3-qemu/kernel-k3-qemu, K3_QEMU_SHELL=1, K3_CPUS=1
+Disk: alien/out-sd-test/sdcard.img, 48 MiB FAT32
+Note: excerpt only; ANSI escape sequences removed.
+
+[0] PCIe: 2 device(s), 1 NVMe
+[0] PCIe: 00:00.0 vendor=0x1b36 device=0x0008 class=0x060000 header=0x00
+[0] PCIe: 00:01.0 vendor=0x1b36 device=0x0010 class=0x010802 header=0x00
+[0] PCIe:   bar0 base=0x0 size=0x4000 mem64
+[0] NVMe: BAR0 base=0x40000000 size=0x4000
+[0] NVMe: controller ready, cap=0x4008200f0107ff
+[0] NVMe: queue result=0x3f003f
+[0] NVMe: I/O queue ready
+[0] NVMe: model=QEMU NVMe Ctrl serial=deadbeef fw=11.1.2
+[0] NVMe: namespace 1 blocks=98304 lba=512
+[0] NVMe: LBA0 head=[eb, 58, 90, 6d] sig=55aa
+[0] NVMe: LBA0..7 head=[eb, 58, 90, 6d] sig=55aa
+Init process is running

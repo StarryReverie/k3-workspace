@@ -1,8 +1,8 @@
 # 阶段 9 计划：PCIe 与 NVMe
 
 日期：2026-11-16
-状态：进行中，9A-2 完成
-当前循环：9A-3，未开始
+状态：进行中，9A-3 完成
+当前循环：9A-4，未开始
 范围：QEMU `virt` 的 PCIe 枚举与 NVMe 协议层、K3 的 PCIe 链路与 NVMe 挂载
 相关文档：`11-roadmap.md` 第 4 节、`12-storage.md`、`02-k3-notes.md`
 
@@ -53,7 +53,7 @@
 |---|---|---|
 | 9A-1 | ECAM 枚举 | 完成，2026-11-16 |
 | 9A-2 | 管理队列与 Identify | 完成，2026-11-16 |
-| 9A-3 | I/O 队列与读取 | 未开始 |
+| 9A-3 | I/O 队列与读取 | 完成，2026-11-16 |
 | 9A-4 | 分区与挂载 | 未开始 |
 | 9A-5 | 脚本、回归与文档 | 未开始 |
 | 9B-1 | K3 只读取证 | 未开始 |
@@ -238,6 +238,20 @@ NVMe: namespace 1 blocks=131072 lba=512
 ```text
 feat: add NVMe I/O queue and block reads
 ```
+
+**实施结果（2026-11-16）**
+
+```text
+NVMe: namespace 1 blocks=98304 lba=512
+NVMe: LBA0 head=[eb, 58, 90, 6d] sig=55aa
+NVMe: LBA0..7 head=[eb, 58, 90, 6d] sig=55aa
+```
+
+- 首次 I/O 读取超时，原因是 Create CQ/SQ 未设置 PRP1，QEMU 将队列
+  建在地址 0；补上队列页地址后恢复。
+- 单块与跨页多块读取均读到 FAT 引导签名 `55aa`。
+- 实现提交：`85516c0 feat: add NVMe I/O queue and block reads`。
+- 日志：`docs/agents/alien/logs/2026-11-16-k3-qemu-nvme-read.txt`。
 
 ### 3.4 9A-4：分区与挂载
 

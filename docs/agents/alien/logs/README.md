@@ -33,3 +33,4 @@
 - `2026-11-16-k3-sd-mount.txt`：K3 挂载 SD 卡 FAT 分区并读取文件。
 - `2026-11-16-k3-qemu-pcie-enum.txt`：QEMU PCIe ECAM 枚举与 NVMe 发现。
 - `2026-11-16-k3-qemu-nvme-identify.txt`：QEMU NVMe 管理队列与 Identify。
+- `2026-11-16-k3-qemu-nvme-read.txt`：QEMU NVMe I/O 队列与块读取。
