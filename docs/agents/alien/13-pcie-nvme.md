@@ -1,8 +1,8 @@
 # 阶段 9 计划：PCIe 与 NVMe
 
 日期：2026-11-16
-状态：进行中，9A-4 完成
-当前循环：9A-5，未开始
+状态：9A 完成，等待 9B 只读取证
+当前循环：9B-1，未开始
 范围：QEMU `virt` 的 PCIe 枚举与 NVMe 协议层、K3 的 PCIe 链路与 NVMe 挂载
 相关文档：`11-roadmap.md` 第 4 节、`12-storage.md`、`02-k3-notes.md`
 
@@ -55,7 +55,7 @@
 | 9A-2 | 管理队列与 Identify | 完成，2026-11-16 |
 | 9A-3 | I/O 队列与读取 | 完成，2026-11-16 |
 | 9A-4 | 分区与挂载 | 完成，2026-11-16 |
-| 9A-5 | 脚本、回归与文档 | 未开始 |
+| 9A-5 | 脚本、回归与文档 | 完成，2026-11-16 |
 | 9B-1 | K3 只读取证 | 未开始 |
 | 9B-2 | 配置空间访问 | 未开始 |
 | 9B-3 | 控制器初始化与链路训练 | 未开始 |
@@ -325,28 +325,31 @@ alien qemu nvme mount ok
 **改动**
 
 - `scripts/alien/run-k3-qemu.sh` 增加 `QEMU_NVME=1`：
-  ```bash
-  -device nvme,drive=x0,serial=deadbeef
-  ```
-- 保存 QEMU NVMe 成功日志与无 NVMe 回退日志。
-- 更新 `13-pcie-nvme.md`、`03-progress.md` 与 `logs/README.md`。
+  有磁盘时选择 `nvme`，否则保持 `virtio-blk-device`。
+- `scripts/alien/build-k3-qemu.sh` 在磁盘镜像中生成 `HELLO.TXT`。
+- 保存 NVMe、virtio、无磁盘与 AIA 的回归日志。
 
 **验收矩阵**
 
-| 环境 | 预期 |
+| 环境 | 结果 |
 |---|---|
-| QEMU + NVMe + FAT | Identify、挂载 `/tests`、读取正常 |
-| QEMU 无 NVMe | 打印原因，回退 virtio 或 initramfs |
-| QEMU PLIC + NVMe | 控制台与磁盘正常 |
-| QEMU AIA + NVMe | 控制台与磁盘正常 |
+| QEMU NVMe + FAT | `mount fs success at /tests`，`ls` 与 `cat` 正常 |
+| QEMU virtio-blk + FAT | `mount fs success at /tests`，`ls` 与 `cat` 正常 |
+| QEMU 无磁盘、无 NVMe | `NVMe: no device`，shell 正常 |
+| QEMU AIA + NVMe | 中断控制台正常，挂载与读取正常 |
+| `QEMU_NVME=1` 无磁盘 | 退出码 2，打印参数错误 |
 
-**提交**
+**实施结果（2026-11-16）**
 
-```text
-docs: complete stage 9A qemu nvme
+```bash
+K3_QEMU_DISK=1 ./scripts/alien/build-k3-qemu.sh
+QEMU_DISK=1 QEMU_NVME=1 QEMU_TIMEOUT=30 ./scripts/alien/run-k3-qemu.sh
 ```
 
-9A 到此为硬检查点。
+- 实现提交：`7f963eb feat: add QEMU NVMe regression mode`。
+- 日志：`docs/agents/alien/logs/2026-11-16-k3-qemu-nvme-regression.txt`。
+
+9A 到此完成，进入 9B-1 只读取证。
 
 ## 4. 9B：K3 链路
 

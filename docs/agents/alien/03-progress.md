@@ -327,7 +327,7 @@ K3 八核                8/8 hart，/mnt 挂载与读取正常
 
 ### 阶段 9：PCIe 与 NVMe
 
-状态：进行中，9A-4 完成。
+状态：9A 完成，等待 9B 只读取证。
 
 已完成：
 
@@ -339,6 +339,10 @@ K3 八核                8/8 hart，/mnt 挂载与读取正常
   FAT 引导签名 `55aa`。
 - 9A-4：MBR/GPT 分区层与 NVMe 块设备；整盘 FAT32 挂载到 `/tests`，
   `ls` 与 `cat` 正常。
+- 9A-5：`QEMU_NVME=1` 脚本、可复现的 `HELLO.TXT` 与四条回归；
+  NVMe、virtio、无磁盘与 AIA 均通过。
+
+下一步：9B-1 只读取证，确认 M.2 插槽、U-Boot 枚举与 APMU/PHY 状态。
 
 计划内容：
 

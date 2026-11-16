@@ -1,7 +1,7 @@
 # 阶段 8–10 路线：存储与 NVMe
 
 日期：2026-11-15
-状态：路线规划；阶段 8 已完成，阶段 9 详细循环计划见 `13-pcie-nvme.md`
+状态：路线规划；阶段 8 已完成，阶段 9A 完成，阶段 9B 待取证；详细计划见 `13-pcie-nvme.md`
 前置提交：`ba39b1c docs: record stage 7 UART interrupt completion`
 
 ## 0. 文档范围
@@ -123,6 +123,8 @@ Port C 上已有 RTL8852 无线网卡。
 | 9A | QEMU `virt` 上的 PCIe 枚举与 NVMe 协议层 | QEMU 挂载 NVMe 上的 FAT，读取正常 |
 | 9B | K3 链路：APMU 时钟与复位、PHY 上电、PERST#、LTSSM、iATU | 能自主训练链路并读取 NVMe 配置空间 |
 | 9C | K3 上的 NVMe Identify、分区与挂载，以及回归收尾 | `/mnt` 列出文件并读取成功；QEMU 有/无 NVMe、K3 1/2/8 核均通过 |
+
+9A 已完成：QEMU 可枚举 NVMe、挂载 FAT 并读取文件；当前进入 9B-1 只读取证。
 
 9A 在 QEMU 上完成，原因是 QEMU `virt` 自带 PCIe 主机桥与 `-device nvme`，
 可以先把 ECAM 访问、BAR 分配、NVMe 队列与 PRP 全部验证，K3 只替换主机桥

@@ -35,3 +35,4 @@
 - `2026-11-16-k3-qemu-nvme-identify.txt`：QEMU NVMe 管理队列与 Identify。
 - `2026-11-16-k3-qemu-nvme-read.txt`：QEMU NVMe I/O 队列与块读取。
 - `2026-11-16-k3-qemu-nvme-mount.txt`：QEMU 从 NVMe 挂载 FAT 并读取文件。
+- `2026-11-16-k3-qemu-nvme-regression.txt`：9A 的 NVMe、virtio、无盘与 AIA 回归。
