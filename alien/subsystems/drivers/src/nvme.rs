@@ -1,8 +1,7 @@
 //! 最小 NVMe 轮询驱动。
 //!
-//! 阶段 9A 只覆盖控制器复位、管理队列、命令提交与 Identify。I/O 队列与
-//! 块设备接口在后续循环加入。所有队列与数据页使用内核恒等映射，地址可
-//! 直接作为物理地址使用。
+//! 阶段 9A 覆盖控制器复位、管理队列、Identify、I/O 队列与块读取。
+//! 所有队列与数据页使用内核恒等映射，地址可直接作为物理地址使用。
 
 use core::{
     hint::spin_loop,
@@ -15,6 +14,8 @@ use platform::{config::CLOCK_FREQ, println};
 use timer::read_timer;
 
 const ADMIN_QUEUE_SIZE: u16 = 32;
+const IO_QUEUE_SIZE: u16 = 32;
+const IO_QID: u16 = 1;
 const REG_CAP: usize = 0x00;
 const REG_INTMS: usize = 0x0c;
 const REG_CC: usize = 0x14;
@@ -90,8 +91,22 @@ impl NvmeCommand {
         self.dwords[7] = (address >> 32) as u32;
     }
 
+    fn set_prp2(&mut self, address: u64) {
+        // PRP2 位于字节 32–39，即 dword 8–9。
+        self.dwords[8] = address as u32;
+        self.dwords[9] = (address >> 32) as u32;
+    }
+
     fn set_cdw10(&mut self, value: u32) {
         self.dwords[10] = value;
+    }
+
+    fn set_cdw11(&mut self, value: u32) {
+        self.dwords[11] = value;
+    }
+
+    fn set_cdw12(&mut self, value: u32) {
+        self.dwords[12] = value;
     }
 }
 
@@ -137,7 +152,14 @@ pub struct NvmeController {
     admin_sq_tail: u16,
     admin_cq_head: u16,
     admin_phase: bool,
+    io_sq: DmaPage,
+    io_cq: DmaPage,
+    io_sq_tail: u16,
+    io_cq_head: u16,
+    io_phase: bool,
     next_cid: u16,
+    nsid: u32,
+    block_size: u32,
 }
 
 impl NvmeController {
@@ -168,7 +190,7 @@ impl NvmeController {
         }
         println!("NVMe: controller ready, cap={:#x}", cap);
 
-        Ok(Self {
+        let mut controller = Self {
             bar,
             doorbell_stride,
             admin_sq,
@@ -176,8 +198,17 @@ impl NvmeController {
             admin_sq_tail: 0,
             admin_cq_head: 0,
             admin_phase: true,
+            io_sq: DmaPage::new(),
+            io_cq: DmaPage::new(),
+            io_sq_tail: 0,
+            io_cq_head: 0,
+            io_phase: true,
             next_cid: 1,
-        })
+            nsid: 1,
+            block_size: 512,
+        };
+        controller.setup_io_queues()?;
+        Ok(controller)
     }
 
     pub fn identify(&mut self) -> NvmeResult<NvmeIdentify> {
@@ -186,7 +217,7 @@ impl NvmeController {
         let mut command = NvmeCommand::new(0x06);
         command.set_prp1(page.addr() as u64);
         command.set_cdw10(0x01);
-        self.submit_admin(&mut command)?;
+        let _ = self.submit_admin(&mut command)?;
 
         let data =
             unsafe { core::slice::from_raw_parts(page.addr() as *const u8, config::FRAME_SIZE) };
@@ -202,7 +233,7 @@ impl NvmeController {
         command.set_nsid(1);
         command.set_prp1(page.addr() as u64);
         command.set_cdw10(0x00);
-        self.submit_admin(&mut command)?;
+        let _ = self.submit_admin(&mut command)?;
 
         let data =
             unsafe { core::slice::from_raw_parts(page.addr() as *const u8, config::FRAME_SIZE) };
@@ -212,6 +243,8 @@ impl NvmeController {
         let lbaf = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
         let lba_size = 1u32 << ((lbaf >> 16) & 0xf);
 
+        self.nsid = 1;
+        self.block_size = lba_size;
         Ok(NvmeIdentify {
             model,
             serial,
@@ -221,7 +254,58 @@ impl NvmeController {
         })
     }
 
-    fn submit_admin(&mut self, command: &mut NvmeCommand) -> NvmeResult<()> {
+    /// 从指定 LBA 读取若干块。
+    pub fn read_blocks(&mut self, start_lba: u64, buf: &mut [u8]) -> NvmeResult<()> {
+        if buf.is_empty() {
+            return Ok(());
+        }
+        let block_size = self.block_size as usize;
+        if block_size == 0 || buf.len() % block_size != 0 {
+            return Err("buffer is not block aligned");
+        }
+        let blocks = buf.len() / block_size;
+        if blocks > 0x10000 {
+            return Err("too many blocks");
+        }
+
+        let list = DmaPage::new();
+        let (prp1, prp2) = prp_for(buf, &list);
+        let mut command = NvmeCommand::new(0x02);
+        command.set_nsid(self.nsid);
+        command.set_prp1(prp1);
+        if prp2 != 0 {
+            command.set_prp2(prp2);
+        }
+        command.set_cdw10(start_lba as u32);
+        command.set_cdw11((start_lba >> 32) as u32);
+        command.set_cdw12((blocks as u32 - 1) & 0xffff);
+        self.submit_io(&mut command)
+    }
+
+    fn setup_io_queues(&mut self) -> NvmeResult<()> {
+        let mut command = NvmeCommand::new(0x09);
+        command.set_cdw10(0x07);
+        command.set_cdw11(0);
+        let result = self.submit_admin(&mut command)?;
+        println!("NVMe: queue result={:#x}", result);
+
+        let mut command = NvmeCommand::new(0x05);
+        command.set_prp1(self.io_cq.addr() as u64);
+        command.set_cdw10((((IO_QUEUE_SIZE - 1) as u32) << 16) | IO_QID as u32);
+        command.set_cdw11(1);
+        let _ = self.submit_admin(&mut command)?;
+
+        let mut command = NvmeCommand::new(0x01);
+        command.set_prp1(self.io_sq.addr() as u64);
+        command.set_cdw10((((IO_QUEUE_SIZE - 1) as u32) << 16) | IO_QID as u32);
+        command.set_cdw11(1 | ((IO_QID as u32) << 16));
+        let _ = self.submit_admin(&mut command)?;
+
+        println!("NVMe: I/O queue ready");
+        Ok(())
+    }
+
+    fn submit_admin(&mut self, command: &mut NvmeCommand) -> NvmeResult<u32> {
         let cid = self.next_cid;
         self.next_cid = self.next_cid.wrapping_add(1);
         command.set_cid(cid);
@@ -236,12 +320,12 @@ impl NvmeController {
         }
         self.admin_sq_tail = (self.admin_sq_tail + 1) % ADMIN_QUEUE_SIZE;
         fence(Ordering::SeqCst);
-        write32(self.bar, REG_DOORBELL_BASE, self.admin_sq_tail as u32);
+        write32(self.bar, self.sq_doorbell(0), self.admin_sq_tail as u32);
 
         self.wait_admin(cid)
     }
 
-    fn wait_admin(&mut self, cid: u16) -> NvmeResult<()> {
+    fn wait_admin(&mut self, cid: u16) -> NvmeResult<u32> {
         let start = read_timer();
         loop {
             let entry = (self.admin_cq.addr() + self.admin_cq_head as usize * 16) as *const u32;
@@ -250,16 +334,13 @@ impl NvmeController {
             if phase == self.admin_phase {
                 let received = (dw3 & 0xffff) as u16;
                 let status = (dw3 >> 16) & 0xfffe;
+                let result = unsafe { read_volatile(entry) };
                 self.admin_cq_head = (self.admin_cq_head + 1) % ADMIN_QUEUE_SIZE;
                 if self.admin_cq_head == 0 {
                     self.admin_phase = !self.admin_phase;
                 }
                 fence(Ordering::SeqCst);
-                write32(
-                    self.bar,
-                    REG_DOORBELL_BASE + self.doorbell_stride,
-                    self.admin_cq_head as u32,
-                );
+                write32(self.bar, self.cq_doorbell(0), self.admin_cq_head as u32);
                 if received != cid {
                     println!("NVMe: completion cid {} != {}", received, cid);
                     return Err("completion cid mismatch");
@@ -268,7 +349,7 @@ impl NvmeController {
                     println!("NVMe: admin status={:#x}", status);
                     return Err("admin command failed");
                 }
-                return Ok(());
+                return Ok(result);
             }
             if read_timer().wrapping_sub(start) >= CLOCK_FREQ {
                 return Err("admin command timeout");
@@ -276,6 +357,90 @@ impl NvmeController {
             spin_loop();
         }
     }
+
+    fn submit_io(&mut self, command: &mut NvmeCommand) -> NvmeResult<()> {
+        let cid = self.next_cid;
+        self.next_cid = self.next_cid.wrapping_add(1);
+        command.set_cid(cid);
+
+        let slot = self.io_sq_tail as usize * 64;
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                command as *const NvmeCommand as *const u8,
+                (self.io_sq.addr() + slot) as *mut u8,
+                64,
+            );
+        }
+        self.io_sq_tail = (self.io_sq_tail + 1) % IO_QUEUE_SIZE;
+        fence(Ordering::SeqCst);
+        write32(self.bar, self.sq_doorbell(IO_QID), self.io_sq_tail as u32);
+
+        self.wait_io(cid)
+    }
+
+    fn wait_io(&mut self, cid: u16) -> NvmeResult<()> {
+        let start = read_timer();
+        loop {
+            let entry = (self.io_cq.addr() + self.io_cq_head as usize * 16) as *const u32;
+            let dw3 = unsafe { read_volatile(entry.add(3)) };
+            let phase = (dw3 >> 16) & 1 != 0;
+            if phase == self.io_phase {
+                let received = (dw3 & 0xffff) as u16;
+                let status = (dw3 >> 16) & 0xfffe;
+                self.io_cq_head = (self.io_cq_head + 1) % IO_QUEUE_SIZE;
+                if self.io_cq_head == 0 {
+                    self.io_phase = !self.io_phase;
+                }
+                fence(Ordering::SeqCst);
+                write32(self.bar, self.cq_doorbell(IO_QID), self.io_cq_head as u32);
+                if received != cid {
+                    println!("NVMe: I/O completion cid {} != {}", received, cid);
+                    return Err("I/O completion cid mismatch");
+                }
+                if status != 0 {
+                    println!("NVMe: I/O status={:#x}", status);
+                    return Err("I/O command failed");
+                }
+                return Ok(());
+            }
+            if read_timer().wrapping_sub(start) >= CLOCK_FREQ {
+                return Err("I/O command timeout");
+            }
+            spin_loop();
+        }
+    }
+
+    fn sq_doorbell(&self, qid: u16) -> usize {
+        REG_DOORBELL_BASE + (2 * qid as usize) * self.doorbell_stride
+    }
+
+    fn cq_doorbell(&self, qid: u16) -> usize {
+        REG_DOORBELL_BASE + (2 * qid as usize + 1) * self.doorbell_stride
+    }
+}
+
+/// 为一页以上的缓冲区构造 PRP1 与 PRP2。
+///
+/// 不超过两页时直接返回地址；超过两页时用 `list` 页存放后续页地址。
+fn prp_for(buf: &[u8], list: &DmaPage) -> (u64, u64) {
+    let start = buf.as_ptr() as usize;
+    let offset = start & 0xfff;
+    let pages = (offset + buf.len() + 0xfff) / 0x1000;
+    if pages <= 1 {
+        return (start as u64, 0);
+    }
+    if pages == 2 {
+        return (start as u64, ((start & !0xfff) + 0x1000) as u64);
+    }
+
+    let first = start & !0xfff;
+    for index in 1..pages {
+        let entry = (first + index * 0x1000) as u64;
+        unsafe {
+            write_volatile((list.addr() as *mut u64).add(index - 1), entry);
+        }
+    }
+    (start as u64, list.addr() as u64)
 }
 
 fn wait_ready(bar: usize, ready: bool) -> bool {

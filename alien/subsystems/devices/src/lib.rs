@@ -178,7 +178,37 @@ pub fn probe_qemu_nvme(ecam_base: usize, mmio_base: usize) {
         }
     };
     match controller.identify() {
-        Ok(identify) => identify.print(),
+        Ok(identify) => {
+            identify.print();
+            let mut sector = [0u8; 512];
+            match controller.read_blocks(0, &mut sector) {
+                Ok(()) => {
+                    println!(
+                        "NVMe: LBA0 head={:02x?} sig={:02x}{:02x}",
+                        &sector[0..4],
+                        sector[510],
+                        sector[511]
+                    );
+                }
+                Err(error) => {
+                    println!("NVMe: read failed: {}", error);
+                }
+            }
+            let mut buffer = [0u8; 4608];
+            match controller.read_blocks(0, &mut buffer[512..]) {
+                Ok(()) => {
+                    println!(
+                        "NVMe: LBA0..7 head={:02x?} sig={:02x}{:02x}",
+                        &buffer[512..516],
+                        buffer[1022],
+                        buffer[1023]
+                    );
+                }
+                Err(error) => {
+                    println!("NVMe: multi-block read failed: {}", error);
+                }
+            }
+        }
         Err(error) => {
             println!("NVMe: identify failed: {}", error);
         }
