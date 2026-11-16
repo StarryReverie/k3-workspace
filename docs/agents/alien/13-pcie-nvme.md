@@ -1,8 +1,8 @@
 # 阶段 9 计划：PCIe 与 NVMe
 
 日期：2026-11-16
-状态：计划完成，待实施
-当前循环：9A-1，未开始
+状态：进行中，9A-1 完成
+当前循环：9A-2，未开始
 范围：QEMU `virt` 的 PCIe 枚举与 NVMe 协议层、K3 的 PCIe 链路与 NVMe 挂载
 相关文档：`11-roadmap.md` 第 4 节、`12-storage.md`、`02-k3-notes.md`
 
@@ -51,7 +51,7 @@
 
 | 循环 | 内容 | 状态 |
 |---|---|---|
-| 9A-1 | ECAM 枚举 | 未开始 |
+| 9A-1 | ECAM 枚举 | 完成，2026-11-16 |
 | 9A-2 | 管理队列与 Identify | 未开始 |
 | 9A-3 | I/O 队列与读取 | 未开始 |
 | 9A-4 | 分区与挂载 | 未开始 |
@@ -146,6 +146,20 @@ PCIe: 00:01.0 vendor=0x... device=0x... class=0x010802
 ```text
 feat: enumerate PCIe devices on qemu virt
 ```
+
+**实施结果（2026-11-16）**
+
+```text
+PCIe: ECAM base=0x30000000
+PCIe: 2 device(s), 1 NVMe
+PCIe: 00:00.0 vendor=0x1b36 device=0x0008 class=0x060000 header=0x00
+PCIe: 00:01.0 vendor=0x1b36 device=0x0010 class=0x010802 header=0x00
+PCIe:   bar0 base=0x0 size=0x4000 mem64
+```
+
+- 无 NVMe 时输出 `1 device(s), 0 NVMe`，系统继续启动。
+- 实现提交：`cdd1f08 feat: enumerate PCIe devices on qemu virt`。
+- 日志：`docs/agents/alien/logs/2026-11-16-k3-qemu-pcie-enum.txt`。
 
 ### 3.2 9A-2：管理队列与 Identify
 

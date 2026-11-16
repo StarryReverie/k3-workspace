@@ -31,3 +31,4 @@
 - `2026-11-16-k3-qemu-disk.txt`：QEMU virtio-blk 与 FAT 挂载。
 - `2026-11-16-k3-sd-write.txt`：用 U-Boot 向 SD 卡写入 FAT 镜像。
 - `2026-11-16-k3-sd-mount.txt`：K3 挂载 SD 卡 FAT 分区并读取文件。
+- `2026-11-16-k3-qemu-pcie-enum.txt`：QEMU PCIe ECAM 枚举与 NVMe 发现。
