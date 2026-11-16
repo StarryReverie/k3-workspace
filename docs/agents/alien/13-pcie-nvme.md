@@ -1,8 +1,8 @@
 # 阶段 9 计划：PCIe 与 NVMe
 
 日期：2026-11-16
-状态：进行中，9A-1 完成
-当前循环：9A-2，未开始
+状态：进行中，9A-2 完成
+当前循环：9A-3，未开始
 范围：QEMU `virt` 的 PCIe 枚举与 NVMe 协议层、K3 的 PCIe 链路与 NVMe 挂载
 相关文档：`11-roadmap.md` 第 4 节、`12-storage.md`、`02-k3-notes.md`
 
@@ -52,7 +52,7 @@
 | 循环 | 内容 | 状态 |
 |---|---|---|
 | 9A-1 | ECAM 枚举 | 完成，2026-11-16 |
-| 9A-2 | 管理队列与 Identify | 未开始 |
+| 9A-2 | 管理队列与 Identify | 完成，2026-11-16 |
 | 9A-3 | I/O 队列与读取 | 未开始 |
 | 9A-4 | 分区与挂载 | 未开始 |
 | 9A-5 | 脚本、回归与文档 | 未开始 |
@@ -193,6 +193,20 @@ NVMe: namespace 1 blocks=... lba=512
 ```text
 feat: add NVMe admin queue and identify
 ```
+
+**实施结果（2026-11-16）**
+
+```text
+NVMe: BAR0 base=0x40000000 size=0x4000
+NVMe: controller ready, cap=0x4008200f0107ff
+NVMe: model=QEMU NVMe Ctrl serial=deadbeef fw=11.1.2
+NVMe: namespace 1 blocks=131072 lba=512
+```
+
+- 无 NVMe 时输出 `NVMe: no device`，系统继续启动。
+- Identify 首次返回全零，原因是 PRP1 写在 dword 4–5；修正为 dword 6–7。
+- 实现提交：`c744fea feat: add NVMe admin queue and identify`。
+- 日志：`docs/agents/alien/logs/2026-11-16-k3-qemu-nvme-identify.txt`。
 
 ### 3.3 9A-3：I/O 队列与读取
 
