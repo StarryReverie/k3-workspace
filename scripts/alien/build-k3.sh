@@ -43,6 +43,7 @@ for cmd in cargo rustc mkimage cpio gzip; do
 done
 
 mkdir -p "$OUT_DIR"
+rm -f "$OUT_DIR/build-info"
 
 echo "[1/7] building init"
 (
@@ -118,6 +119,16 @@ gzip -9 -c "$ALIEN_DIR/alien-k3.bin" > "$ALIEN_DIR/alien-k3.bin.gz"
 
 echo "[6/7] creating FIT image"
 mkimage -f "$ALIEN_DIR/tools/k3.its" "$OUT_DIR/$FIT_NAME"
+
+UARTTEST_INFO=0
+if [ "$K3_DIAG" = "1" ] && [ "${K3_UARTTEST:-0}" = "1" ]; then
+    UARTTEST_INFO=1
+fi
+cat > "$OUT_DIR/build-info" <<EOF
+CPUS=$CPUS
+DIAG=$K3_DIAG
+UARTTEST=$UARTTEST_INFO
+EOF
 
 echo "[7/7] summary"
 ls -lh "$OUT_DIR/kernel-k3" "$ALIEN_DIR/alien-k3.bin" "$ALIEN_DIR/alien-k3.bin.gz" "$OUT_DIR/$FIT_NAME"

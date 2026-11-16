@@ -17,7 +17,7 @@
 | 8 | 存储与块设备 | 完成，2026-11-16 |
 | 9 | PCIe 与 NVMe | 进行中，9A 完成 |
 
-完整 bash 镜像已在 BananaPi-1 上验证；当前支持 gzip FIT 与 8 个 X100 hart。QEMU AIA 与 K3 的 UART 输入均已由中断驱动；QEMU 已可从 FAT 磁盘加载用户态，K3 已挂载 SD 卡上的 FAT 分区。阶段 9 已拆为 13 个小循环；9A 完成，QEMU 已能从 NVMe 挂载 FAT 并读取文件，下一步进入 9B 的 K3 链路取证，计划见 `13-pcie-nvme.md`。
+完整 bash 镜像已在 BananaPi-1 上验证；当前支持 gzip FIT 与 8 个 X100 hart。QEMU AIA 与 K3 的 UART 输入均已由中断驱动；QEMU 已可从 FAT 磁盘加载用户态，K3 已挂载 SD 卡上的 FAT 分区。阶段 9 已拆为 13 个小循环；9A 完成，QEMU 已能从 NVMe 挂载 FAT 并读取文件。K3 上板默认测试（启动、AIA、存储、2/4/8 核、UART）已通过，下一步进入 9B 的 K3 链路取证，计划见 `13-pcie-nvme.md`。
 
 ## 固定信息
 
@@ -117,6 +117,15 @@ QEMU_DISK=1 QEMU_NVME=1 QEMU_TIMEOUT=30 ./scripts/alien/run-k3-qemu.sh
 ./scripts/alien/test-qemu.py --list
 ./scripts/alien/test-qemu.py nvme-mount --build
 ./scripts/alien/test-qemu.py all
+
+# 运行 K3 上板测试
+./scripts/alien/test-k3-board.py --list
+./scripts/alien/test-k3-board.py boot --build
+./scripts/alien/test-k3-board.py all
+
+# 构建、ELF 与 FIT 检查
+./scripts/alien/test-build.py --list
+./scripts/alien/test-build.py all
 
 # 启动 QEMU，默认 60 秒后停止
 ./scripts/alien/run-qemu.sh

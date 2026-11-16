@@ -12,6 +12,7 @@ extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::ptr::NonNull;
+#[cfg(feature = "k3")]
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 pub use block::{BLKDevice, BLOCK_DEVICE};
@@ -20,24 +21,31 @@ use device_interface::{DeviceBase, GpuDevice, LowBlockDevice};
 use drivers::{
     block_device::GenericBlockDevice,
     rtc::GoldFishRtc,
-    uart::{LowUartDriver, Uart, Uart16550, Uart8250},
+    uart::{Uart, Uart16550, Uart8250},
 };
+#[cfg(feature = "k3")]
+use drivers::uart::LowUartDriver;
 use fdt::Fdt;
 pub use gpu::{GPUDevice, GPU_DEVICE};
 pub use input::{INPUTDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
-use interrupt::{init_aia, register_device, AiaConfig};
+use interrupt::register_device;
+#[cfg(feature = "k3")]
+use interrupt::{init_aia, AiaConfig};
 use log::info;
 use platform::println;
 pub use rtc::{RTCDevice, RTC_DEVICE};
 pub use uart::{PollingUart, UARTDevice, UART_DEVICE};
 
+#[cfg(feature = "k3")]
 static K3_IRQ_UART: spin::Once<Arc<Uart>> = spin::Once::new();
+#[cfg(feature = "k3")]
 static K3_UART_IRQ: AtomicUsize = AtomicUsize::new(0);
 
 /// 为 K3 注册控制台。
 ///
 /// AIA 初始化成功且取得 UART 中断号时使用中断驱动输入；否则回退轮询。
 /// K3 的 UART 属于 XScale 型，写 IER 时必须保留单元使能位。
+#[cfg(feature = "k3")]
 pub fn init_k3_console(base_addr: usize, qemu_uart: bool) {
     let dtb_ptr = platform::platform_dtb_ptr();
     let dtb = unsafe { Fdt::from_ptr(dtb_ptr as *const u8) };
@@ -90,6 +98,7 @@ pub fn init_k3_console(base_addr: usize, qemu_uart: bool) {
 }
 
 /// 在陷阱子系统就绪后注册 UART 中断并使能 IER。
+#[cfg(feature = "k3")]
 pub fn enable_k3_uart_irq() {
     let Some(uart) = K3_IRQ_UART.get() else {
         return;
@@ -111,11 +120,13 @@ pub fn enable_k3_uart_irq() {
 }
 
 /// 为 K3 注册轮询模式的 ns16550。K3 使用 32 位寄存器与 reg-shift=2。
+#[cfg(feature = "k3")]
 pub fn init_k3_uart(base_addr: usize) {
     init_k3_console(base_addr, false);
 }
 
 /// 为 K3 QEMU 回归注册 16550。QEMU virt 使用 8 位寄存器。
+#[cfg(feature = "k3")]
 pub fn init_k3_qemu_uart(base_addr: usize) {
     init_k3_console(base_addr, true);
 }
@@ -124,6 +135,7 @@ pub fn init_k3_qemu_uart(base_addr: usize) {
 ///
 /// 磁盘镜像由 `build-k3-qemu.sh` 的 `K3_QEMU_DISK` 模式生成，
 /// 挂载点由 `vfs` 统一处理为 `/tests`。
+#[cfg(feature = "k3")]
 pub fn init_k3_virtio_block() {
     let dtb_ptr = platform::platform_dtb_ptr();
     let dtb = unsafe { Fdt::from_ptr(dtb_ptr as *const u8) };
@@ -146,6 +158,7 @@ pub fn init_k3_virtio_block() {
 ///
 /// 阶段 9A-4 把 NVMe 分区包装为 `/dev/sda`，后续由 `vfs` 挂载到
 /// `/tests`。没有 NVMe 或没有 FAT 分区时打印原因并继续启动。
+#[cfg(feature = "k3")]
 pub fn probe_qemu_nvme(ecam_base: usize, mmio_base: usize) {
     let host = drivers::pci::EcamHost::new(ecam_base);
     let devices = drivers::pci::enumerate(&host);
@@ -238,6 +251,7 @@ pub fn probe_qemu_nvme(ecam_base: usize, mmio_base: usize) {
 ///
 /// 驱动读取主引导记录并选取第一个 FAT 分区，因此 `/dev/sda`
 /// 表示该分区而不是整块设备。
+#[cfg(feature = "k3")]
 pub fn init_k3_storage() {
     let base = 0xd428_0000;
     let mut device = drivers::sdhci::SdhciBlockDevice::new(base);
@@ -254,6 +268,7 @@ pub fn init_k3_storage() {
 /// 打印 K3 设备树中的内存、CPU、UART、IMSIC 与 APLIC。
 ///
 /// 阶段 7A 只读探测，用于核对硬编码平台信息。
+#[cfg(feature = "k3")]
 pub fn probe_k3_platform() {
     let dtb_ptr = platform::platform_dtb_ptr();
     let dtb = unsafe { Fdt::from_ptr(dtb_ptr as *const u8) };
