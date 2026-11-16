@@ -34,3 +34,4 @@
 - `2026-11-16-k3-qemu-pcie-enum.txt`：QEMU PCIe ECAM 枚举与 NVMe 发现。
 - `2026-11-16-k3-qemu-nvme-identify.txt`：QEMU NVMe 管理队列与 Identify。
 - `2026-11-16-k3-qemu-nvme-read.txt`：QEMU NVMe I/O 队列与块读取。
+- `2026-11-16-k3-qemu-nvme-mount.txt`：QEMU 从 NVMe 挂载 FAT 并读取文件。

@@ -1,8 +1,8 @@
 # 阶段 9 计划：PCIe 与 NVMe
 
 日期：2026-11-16
-状态：进行中，9A-3 完成
-当前循环：9A-4，未开始
+状态：进行中，9A-4 完成
+当前循环：9A-5，未开始
 范围：QEMU `virt` 的 PCIe 枚举与 NVMe 协议层、K3 的 PCIe 链路与 NVMe 挂载
 相关文档：`11-roadmap.md` 第 4 节、`12-storage.md`、`02-k3-notes.md`
 
@@ -54,7 +54,7 @@
 | 9A-1 | ECAM 枚举 | 完成，2026-11-16 |
 | 9A-2 | 管理队列与 Identify | 完成，2026-11-16 |
 | 9A-3 | I/O 队列与读取 | 完成，2026-11-16 |
-| 9A-4 | 分区与挂载 | 未开始 |
+| 9A-4 | 分区与挂载 | 完成，2026-11-16 |
 | 9A-5 | 脚本、回归与文档 | 未开始 |
 | 9B-1 | K3 只读取证 | 未开始 |
 | 9B-2 | 配置空间访问 | 未开始 |
@@ -297,6 +297,24 @@ alien k3 nvme mount ok
 ```text
 feat: mount FAT from NVMe on qemu
 ```
+
+**实施结果（2026-11-16）**
+
+```text
+NVMe: FAT partition lba=0 blocks=147456
+NVMe: registered /dev/sda
+mount fs success at /tests
+
+Alien:/# /bin/busybox ls /tests
+HELLO.TXT  bash       init       libc.so
+Alien:/# /bin/busybox cat /tests/HELLO.TXT
+alien qemu nvme mount ok
+```
+
+- 整盘 FAT32 镜像被识别为 `lba=0` 的整盘分区。
+- `NvmeBlockDevice` 的写入返回 `EROFS`，阶段 9 保持只读。
+- 实现提交：`a7c94c2 feat: mount FAT from NVMe on qemu`。
+- 日志：`docs/agents/alien/logs/2026-11-16-k3-qemu-nvme-mount.txt`。
 
 ### 3.5 9A-5：脚本、回归与文档
 

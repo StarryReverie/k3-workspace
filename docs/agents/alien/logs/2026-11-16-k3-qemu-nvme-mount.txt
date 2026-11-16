@@ -1,0 +1,25 @@
+Alien k3_qemu NVMe FAT mount, 2026-11-16
+Source: QEMU 11.1.2, -M virt, -device nvme,drive=x0,serial=deadbeef
+Image: alien/out-k3-qemu/kernel-k3-qemu, K3_QEMU_DISK=1, K3_CPUS=1
+Disk: alien/out-k3-qemu/sdcard.img, 72 MiB FAT32, plus HELLO.TXT
+Note: excerpt only; ANSI escape sequences removed.
+
+[0] NVMe: BAR0 base=0x40000000 size=0x4000
+[0] NVMe: controller ready, cap=0x4008200f0107ff
+[0] NVMe: queue result=0x3f003f
+[0] NVMe: I/O queue ready
+[0] NVMe: model=QEMU NVMe Ctrl serial=deadbeef fw=11.1.2
+[0] NVMe: namespace 1 blocks=147456 lba=512
+[0] NVMe: LBA0 head=[eb, 58, 90, 6d] sig=55aa
+[0] NVMe: LBA0..7 head=[eb, 58, 90, 6d] sig=55aa
+[0] NVMe: FAT partition lba=0 blocks=147456
+[0] NVMe: registered /dev/sda
+[0] mount fs success at /tests
+Init process is running
+Alien:/# /bin/busybox ls /tests
+HELLO.TXT  bash       init       libc.so
+Alien:/# /bin/busybox cat /tests/HELLO.TXT
+alien qemu nvme mount ok
+Alien:/# echo NVME_MOUNT_OK
+NVME_MOUNT_OK
+Alien:/#
