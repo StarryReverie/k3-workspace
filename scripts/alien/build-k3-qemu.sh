@@ -107,6 +107,7 @@ if [ "$DISK" = "1" ]; then
     cp "$ALIEN_DIR/target/$TARGET/release/init" "$OUT_DIR/diskfs/init"
     cp "$ALIEN_DIR/tests/testbin-second-stage/bash" "$OUT_DIR/diskfs/bash"
     cp "$ALIEN_DIR/tests/testbin-second-stage/libc.so" "$OUT_DIR/diskfs/libc.so"
+    printf 'alien qemu nvme mount ok\n' > "$OUT_DIR/diskfs/HELLO.TXT"
     if command -v gen_ksym >/dev/null 2>&1; then
         nm -n -C "$OUT_DIR/kernel-k3-qemu" \
             | grep ' [Tt] ' | grep -v '\.L' | grep -v '\$x' \
