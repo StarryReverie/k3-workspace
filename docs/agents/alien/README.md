@@ -46,6 +46,7 @@
 | `11-roadmap.md` | 阶段 8–10 路线：存储、PCIe 与 NVMe |
 | `12-storage.md` | 阶段 8 的实施记录：QEMU 磁盘与 K3 SDHCI |
 | `13-pcie-nvme.md` | 阶段 9 的循环计划：QEMU NVMe、K3 链路与挂载 |
+| `14-testing.md` | QEMU 测试脚本、场景与断言方式 |
 | `logs/` | 关键日志节选 |
 
 ## 源码位置
@@ -111,6 +112,11 @@ QEMU_AIA=aplic-imsic QEMU_SMP=2 QEMU_TIMEOUT=15 ./scripts/alien/run-k3-qemu.sh
 # 构建并运行 QEMU NVMe 挂载回归
 K3_QEMU_DISK=1 ./scripts/alien/build-k3-qemu.sh
 QEMU_DISK=1 QEMU_NVME=1 QEMU_TIMEOUT=30 ./scripts/alien/run-k3-qemu.sh
+
+# 运行自动化 QEMU 测试
+./scripts/alien/test-qemu.py --list
+./scripts/alien/test-qemu.py nvme-mount --build
+./scripts/alien/test-qemu.py all
 
 # 启动 QEMU，默认 60 秒后停止
 ./scripts/alien/run-qemu.sh

@@ -347,6 +347,8 @@ QEMU_DISK=1 QEMU_NVME=1 QEMU_TIMEOUT=30 ./scripts/alien/run-k3-qemu.sh
 ```
 
 - 实现提交：`7f963eb feat: add QEMU NVMe regression mode`。
+- 回归已固化为 `scripts/alien/test-qemu.py`，场景与用法见
+  `14-testing.md`。
 - 日志：`docs/agents/alien/logs/2026-11-16-k3-qemu-nvme-regression.txt`。
 
 9A 到此完成，进入 9B-1 只读取证。

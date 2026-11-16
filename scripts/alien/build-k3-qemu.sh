@@ -36,6 +36,7 @@ for cmd in $REQUIRED; do
 done
 
 mkdir -p "$OUT_DIR"
+rm -f "$OUT_DIR/build-info"
 
 echo "[1/6] building init"
 (
@@ -123,6 +124,16 @@ if [ "$DISK" = "1" ]; then
 else
     echo "      skipped (set K3_QEMU_DISK=1 to enable)"
 fi
+
+SHELL_INFO=0
+if [ "$DISK" != "1" ] && [ "${K3_QEMU_SHELL:-0}" = "1" ]; then
+    SHELL_INFO=1
+fi
+cat > "$OUT_DIR/build-info" <<EOF
+CPUS=$CPUS
+DISK=$DISK
+SHELL=$SHELL_INFO
+EOF
 
 echo "[6/6] summary"
 ls -lh "$OUT_DIR/kernel-k3-qemu"

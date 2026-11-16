@@ -341,6 +341,8 @@ K3 八核                8/8 hart，/mnt 挂载与读取正常
   `ls` 与 `cat` 正常。
 - 9A-5：`QEMU_NVME=1` 脚本、可复现的 `HELLO.TXT` 与四条回归；
   NVMe、virtio、无磁盘与 AIA 均通过。
+- 测试已固化为 `scripts/alien/test-qemu.py`，覆盖八个场景，见
+  `14-testing.md`。
 
 下一步：9B-1 只读取证，确认 M.2 插槽、U-Boot 枚举与 APMU/PHY 状态。
 
