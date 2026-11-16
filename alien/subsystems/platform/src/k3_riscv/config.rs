@@ -19,13 +19,22 @@ pub const DISK_MOUNT: &str = "/mnt";
 pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 pub const HEAP_SIZE: usize = 0x200_00000;
 
+/// QEMU `virt` 的 PCIe ECAM 基址。
+#[cfg(feature = "k3_qemu")]
+pub const PCI_ECAM_BASE: usize = 0x3000_0000;
+/// QEMU `virt` 的 32 位 PCIe MMIO 基址。
+#[cfg(feature = "k3_qemu")]
+pub const PCI_MMIO_BASE: usize = 0x4000_0000;
+
 /// K3 的外设地址空间。
 #[cfg(feature = "k3_qemu")]
 pub const MMIO: &[(usize, usize)] = &[
-    (0x1000_0000, 0x1000),   // UART0
-    (0x1000_1000, 0x8000),   // virtio-mmio 槽位
-    (0x0d00_0000, 0x1_0000), // QEMU AIA S-level APLIC
-    (0x2800_0000, 0x1_0000), // QEMU AIA S-level IMSIC
+    (0x1000_0000, 0x1000),       // UART0
+    (0x1000_1000, 0x8000),       // virtio-mmio 槽位
+    (0x0d00_0000, 0x1_0000),     // QEMU AIA S-level APLIC
+    (0x2800_0000, 0x1_0000),     // QEMU AIA S-level IMSIC
+    (0x3000_0000, 0x1000_0000),  // QEMU PCIe ECAM
+    (0x4000_0000, 0x0010_0000),  // QEMU PCIe MMIO BAR 窗口
 ];
 #[cfg(not(feature = "k3_qemu"))]
 pub const MMIO: &[(usize, usize)] = &[
