@@ -200,4 +200,4 @@ scripts/alien/build-k3.sh                   启用 fat 特性
 3. 分区层：支持多分区与分区设备节点，而不是只取第一个 FAT 分区。
 4. 热插拔与卡检测：使用 DT 中的 `cd-gpios`。
 5. 文件系统：按需增加 ext4 支持。
-6. 阶段 9：PCIe 与 NVMe，见 `11-roadmap.md`。
+6. 阶段 9：PCIe 与 NVMe，见 `13-pcie-nvme.md`。
