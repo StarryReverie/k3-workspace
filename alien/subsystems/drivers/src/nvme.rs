@@ -9,6 +9,9 @@ use core::{
     sync::atomic::{fence, Ordering},
 };
 
+use constants::{AlienResult, LinuxErrno};
+use device_interface::LowBlockDevice;
+use ksync::Mutex;
 use mem::{alloc_frames, free_frames};
 use platform::{config::CLOCK_FREQ, println};
 use timer::read_timer;
@@ -160,6 +163,7 @@ pub struct NvmeController {
     next_cid: u16,
     nsid: u32,
     block_size: u32,
+    blocks: u64,
 }
 
 impl NvmeController {
@@ -206,6 +210,7 @@ impl NvmeController {
             next_cid: 1,
             nsid: 1,
             block_size: 512,
+            blocks: 0,
         };
         controller.setup_io_queues()?;
         Ok(controller)
@@ -245,6 +250,7 @@ impl NvmeController {
 
         self.nsid = 1;
         self.block_size = lba_size;
+        self.blocks = nsze;
         Ok(NvmeIdentify {
             model,
             serial,
@@ -252,6 +258,14 @@ impl NvmeController {
             nsze,
             lba_size,
         })
+    }
+
+    pub fn block_size(&self) -> u32 {
+        self.block_size
+    }
+
+    pub fn blocks(&self) -> u64 {
+        self.blocks
     }
 
     /// 从指定 LBA 读取若干块。
@@ -417,6 +431,52 @@ impl NvmeController {
     fn cq_doorbell(&self, qid: u16) -> usize {
         REG_DOORBELL_BASE + (2 * qid as usize + 1) * self.doorbell_stride
     }
+}
+
+/// 只读 NVMe 块设备，供通用块层与文件系统使用。
+pub struct NvmeBlockDevice {
+    controller: Mutex<NvmeController>,
+    capacity: usize,
+}
+
+impl NvmeBlockDevice {
+    pub fn new(controller: NvmeController) -> Option<Self> {
+        if controller.block_size() != 512 || controller.blocks() == 0 {
+            return None;
+        }
+        let capacity = controller.blocks() as usize;
+        Some(Self {
+            controller: Mutex::new(controller),
+            capacity,
+        })
+    }
+}
+
+impl LowBlockDevice for NvmeBlockDevice {
+    fn read_block(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+        self.controller
+            .lock()
+            .read_blocks(block_id as u64, buf)
+            .map_err(|_| LinuxErrno::EIO.into())
+    }
+
+    fn write_block(&self, _block_id: usize, _buf: &[u8]) -> AlienResult<()> {
+        Err(LinuxErrno::EROFS.into())
+    }
+
+    fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    fn read_block_async(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+        self.read_block(block_id, buf)
+    }
+
+    fn write_block_async(&self, _block_id: usize, _buf: &[u8]) -> AlienResult<()> {
+        Err(LinuxErrno::EROFS.into())
+    }
+
+    fn handle_irq(&self) {}
 }
 
 /// 为一页以上的缓冲区构造 PRP1 与 PRP2。

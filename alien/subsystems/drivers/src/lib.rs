@@ -7,6 +7,7 @@ pub mod hal;
 pub mod input;
 pub mod net;
 pub mod nvme;
+pub mod partition;
 pub mod pci;
 pub mod rtc;
 pub mod sdhci;

@@ -142,9 +142,10 @@ pub fn init_k3_virtio_block() {
     }
 }
 
-/// 在 QEMU `virt` 上枚举 NVMe，分配 BAR0 并读取 Identify。
+/// 在 QEMU `virt` 上枚举 NVMe，分配 BAR0、读取 Identify 并注册块设备。
 ///
-/// 阶段 9A-2 只验证管理队列与控制器信息；块设备注册在 9A-4 加入。
+/// 阶段 9A-4 把 NVMe 分区包装为 `/dev/sda`，后续由 `vfs` 挂载到
+/// `/tests`。没有 NVMe 或没有 FAT 分区时打印原因并继续启动。
 pub fn probe_qemu_nvme(ecam_base: usize, mmio_base: usize) {
     let host = drivers::pci::EcamHost::new(ecam_base);
     let devices = drivers::pci::enumerate(&host);
@@ -208,6 +209,24 @@ pub fn probe_qemu_nvme(ecam_base: usize, mmio_base: usize) {
                     println!("NVMe: multi-block read failed: {}", error);
                 }
             }
+
+            let Some(nvme) = drivers::nvme::NvmeBlockDevice::new(controller) else {
+                println!("NVMe: unsupported LBA size or empty namespace");
+                return;
+            };
+            let nvme: Box<dyn LowBlockDevice> = Box::new(nvme);
+            let Some(partition) = drivers::partition::find_fat_partition(nvme.as_ref()) else {
+                println!("NVMe: no FAT partition");
+                return;
+            };
+            println!(
+                "NVMe: FAT partition lba={} blocks={}",
+                partition.lba_offset, partition.blocks
+            );
+            let partitioned = drivers::partition::PartitionBlockDevice::new(nvme, partition);
+            let generic = Arc::new(GenericBlockDevice::new(Box::new(partitioned)));
+            block::init_block_device(generic);
+            println!("NVMe: registered /dev/sda");
         }
         Err(error) => {
             println!("NVMe: identify failed: {}", error);
