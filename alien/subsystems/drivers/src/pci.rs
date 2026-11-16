@@ -10,6 +10,7 @@ use core::ptr::{read_volatile, write_volatile};
 use platform::println;
 
 const PCI_VENDOR_ID: u16 = 0x00;
+const PCI_COMMAND: u16 = 0x04;
 const PCI_CLASS_REVISION: u16 = 0x08;
 const PCI_HEADER_TYPE: u16 = 0x0c;
 const PCI_BAR0: u16 = 0x10;
@@ -182,6 +183,53 @@ fn read_bar(host: &dyn PciHost, address: PciAddress, index: u8) -> Option<PciBar
     })
 }
 
+/// 把 BAR 分配到指定的 CPU 地址，并写回配置空间。
+pub fn assign_bar(host: &dyn PciHost, address: PciAddress, bar: &PciBar, base: u64) -> bool {
+    if bar.size == 0 || base & (bar.size - 1) != 0 {
+        return false;
+    }
+    let offset = PCI_BAR0 + bar.index as u16 * 4;
+    host.write_config(address, offset, base as u32 & 0xffff_fff0);
+    if bar.is_64 {
+        host.write_config(address, offset + 4, (base >> 32) as u32);
+    }
+    true
+}
+
+/// 读取 BAR 当前基址。
+pub fn bar_base(host: &dyn PciHost, address: PciAddress, index: u8) -> u64 {
+    let offset = PCI_BAR0 + index as u16 * 4;
+    let lower = host.read_config(address, offset);
+    let is_64 = (lower >> 1) & 0x3 == 0x2;
+    let mut base = (lower & 0xffff_fff0) as u64;
+    if is_64 {
+        base |= (host.read_config(address, offset + 4) as u64) << 32;
+    }
+    base
+}
+
+/// 打开 Memory Space 与 Bus Master。
+pub fn enable_memory_bus_master(host: &dyn PciHost, address: PciAddress) {
+    let command = host.read_config(address, PCI_COMMAND);
+    host.write_config(address, PCI_COMMAND, command | 0x6);
+}
+
+/// 打印设备列表与 NVMe 数量。
+pub fn print_devices(devices: &[PciDevice]) {
+    if devices.is_empty() {
+        println!("PCIe: no device");
+        return;
+    }
+    let nvme = devices
+        .iter()
+        .filter(|device| device.class == 0x010802)
+        .count();
+    println!("PCIe: {} device(s), {} NVMe", devices.len(), nvme);
+    for device in devices {
+        print_device(device);
+    }
+}
+
 fn print_device(device: &PciDevice) {
     let address = device.address;
     println!(
@@ -212,16 +260,5 @@ pub fn probe_ecam(base: usize) {
     println!("PCIe: ECAM base={:#x}", base);
     let host = EcamHost::new(base);
     let devices = enumerate(&host);
-    if devices.is_empty() {
-        println!("PCIe: no device");
-        return;
-    }
-    let nvme = devices
-        .iter()
-        .filter(|device| device.class == 0x010802)
-        .count();
-    println!("PCIe: {} device(s), {} NVMe", devices.len(), nvme);
-    for device in devices {
-        print_device(&device);
-    }
+    print_devices(&devices);
 }

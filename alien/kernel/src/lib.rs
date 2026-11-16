@@ -67,7 +67,10 @@ fn main(hart_id: usize) {
         #[cfg(any(feature = "k3", feature = "k3_qemu"))]
         devices::probe_k3_platform();
         #[cfg(feature = "k3_qemu")]
-        drivers::pci::probe_ecam(platform::config::PCI_ECAM_BASE);
+        devices::probe_qemu_nvme(
+            platform::config::PCI_ECAM_BASE,
+            platform::config::PCI_MMIO_BASE,
+        );
         #[cfg(feature = "k3")]
         devices::init_k3_storage();
         #[cfg(feature = "k3_qemu")]

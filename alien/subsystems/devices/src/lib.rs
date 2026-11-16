@@ -142,6 +142,49 @@ pub fn init_k3_virtio_block() {
     }
 }
 
+/// 在 QEMU `virt` 上枚举 NVMe，分配 BAR0 并读取 Identify。
+///
+/// 阶段 9A-2 只验证管理队列与控制器信息；块设备注册在 9A-4 加入。
+pub fn probe_qemu_nvme(ecam_base: usize, mmio_base: usize) {
+    let host = drivers::pci::EcamHost::new(ecam_base);
+    let devices = drivers::pci::enumerate(&host);
+    drivers::pci::print_devices(&devices);
+
+    let Some(device) = devices
+        .iter()
+        .find(|device| device.class == 0x010802)
+        .copied()
+    else {
+        println!("NVMe: no device");
+        return;
+    };
+    let Some(bar0) = device.bars[0] else {
+        println!("NVMe: no BAR0");
+        return;
+    };
+    if !drivers::pci::assign_bar(&host, device.address, &bar0, mmio_base as u64) {
+        println!("NVMe: BAR0 assignment failed");
+        return;
+    }
+    drivers::pci::enable_memory_bus_master(&host, device.address);
+    let base = drivers::pci::bar_base(&host, device.address, 0);
+    println!("NVMe: BAR0 base={:#x} size={:#x}", base, bar0.size);
+
+    let mut controller = match drivers::nvme::NvmeController::new(base as usize) {
+        Ok(controller) => controller,
+        Err(error) => {
+            println!("NVMe: init failed: {}", error);
+            return;
+        }
+    };
+    match controller.identify() {
+        Ok(identify) => identify.print(),
+        Err(error) => {
+            println!("NVMe: identify failed: {}", error);
+        }
+    }
+}
+
 /// 为 K3 初始化 SD 卡块设备。
 ///
 /// 驱动读取主引导记录并选取第一个 FAT 分区，因此 `/dev/sda`
