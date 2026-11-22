@@ -51,12 +51,17 @@
 开始调度
 ```
 
-从 hart 在 `STARTED` 标志上自旋，等主 hart 完成域装载后再开启分页、初始化
-trap，并进入调度。
+从 hart 在 `BOOT_DONE` 上自旋，等主 hart 完成内存、页表与域装载后再开启分页、
+初始化 trap，并进入调度。
 
 主 hart 不能靠 `STARTED` 的 `compare_exchange` 选举。`platform_init` 会在
 进入 `main` 之前启动从 hart，从 hart 可能先到达比较操作并抢到主路径。
 `platform_init` 现在先记录 `BOOT_HART`，`main` 只允许该 hart 初始化 TCB。
+
+`BOOT_DONE` 初始为 `false`。此前的等待条件写成 `while STARTED`，而 `STARTED`
+在从 hart 到达时通常也是 `false`，从 hart 会直接执行 `init_memory_system`，
+抢先访问尚未建立的页表与帧分配器。8 核 QEMU 上表现为
+`alloc 1 frame failed` 后关机。
 
 ## 平台选择
 
@@ -135,10 +140,10 @@ virtio：virtio-mmio 注册会读取 MMIO，而该操作发生在 trap 初始化
 `kernel/src/domain/mod.rs` 的 `load_domains` 并不是“能启动多少算多少”，它按
 固定顺序创建域，任一前置条件缺失都会失败：
 
-1. `init_device()` 要求平台设备中存在名为 `plic` 的设备，否则
-   `expect("plic device not found")`。
-2. `plic` 域的初始化传入 `PlicType`，QEMU 与 VF2 分支不同；K3 当前只为通过
-   编译选择了 SiFive 分支。
+1. `init_device()` 在 QEMU/VF2 上要求平台设备中存在名为 `plic` 的设备；K3
+   改为从 DTB 读取 AIA 参数，没有 AIA 时使用 `PlicType::None`。
+2. `plic` 域的初始化传入 `PlicType` 与可选 `AiaInfo`。K3 的 AIA 域在
+   S-mode 运行，IMSIC CSR 通过 `arch::aia` 安全封装访问。
 3. `vfs` 域初始化时调用 `basic::get_domain("net_stack").unwrap()`，因此没有
    网络域时 VFS 无法启动。
 4. `net_stack` 初始化要求存在 `nic` 设备域。
@@ -172,16 +177,14 @@ M2 因此引入 `k3-diag`：只验证 DTB、内存、分页、initrd 重定位�
   `rerun-if-env-changed` 跟踪，否则 Cargo 会复用旧产物。
 - 启动 hart 不固定。高地址 QEMU 的 8 核运行中出现过启动 hart 为 1 的情况。
 
-## K3 控制台阶段的域调整
-
-在 AIA 尚未接入时，域集合通过以下调整运行：
+## K3 中断与控制台的域调整
 
 | 位置 | 调整 |
 |---|---|
-| `plic` 域 | `PlicType::None`，只占位，不访问硬件 |
-| `uart8250` 域 | K3 下按 XScale 初始化，FCR/MCR/IER 分别处理 FIFO、OUT2、UUE |
-| `uart16550` 域 | K3 构建中不启用接收中断，保持轮询 |
-| `buf_uart` 域 | K3 下直接轮询 UART，不等待 IRQ 唤醒 |
+| `plic` 域 | `PlicType::Aia` 时配置 APLIC 与 IMSIC；无 AIA 时 `PlicType::None` 只占位 |
+| `uart8250` 域 | K3 下按 XScale 初始化，FCR/MCR/IER 处理 FIFO、OUT2、UUE 与 RDA |
+| `uart16550` 域 | 按 `UartInfo.use_irq` 决定是否打开接收中断 |
+| `buf_uart` 域 | `use_irq` 为真时等待 IRQ 唤醒，否则直接轮询 |
 | `vfs` 域 | K3 跳过 FAT 与 `/dev/sda`，根文件系统来自 ramfs 与 initramfs |
 | `devfs` 域 | K3 不创建 `/dev/sda` |
 | 设备表 | K3 添加 loopback，满足 `net_stack` 与 `vfs` 对 NIC 的依赖 |
@@ -190,11 +193,20 @@ M2 因此引入 `k3-diag`：只验证 DTB、内存、分页、initrd 重定位�
 `cargo domain` 原先会忽略子构建失败，导致“构建成功但运行旧 ELF”。该问题在
 PLIC 域上实际出现过。
 
+域由 `DomainLoader` 直接调用入口函数，运行在内核地址空间的 S-mode，而不是
+U-mode 进程。这是 AIA 域能够执行 `siselect`/`sireg`/`stopei` 的前提；域 crate
+仍通过 `arch::aia` 保持 `forbid(unsafe_code)`。
+
+K3 板端 DTB 同时暴露两套 S-level IMSIC/APLIC。内核优先选择带
+`riscv,hart-index-bits`/`riscv,guest-index-bits` 的 IMSIC，并用 APLIC 的
+`msi-parent` 匹配其 phandle。板端最终选中 UART 所在的
+`0xe0400000/0xe0804000`；QEMU 选中 `0x28000000/0x0d000000`。
+
 ## 对后续阶段的含义
 
 | 阶段 | 需要在 TCB 或平台层完成的工作 |
 |---|---|
-| M3 中断与控制台 | IMSIC/APLIC 初始化与中断驱动 UART；轮询控制台与 shell 已完成 |
+| M3 中断与控制台 | 完成：AIA 初始化、UART IRQ 与中断驱动 shell；板端 2/8 核通过 |
 | M4 存储 | SDHCI 块设备域；`/tests` 从 SD 卡挂载；域构建切换到 `PLATFORM=k3` |
 | M5 PCIe/NVMe | K3 主机桥与 PHY 初始化；ECAM 映射；NVMe 块设备域 |
 | M6 收尾 | 域集合的平台化；K3 上完整 shell 与多核回归 |

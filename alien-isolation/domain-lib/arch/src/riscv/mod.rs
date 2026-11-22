@@ -1,7 +1,9 @@
+pub mod aia;
 mod regs;
 
 use core::arch::asm;
 
+pub use aia::*;
 pub use regs::*;
 use riscv::register::satp;
 

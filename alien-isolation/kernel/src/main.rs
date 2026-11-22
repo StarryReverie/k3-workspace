@@ -33,8 +33,10 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-/// 多核启动标志
-static STARTED: AtomicBool = AtomicBool::new(false);
+/// Set by the boot hart after the kernel address space and the domain set are
+/// ready. Secondary harts must not touch paging or the frame allocator before
+/// this point.
+static BOOT_DONE: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]
 fn main(hart_id: usize) {
@@ -52,16 +54,15 @@ fn main(hart_id: usize) {
 #[cfg(feature = "k3-diag")]
 fn diag_main(hart_id: usize) {
     if platform::boot_hart() == hart_id {
-        STARTED.store(true, Ordering::Relaxed);
         println!("Boot hart {}", hart_id);
         let machine_info = platform::platform_machine_info();
         println!("{:#?}", machine_info);
         mem::init_memory_system(machine_info.memory.end, true);
         arch::allow_access_user_memory();
         println!("K3_BOOT_OK");
-        STARTED.store(false, Ordering::Relaxed);
+        BOOT_DONE.store(true, Ordering::SeqCst);
     } else {
-        while STARTED.load(Ordering::Relaxed) {
+        while !BOOT_DONE.load(Ordering::SeqCst) {
             spin_loop();
         }
         mem::init_memory_system(0, false);
@@ -76,7 +77,6 @@ fn diag_main(hart_id: usize) {
 #[cfg(not(feature = "k3-diag"))]
 fn normal_main(hart_id: usize) {
     if platform::boot_hart() == hart_id {
-        STARTED.store(true, Ordering::Relaxed);
         println!("Boot hart {}", hart_id);
         let machine_info = platform::platform_machine_info();
         println!("{:#?}", machine_info);
@@ -86,9 +86,9 @@ fn normal_main(hart_id: usize) {
         trap::init_trap_subsystem();
 
         domain::load_domains().unwrap();
-        STARTED.store(false, Ordering::Relaxed);
+        BOOT_DONE.store(true, Ordering::SeqCst);
     } else {
-        while STARTED.load(Ordering::Relaxed) {
+        while !BOOT_DONE.load(Ordering::SeqCst) {
             spin_loop();
         }
         mem::init_memory_system(0, false);

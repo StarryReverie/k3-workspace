@@ -6,9 +6,19 @@ use shared_heap::DVec;
 
 use super::{AlienError, AlienResult};
 use crate::{Basic, DeviceBase};
-#[proxy(UartDomainProxy,RwLock,Range<usize>)]
+
+/// Parameters passed to a UART domain.
+#[derive(Clone, Debug)]
+pub struct UartInfo {
+    pub device_info: Range<usize>,
+    /// Whether the platform routes the UART IRQ through an interrupt
+    /// controller. When false, the console is polled.
+    pub use_irq: bool,
+}
+
+#[proxy(UartDomainProxy,RwLock,UartInfo)]
 pub trait UartDomain: DeviceBase + Basic + DowncastSync {
-    fn init(&self, device_info: &Range<usize>) -> AlienResult<()>;
+    fn init(&self, device_info: &UartInfo) -> AlienResult<()>;
     /// Write a character to the UART
     fn putc(&self, ch: u8) -> AlienResult<()>;
     /// Read a character from the UART
@@ -21,7 +31,9 @@ pub trait UartDomain: DeviceBase + Basic + DowncastSync {
     fn have_space_to_put(&self) -> AlienResult<bool> {
         Ok(true)
     }
-    fn enable_receive_interrupt(&self) -> AlienResult<()>;
+    /// Enable receive interrupts. Returns whether the UART is now
+    /// interrupt-driven; `false` means the caller must poll.
+    fn enable_receive_interrupt(&self) -> AlienResult<bool>;
     fn disable_receive_interrupt(&self) -> AlienResult<()>;
     fn enable_transmit_interrupt(&self) -> AlienResult<()> {
         Err(AlienError::ENOSYS)

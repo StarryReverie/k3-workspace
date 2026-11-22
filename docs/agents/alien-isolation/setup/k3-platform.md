@@ -58,7 +58,7 @@ initrd 重定位
 ## Shell 模式
 
 M3 增加 `--mode shell`。该模式构建 K3 域、用户 init 与 bash，并把 initramfs
-嵌入内核，启动后进入轮询 UART shell。控制台细节见
+嵌入内核，启动后进入中断驱动 shell。控制台细节见
 [`k3-console.md`](k3-console.md)，测试见 [`../testing/k3-shell.md`](../testing/k3-shell.md)。
 
 ```bash
@@ -187,8 +187,8 @@ DTB 报告 16 个 hart，诊断内核只启动 `CPU_NUM` 范围内的前 N 个�
 
 ## 已知限制
 
-- 诊断模式不启动域；shell 模式已提供用户态与轮询控制台。
-- 未初始化 IMSIC、APLIC 或 PLIC，外部中断不可用。
+- 诊断模式不启动域；shell 模式已提供用户态与中断驱动控制台。
+- shell 模式初始化 IMSIC/APLIC，UART 使用 IRQ 42；没有 AIA 节点时回退轮询。
 - 内核日志仍走 SBI，用户态控制台走 UART MMIO。
 - 域构建必须使用 `PLATFORM=k3`，否则会退回 QEMU 配置。
 - FIT 只包含内核；shell 模式的 initramfs 嵌入内核。

@@ -1,4 +1,4 @@
-use basic::{io::SafeIORegion, AlienResult};
+use basic::{io::SafeIORegion, println, AlienResult};
 
 pub struct Uart8250<const W: usize> {
     region: SafeIORegion,
@@ -9,11 +9,15 @@ impl<const W: usize> Uart8250<W> {
         Self { region }
     }
 
-    pub fn enable_receive_interrupt(&self) -> AlienResult<()> {
+    /// Configure the RX interrupt. Returns whether the UART is now
+    /// interrupt-driven; `false` means the caller must keep polling.
+    pub fn enable_receive_interrupt(&self, use_irq: bool) -> AlienResult<bool> {
         if basic::config::IS_K3 {
             // XScale UART: IER bit6 (UUE) enables the unit and MCR bit3
-            // (OUT2) gates the interrupt line. RX interrupt stays off while
-            // the console is polled.
+            // (OUT2) gates the interrupt line. Drain stale data first so a
+            // level-high IRQ does not fire for bytes received before the
+            // controller was ready.
+            const IER_RDA: u32 = 0x01;
             const IER_UUE: u32 = 0x40;
             const MCR_OUT2: u32 = 0x08;
             const FCR_ENABLE_RX1: u32 = 0x01;
@@ -22,12 +26,24 @@ impl<const W: usize> Uart8250<W> {
             let mcr = self.region.read_at::<u32>(W * 4).unwrap();
             self.region.write_at::<u32>(W * 4, mcr | MCR_OUT2).unwrap();
             let ier = self.region.read_at::<u32>(W).unwrap();
-            self.region.write_at::<u32>(W, ier | IER_UUE).unwrap();
-            return Ok(());
+            let mut value = ier | IER_UUE;
+            value = if use_irq {
+                value | IER_RDA
+            } else {
+                value & !IER_RDA
+            };
+            self.region.write_at::<u32>(W, value).unwrap();
+            let lsr = self.region.read_at::<u32>(W * 5).unwrap();
+            println!(
+                "uart8250: IER={:#x} MCR={:#x} LSR={:#x} use_irq={}",
+                value, mcr | MCR_OUT2, lsr, use_irq
+            );
+            return Ok(use_irq);
         }
         let ier = self.region.read_at::<u32>(W).unwrap() as u8;
-        self.region.write_at::<u32>(W, (ier | 1) as u32).unwrap();
-        Ok(())
+        let value = if use_irq { ier | 1 } else { ier & !1 };
+        self.region.write_at::<u32>(W, value as u32).unwrap();
+        Ok(use_irq)
     }
 
     pub fn disable_receive_interrupt(&self) -> AlienResult<()> {

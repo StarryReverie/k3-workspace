@@ -20,15 +20,33 @@ impl_downcast!(sync PLICDomain);
 pub struct PlicInfo {
     pub device_info: Range<usize>,
     pub ty: PlicType,
+    /// AIA parameters when `ty` is `PlicType::Aia`.
+    pub aia: Option<AiaInfo>,
+}
+
+/// Parameters of a RISC-V AIA controller (IMSIC + APLIC).
+#[derive(Clone, Debug)]
+pub struct AiaInfo {
+    /// S-level IMSIC MMIO region. IMSIC registers themselves are accessed
+    /// through the `siselect`/`sireg` CSRs, but the range is kept for
+    /// diagnostics and address-space validation.
+    pub imsic: Range<usize>,
+    pub imsic_num_ids: usize,
+    pub hart_index_bits: u8,
+    pub guest_index_bits: u8,
+    /// APLIC MMIO region.
+    pub aplic: Range<usize>,
+    pub aplic_num_sources: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub enum PlicType {
     Qemu,
     SiFive,
+    /// RISC-V AIA: IMSIC for MSI delivery and APLIC for source routing.
+    Aia,
     /// No external interrupt controller is initialized.
     ///
-    /// K3 uses this while the UART is polled and the AIA domain is not yet in
-    /// place.
+    /// K3 uses this while no AIA node is present in the device tree.
     None,
 }

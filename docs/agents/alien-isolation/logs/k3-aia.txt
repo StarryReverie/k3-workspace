@@ -1,0 +1,126 @@
+Alien isolation K3 AIA, 2026-11-22
+Sources:
+  logs/tests/20261122-231509-alien-isolation-k3-shell-1.log
+  logs/tests/20261122-231509-alien-isolation-k3-shell-2.log
+  logs/tests/20261122-231509-alien-isolation-k3-shell-8.log
+  logs/boot-20261122-231612.log
+  logs/boot-20261122-231933.log
+Note: excerpt only; ANSI escapes removed. Serial interleaving can corrupt
+individual characters in the board logs.
+
+=== k3-shell-1
+[0] Boot hart 0
+[0] AIA node: interrupt-controller@d000000 base=0xd000000 size=0x8000 phandle=Some(6) msi_parent=Some(4)
+[0] AIA node: interrupt-controller@c000000 base=0xc000000 size=0x8000 phandle=Some(5) msi_parent=Some(3)
+[0] AIA node: interrupt-controller@28000000 base=0x28000000 size=0x1000 phandle=Some(4) s_level=true hart_bits=0 guest_bits=0
+[0] AIA node: interrupt-controller@24000000 base=0x24000000 size=0x1000 phandle=Some(3) s_level=false hart_bits=0 guest_bits=0
+[0] AIA selected: imsic=0x28000000 aplic=0xd000000 imsic_phandle=Some(4) aplic_msi_parent=Some(4)
+[0] AIA DT: imsic=0x28000000..0x28001000 ids=255 aplic=0xd000000..0xd008000 sources=96
+[0][Domain:12] AIA: eidelivery=0x1 eithreshold=0x0 domaincfg=0x80000104
+[0][Domain:12] AIA: imsic=0x28000000..0x28001000 ids=255 aplic=0xd000000..0xd008000 sources=96
+[0][Domain:12] AIA: hart_bits=0 guest_bits=0 target_hart=0
+[0][Domain:13] init uart success
+[0][Domain:14] init buf uart success
+[0][Domain:12] AIA: enabled irq 10 for hart 0, sourcecfg=0x6 target=0xa
+[0][Domain:12] AIA/PLIC: irq 10 delivered
+Alien:/# echo __M3_K3_READY__
+Alien:/# echo M3_K3_OK
+M3_K3_OK
+
+=== k3-shell-2
+[0] Boot hart 0
+[0] AIA node: interrupt-controller@d000000 base=0xd000000 size=0x8000 phandle=Some(8) msi_parent=Some(6)
+[0] AIA node: interrupt-controller@c000000 base=0xc000000 size=0x8000 phandle=Some(7) msi_parent=Some(5)
+[0] AIA node: interrupt-controller@28000000 base=0x28000000 size=0x2000 phandle=Some(6) s_level=true hart_bits=0 guest_bits=0
+[0] AIA node: interrupt-controller@24000000 base=0x24000000 size=0x2000 phandle=Some(5) s_level=false hart_bits=0 guest_bits=0
+[0] AIA selected: imsic=0x28000000 aplic=0xd000000 imsic_phandle=Some(6) aplic_msi_parent=Some(6)
+[0] AIA DT: imsic=0x28000000..0x28002000 ids=255 aplic=0xd000000..0xd008000 sources=96
+[0][Domain:12] AIA: eidelivery=0x1 eithreshold=0x0 domaincfg=0x80000104
+[0][Domain:12] AIA: imsic=0x28000000..0x28002000 ids=255 aplic=0xd000000..0xd008000 sources=96
+[0][Domain:12] AIA: hart_bits=0 guest_bits=0 target_hart=0
+[0][Domain:13] init uart success
+[0][Domain:14] init buf uart success
+[0][Domain:12] AIA: enabled irq 10 for hart 0, sourcecfg=0x6 target=0xa
+[1] hart 1 start...
+[0][Domain:12] AIA/PLIC: irq 10 delivered
+Alien:/# echo __M3_K3_READY__
+Alien:/# echo M3_K3_OK
+M3_K3_OK
+
+=== k3-shell-8
+[1] Boot hart 1
+[1] AIA node: interrupt-controller@d000000 base=0xd000000 size=0x8000 phandle=Some(20) msi_parent=Some(18)
+[1] AIA node: interrupt-controller@c000000 base=0xc000000 size=0x8000 phandle=Some(19) msi_parent=Some(17)
+[1] AIA node: interrupt-controller@28000000 base=0x28000000 size=0x8000 phandle=Some(18) s_level=true hart_bits=0 guest_bits=0
+[1] AIA node: interrupt-controller@24000000 base=0x24000000 size=0x8000 phandle=Some(17) s_level=false hart_bits=0 guest_bits=0
+[1] AIA selected: imsic=0x28000000 aplic=0xd000000 imsic_phandle=Some(18) aplic_msi_parent=Some(18)
+[1] AIA DT: imsic=0x28000000..0x28008000 ids=255 aplic=0xd000000..0xd008000 sources=96
+[1][Domain:12] AIA: eidelivery=0x1 eithreshold=0x0 domaincfg=0x80000104
+[1][Domain:12] AIA: imsic=0x28000000..0x28008000 ids=255 aplic=0xd000000..0xd008000 sources=96
+[1][Domain:12] AIA: hart_bits=0 guest_bits=0 target_hart=1
+[1][Domain:13] init uart success
+[1][Domain:14] init buf uart success
+[1][Domain:12] AIA: enabled irq 10 for hart 1, sourcecfg=0x6 target=0x4000a
+[0] hart 0 start...
+[5] hart 5 start...
+[4] hart 4 start...
+[2] hart 2 start...
+[7] hart 7 start...
+[6] hart 6 start...
+[3] hart 3 start...
+[1][Domain:12] AIA/PLIC: irq 10 delivered
+Alien:/# echo __M3_K3_READY__
+Alien:/# echo M3_K3_OK
+M3_K3_OK
+
+=== board-shell-2
+Bytes transferred = 4468835 (443063 hex)
+[0] Boot hart 0
+[0] AIA node: interrupt-controller@f1800000 base=0xf1800000 size=0x4000 phandle=None msi_parent=Some(18)
+[0] AIA node: interrupt-controller@e0804000 base=0xe0804000 size=0x4000 phandle=Some(19) msi_parent=Some(20)
+[0] AIA node: interrupt-controller@f1000000 base=0xf1000000 size=0x10000 phandle=Some(18) s_level=true hart_bits=0 guest_cits=0
+[0] AIA node: interrupt-controller@e0400000 base=0xe0400000 size=0x400000 phandle=Some(20) s_level=true hart_bits=4 guest_bits=6
+[0] AIA selected: imsic=0xe0400000 aplic=0xe0804000 imsic_phandle=Some(20) aplic_msi_parent=Some(20)
+[0] AIA DT: imsic=0xe0400000..0xe0800000 ids=511 aplic=0xe0804000..0xe0808000 sources=512
+[0] uart fallback: ns16550 0xd4017000-0xd4017100 irq=Some(42)
+[0][Domain:12] AIA: eidelivery=0x1 eithreshold=0x0 domaincfg=0x80000104
+[0][Domain:12] AIA: imsic=0xe0400000..0xe0800000 ids=511 aplic=0xe0804000..0xe0808000 sources=512-
+[0][Domain:12] AIA: hart_bits=4 guest_bits=6 target_hart=0
+[0][Domain:13] uart8250: IER=0x41 MCR=0xb LSR=0x0 use_irq=true
+[0][Domain:13] init uart success
+[0][Domain:13] uart8250: IER=0x41 MCR=0xb LSR=0x0 use_irq=true
+[0][Domain:14] init buf uart success
+[0][Domain:12] AIA: enabled irq 42 for hart 0, sourcecfg=0x6 target=0x2a
+[1] hart 1 start...
+Alien:/# [0][Domain:12] AIA/PLIC: irq 42 deelivered
+M3_K3_OK
+Alien:/#
+
+=== board-shell-8
+Bytes transferred = 4471511 (443ad7 hex)
+[0] Boot hart 0
+[0] AIA node: interrupt-controller@f1800000 base=0xf1800000 size=0x4000 phandle=None msi_parent=Some(18)
+[0] AIA node: interrupt-controller@e0804000 base=0xe0804000 size=0x4000 phandle=Some(19) msi_pa�ent=Some(20)
+[0] AIA node: interrupt-controller@f1000000 base=0xf1000000 size=0x10000 phandle=Some(18) s_level=true hart_bits=0 guest_bits=0
+[0] AIA node: interrupt-controller@e0400000 base=0xe0400000 size=0x400000 phandle=Some(20) s_level=true hart_bits=4 guest_bits=6
+[0] AIA selected: imsic=0xe0400000 aplic=0xe0804000 imsic_phandle=Some(20) aplic_msi_parent=Some(20)
+[0] AIA DT: imsic=0xe0400000..0xe0800000 ids=511 aplic=0xe0804000..0xe0808000 sources=512
+[0] uart fallback: ns16550 0xd4017000-0xd4017100 irq=Some(42)
+[0][Domain:12] AIA: eidelivery=0x1 eithreshold=0x0 domaincfg=0x80000104
+[0][Domain:12] AIA: imsic=0xe0400000..0xe0800000 ids=511 aplic=0xe0804000..0xe0808000 sources=512
+[0][Domain:12] AIA: hart_bits=4 guest_bits=6 target_hart=0
+[0][Domain:13] uart8250: IER=0x41 MCR=0xb LSR=0x0 use_irq=true
+[0][Domain:13] init uart success
+[0][Domain:13] uart8250: IER=0x41 MCR=0xb LSR=0x0 use_irq=true
+[0][Domain:14] init buf uart success
+[0][Domain:12] AIA: enabled irq 42 for hart 0, sourcecfg=0x6 target=0x2a
+[1] hart 1 start...
+[4] hart 4 start...
+[2] hart 2 start...
+[7] hart 7 start...
+[6] hart 6 start...
+[3] hart 3 start...
+[5] hart 5 start...
+Alien:/# [0][Domain:12] AIA/PLIC: irq 42 deliveered
+M3_K3_OK
+Alien:/#

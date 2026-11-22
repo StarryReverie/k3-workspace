@@ -9,6 +9,7 @@ edition = "2021"
 interface = { path = "../../../../domain-lib/interface" }
 shared_heap = { path = "../../../../domain-lib/shared_heap" }
 basic = { path = "../../../../domain-lib/basic" }
+arch = { path = "../../../../domain-lib/arch" }
 
 spin = "0"
 raw_plic = { git = "https://github.com/os-module/plic", branch = "dev", package = "plic" }

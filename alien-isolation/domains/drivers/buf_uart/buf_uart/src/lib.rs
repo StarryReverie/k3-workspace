@@ -3,7 +3,10 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
-use core::fmt::Debug;
+use core::{
+    fmt::Debug,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use basic::{
     println,
@@ -19,6 +22,7 @@ use shared_heap::DVec;
 pub struct Uart {
     inner: Mutex<UartInner>,
     uart: Once<Arc<dyn UartDomain>>,
+    irq_enabled: AtomicBool,
 }
 
 #[derive(Debug)]
@@ -42,6 +46,7 @@ impl Uart {
         Uart {
             inner: Mutex::new(inner),
             uart: Once::new(),
+            irq_enabled: AtomicBool::new(false),
         }
     }
 }
@@ -72,9 +77,8 @@ impl BufUartDomain for Uart {
         let uart_domain = basic::get_domain(uart_domain_name).unwrap();
         match uart_domain {
             DomainType::UartDomain(uart) => {
-                // enable receive interrupt
-                // todo!(update it)
-                uart.enable_receive_interrupt()?;
+                let irq_enabled = uart.enable_receive_interrupt()?;
+                self.irq_enabled.store(irq_enabled, Ordering::Relaxed);
                 self.uart.call_once(|| uart);
                 Ok(())
             }
@@ -93,8 +97,8 @@ impl BufUartDomain for Uart {
     }
 
     fn getc(&self) -> AlienResult<Option<u8>> {
-        if basic::config::IS_K3 {
-            // No interrupt controller on K3 yet, so poll the UART directly.
+        if !self.irq_enabled.load(Ordering::Relaxed) {
+            // No interrupt controller: poll the UART directly.
             loop {
                 {
                     let mut inner = self.inner.lock();
@@ -108,17 +112,16 @@ impl BufUartDomain for Uart {
                 }
                 basic::yield_now()?;
             }
-        } else {
-            loop {
-                let mut inner = self.inner.lock();
-                if inner.rx_buf.is_empty() {
-                    let tid = basic::current_tid()?.unwrap();
-                    inner.wait_queue.push_back(tid);
-                    drop(inner);
-                    basic::wait_now()?;
-                } else {
-                    return Ok(inner.rx_buf.pop_front());
-                }
+        }
+        loop {
+            let mut inner = self.inner.lock();
+            if inner.rx_buf.is_empty() {
+                let tid = basic::current_tid()?.unwrap();
+                inner.wait_queue.push_back(tid);
+                drop(inner);
+                basic::wait_now()?;
+            } else {
+                return Ok(inner.rx_buf.pop_front());
             }
         }
     }
@@ -132,7 +135,7 @@ impl BufUartDomain for Uart {
         if !self.inner.lock().rx_buf.is_empty() {
             return Ok(true);
         }
-        if basic::config::IS_K3 {
+        if !self.irq_enabled.load(Ordering::Relaxed) {
             return self.uart.get_must().have_data_to_get();
         }
         Ok(false)

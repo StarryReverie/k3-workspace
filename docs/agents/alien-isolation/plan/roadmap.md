@@ -36,13 +36,13 @@ M2 已完成，记录见 [`../setup/k3-platform.md`](../setup/k3-platform.md)、
 在高地址 QEMU 与真实 BananaPi BPI-SM10 上以 1/2/8 核完成 DTB、内存、分页、
 initrd 重定位与从 hart 启动，FIT 可由 U-Boot `bootm` 加载。
 
-M3 的控制台与 shell 部分已完成，记录见 [`../setup/k3-console.md`](../setup/k3-console.md)
-与 [`../testing/k3-shell.md`](../testing/k3-shell.md)：域构建切换到 `PLATFORM=k3`，
-K3 XScale UART 使用轮询模式，PLIC 位点由 `PlicType::None` 占位，shell 在
-QEMU 与真实板卡上可用。
+M3 已完成，记录见 [`../setup/k3-console.md`](../setup/k3-console.md)、
+[`../setup/k3-aia.md`](../setup/k3-aia.md) 与
+[`../testing/k3-shell.md`](../testing/k3-shell.md)：域构建切换到 `PLATFORM=k3`，
+K3 XScale UART 由 IMSIC/APLIC 驱动，QEMU 使用 UART IRQ 10，板端使用 IRQ 42。
+QEMU 1/2/8 核与真实板卡 2/8 核均可交互。
 
-M3 剩余工作是 IMSIC/APLIC 中断域与中断驱动 UART。完成后再进入 M4 的 SDHCI
-存储。
+下一步是 M4：SDHCI 只读块设备域、FAT 挂载与 K3 存储。
 
 ## 与旧计划的对应
 
@@ -66,5 +66,9 @@ M3 剩余工作是 IMSIC/APLIC 中断域与中断驱动 UART。完成后再进�
 
 ## 下一步
 
-先完成 M0：建立 `scripts/alien-isolation/`，构建 kernel、domains 与
-initramfs，在 QEMU 上启动到 shell，并记录域装载日志。
+进入 M4：
+
+1. 从 K3 设备树探测 SDHCI 控制器与卡检测 GPIO。
+2. 实现 SDHCI 只读块设备域，使用安全的 MMIO 与 DMA 抽象。
+3. 让 FAT 域挂载 SD 卡，恢复 `/tests` 与块设备节点。
+4. 保持 QEMU virtio 路径不回归，并补 1/2/8 核与板端测试。

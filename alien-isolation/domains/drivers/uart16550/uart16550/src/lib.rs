@@ -3,7 +3,10 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::{fmt::Debug, ops::Range};
+use core::{
+    fmt::Debug,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use basic::{
     io::SafeIORegion,
@@ -11,7 +14,7 @@ use basic::{
     sync::{Once, OnceGet},
     AlienResult,
 };
-use interface::{define_unwind_for_UartDomain, Basic, DeviceBase, UartDomain};
+use interface::{define_unwind_for_UartDomain, Basic, DeviceBase, UartDomain, UartInfo};
 use raw_uart16550::{InterruptTypes, Uart16550, Uart16550IO};
 use shared_heap::DVec;
 
@@ -31,6 +34,7 @@ impl Uart16550IO<u8> for SafeIORegionWrapper {
 #[derive(Default)]
 struct UartDomainImpl {
     uart: Once<Uart16550<u8>>,
+    use_irq: AtomicBool,
 }
 
 impl Debug for UartDomainImpl {
@@ -52,12 +56,13 @@ impl Basic for UartDomainImpl {
 }
 
 impl UartDomain for UartDomainImpl {
-    fn init(&self, address_range: &Range<usize>) -> AlienResult<()> {
-        let region = address_range;
+    fn init(&self, info: &UartInfo) -> AlienResult<()> {
+        let region = &info.device_info;
         println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
         let io_region = SafeIORegion::from(region.clone());
         let uart = Uart16550::new(Box::new(SafeIORegionWrapper(io_region)));
         self.uart.call_once(|| uart);
+        self.use_irq.store(info.use_irq, Ordering::Relaxed);
         self.enable_receive_interrupt()?;
         println!("init uart success");
         Ok(())
@@ -96,25 +101,22 @@ impl UartDomain for UartDomainImpl {
         Ok(status.is_data_ready())
     }
 
-    fn enable_receive_interrupt(&self) -> AlienResult<()> {
-        if basic::config::IS_K3 {
-            // K3 has no external interrupt controller yet; the UART domain is
-            // polled through buf_uart.
-            println!("uart16550 polling mode");
-            return Ok(());
-        }
+    fn enable_receive_interrupt(&self) -> AlienResult<bool> {
+        let use_irq = self.use_irq.load(Ordering::Relaxed);
         let uart = self.uart.get_must();
         let ier = uart.ier();
         let region = uart.io_region();
         let inter = InterruptTypes::ZERO;
-        ier.write(region, inter.enable_rda());
-        Ok(())
+        if use_irq {
+            ier.write(region, inter.enable_rda());
+        } else {
+            ier.write(region, inter.disable_rda());
+            println!("uart16550 polling mode");
+        }
+        Ok(use_irq)
     }
 
     fn disable_receive_interrupt(&self) -> AlienResult<()> {
-        if basic::config::IS_K3 {
-            return Ok(());
-        }
         let uart = self.uart.get_must();
         let ier = uart.ier();
         let region = uart.io_region();

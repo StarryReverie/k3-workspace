@@ -12,6 +12,10 @@ pub mod mmio;
 pub mod pci;
 pub mod platform;
 
+/// S-level AIA parameters probed from the device tree on K3.
+#[cfg(k3)]
+pub static AIA_INFO: spin::Once<interface::AiaInfo> = spin::Once::new();
+
 #[derive(Debug, Clone)]
 pub struct CommonDeviceInfo {
     pub address_range: Range<PhysAddr>,
@@ -33,6 +37,15 @@ pub enum CommonDeviceType {
 pub fn init_with_dtb() -> AlienResult<()> {
     let ptr = ::platform::platform_dtb_ptr();
     let dtb = unsafe { Fdt::from_ptr(ptr as *const u8) }.unwrap();
+
+    #[cfg(k3)]
+    if let Some(aia) = dtb.probe_aia() {
+        println!(
+            "AIA DT: imsic={:#x?} ids={} aplic={:#x?} sources={}",
+            aia.imsic, aia.imsic_num_ids, aia.aplic, aia.aplic_num_sources
+        );
+        AIA_INFO.call_once(|| aia);
+    }
 
     let mut devices = vec![];
     #[cfg(not(k3))]

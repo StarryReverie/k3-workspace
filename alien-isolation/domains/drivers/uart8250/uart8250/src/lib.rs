@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::{
     fmt::{Debug, Formatter},
-    ops::Range,
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use basic::{
@@ -14,13 +14,14 @@ use basic::{
     sync::{Once, OnceGet},
     AlienResult,
 };
-use interface::{define_unwind_for_UartDomain, Basic, DeviceBase, UartDomain};
+use interface::{define_unwind_for_UartDomain, Basic, DeviceBase, UartDomain, UartInfo};
 use shared_heap::DVec;
 
 use crate::vf2_uart::Uart8250;
 #[derive(Default)]
 struct Uart8250Domain {
     uart: Once<Uart8250<4>>,
+    use_irq: AtomicBool,
 }
 
 impl DeviceBase for Uart8250Domain {
@@ -42,13 +43,13 @@ impl Basic for Uart8250Domain {
 }
 
 impl UartDomain for Uart8250Domain {
-    fn init(&self, address_range: &Range<usize>) -> AlienResult<()> {
-        let region = address_range;
+    fn init(&self, info: &UartInfo) -> AlienResult<()> {
+        let region = &info.device_info;
         println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
-        // let io_region = SafeIORegion::from(region.clone());
         let uart = Uart8250::<4>::new(SafeIORegion::from(region.clone()));
         self.uart.call_once(|| uart);
-        self.enable_receive_interrupt().unwrap();
+        self.use_irq.store(info.use_irq, Ordering::Relaxed);
+        self.enable_receive_interrupt()?;
         println!("init uart success");
         Ok(())
     }
@@ -73,8 +74,10 @@ impl UartDomain for Uart8250Domain {
         self.uart.get_must().have_data_to_get()
     }
 
-    fn enable_receive_interrupt(&self) -> AlienResult<()> {
-        self.uart.get_must().enable_receive_interrupt()
+    fn enable_receive_interrupt(&self) -> AlienResult<bool> {
+        self.uart
+            .get_must()
+            .enable_receive_interrupt(self.use_irq.load(Ordering::Relaxed))
     }
 
     fn disable_receive_interrupt(&self) -> AlienResult<()> {

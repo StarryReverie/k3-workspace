@@ -8,8 +8,8 @@ Scenarios:
     all          all three
 
 Each scenario waits for the user init to exec /bin/sh, checks every secondary
-hart, confirms the polling UART with a retried round trip, and requires a
-marker line. External interrupts are not enabled in this image.
+hart, confirms that AIA enabled the UART IRQ, performs a round trip through
+the interrupt-driven console, and requires a marker line.
 
 Examples:
     ./scripts/alien-isolation/test-k3-shell.py --build all
@@ -170,6 +170,7 @@ def run_scenario(
     ) as session:
         try:
             session.wait_for(r'exec args: \["sh', args.timeout)
+            session.wait_for(r"AIA: enabled irq \d+", args.timeout)
             boot = session.wait_for(r"Boot hart (\d+)", args.timeout)
             boot_hart = int(boot.group(1))
             expected = set(range(scenario.smp))
@@ -177,6 +178,7 @@ def run_scenario(
             for hart in sorted(expected):
                 session.wait_for(rf"hart {hart} start\.\.\.", args.timeout)
             wait_for_shell(session, args.command_timeout)
+            session.wait_for(r"AIA/PLIC: irq \d+ delivered", args.command_timeout)
             session.send("echo M3_K3_OK")
             session.wait_for(r"(?m)^M3_K3_OK\s*$", args.command_timeout)
             text = session.text()

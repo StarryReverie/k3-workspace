@@ -6,11 +6,15 @@
 #   --memory SIZE  RAM size (default: 10G)
 #   --timeout SEC  stop after SEC seconds; 0 runs until Ctrl+A x (default: 60)
 #   --out DIR      build directory (default: <alien>/build/k3-shell/smp-<N>)
+#   --no-aia       use the default QEMU machine without IMSIC/APLIC
+#
+# AIA is enabled by default: QEMU exposes an S-level IMSIC at 0x28000000 and
+# an S-level APLIC at 0x0d000000, matching the addresses the K3 kernel maps.
 
 set -euo pipefail
 
 usage() {
-    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -18,6 +22,7 @@ ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien-isolation}
 K3_SMP=${K3_SMP:-2}
 QEMU_MEMORY=${QEMU_MEMORY:-10G}
 QEMU_TIMEOUT=${QEMU_TIMEOUT:-60}
+QEMU_AIA=${QEMU_AIA:-aplic-imsic}
 OUT_DIR=${OUT_DIR:-}
 
 while [ $# -gt 0 ]; do
@@ -26,6 +31,7 @@ while [ $# -gt 0 ]; do
         --memory) QEMU_MEMORY=$2; shift 2 ;;
         --timeout) QEMU_TIMEOUT=$2; shift 2 ;;
         --out) OUT_DIR=$2; shift 2 ;;
+        --no-aia) QEMU_AIA=""; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -49,9 +55,14 @@ for cmd in qemu-system-riscv64; do
     fi
 done
 
+MACHINE=virt
+if [ -n "$QEMU_AIA" ]; then
+    MACHINE="virt,aia=$QEMU_AIA"
+fi
+
 QEMU_ARGS=(
     qemu-system-riscv64
-    -M virt
+    -M "$MACHINE"
     -bios default
     -m "$QEMU_MEMORY"
     -smp "$K3_SMP"

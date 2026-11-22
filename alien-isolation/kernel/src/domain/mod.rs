@@ -44,22 +44,35 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 ty: PlicType::Qemu,
                 #[cfg(vf2)]
                 ty: PlicType::SiFive,
+                aia: None,
             }
         }
         #[cfg(k3)]
         {
-            // K3 has no PLIC. Keep the domain slot so the rest of the domain
-            // set initializes; external interrupts stay disabled until the
-            // AIA controller is implemented.
-            PlicInfo {
-                device_info: 0..0,
-                ty: PlicType::None,
+            // Prefer the S-level AIA controller when the device tree has one.
+            // Without it the console stays polled.
+            match crate::bus::AIA_INFO.get() {
+                Some(aia) => PlicInfo {
+                    device_info: aia.aplic.clone(),
+                    ty: PlicType::Aia,
+                    aia: Some(aia.clone()),
+                },
+                None => PlicInfo {
+                    device_info: 0..0,
+                    ty: PlicType::None,
+                    aia: None,
+                },
             }
         }
     };
+    let irq_mode = !matches!(plic_info.ty, PlicType::None);
     let (plic, domain_file_info) =
         create_domain!(PLICDomainProxy, DomainTypeRaw::PLICDomain, "plic")?;
     plic.init_by_box(Box::new(plic_info))?;
+    // Register before devices enable their IRQs: external interrupts are
+    // already enabled in the trap subsystem, and a UART byte arriving during
+    // the rest of domain loading must not reach `PLIC_DOMAIN.get_must()`.
+    crate::trap::register_plic_domain(plic.clone());
     register_domain!(
         "plic",
         domain_file_info,
@@ -108,7 +121,11 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     _ => panic!("unknown uart device: {}", compatible),
                 };
 
-                uart.init_by_box(Box::new(address..address + size))?;
+                let uart_info = UartInfo {
+                    device_info: address..address + size,
+                    use_irq: irq_mode && irq.is_some(),
+                };
+                uart.init_by_box(Box::new(uart_info))?;
                 register_domain!("uart", domain_file_info, DomainType::UartDomain(uart), true);
                 let (buf_uart, domain_file_info) =
                     create_domain!(BufUartDomainProxy, DomainTypeRaw::BufUartDomain, "buf_uart")?;
@@ -119,10 +136,9 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainType::BufUartDomain(buf_uart),
                     true
                 );
-                #[cfg(not(k3))]
-                plic.register_irq(irq.unwrap() as _, &DVec::from_slice("buf_uart".as_bytes()))?;
-                #[cfg(k3)]
-                let _ = irq;
+                if let Some(irq) = irq {
+                    plic.register_irq(irq as _, &DVec::from_slice("buf_uart".as_bytes()))?;
+                }
             }
             "ramdisk" => {
                 let (ramdisk, domain_file_info) =
@@ -276,7 +292,9 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
             true
         );
         // register irq
-        plic.register_irq(nic_irq as _, &DVec::from_slice("net_stack".as_bytes()))?
+        if nic_irq != 0 {
+            plic.register_irq(nic_irq as _, &DVec::from_slice("net_stack".as_bytes()))?
+        }
     }
     // create shadow block and cache block device
     #[cfg(not(k3))]
