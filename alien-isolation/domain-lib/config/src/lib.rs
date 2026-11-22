@@ -5,11 +5,15 @@
 mod qemu_riscv;
 #[cfg(vf2)]
 mod vf2;
+#[cfg(k3)]
+mod k3;
 
 #[cfg(qemu_riscv)]
 pub use qemu_riscv::*;
 #[cfg(vf2)]
 pub use vf2::*;
+#[cfg(k3)]
+pub use k3::*;
 
 /// Alien os的标志
 pub const ALIEN_FLAG: &str = r"

@@ -50,11 +50,15 @@ rust-unwind = ["dep:unwinding"]
 bench = []
 test = []
 time-tick = []
+# Stop after the TCB is initialized. Used for the K3 diagnostic image before
+# the PLIC/virtio based domain set has a K3 replacement.
+k3-diag = []
 
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(vf2)',
     'cfg(qemu_riscv)',
+    'cfg(k3)',
     'cfg(vf2_sd)',
 ] }

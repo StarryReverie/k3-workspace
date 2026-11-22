@@ -1,0 +1,53 @@
+Alien isolation K3 high-address QEMU, 2026-11-22
+Sources:
+  logs/tests/20261122-204828-alien-isolation-k3-1.log
+  logs/tests/20261122-204828-alien-isolation-k3-2.log
+  logs/tests/20261122-204828-alien-isolation-k3-8.log
+Note: excerpt only; ANSI escapes removed.
+
+=== k3-1
+[0] Boot hart 0
+SMP:    1
+Memory: 0x80000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0x2000000..0x2010000
+Initrd: Some(
+[0] Relocate initrd data to 0x106279000
+[0] Frame allocator init success
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] K3_BOOT_OK
+
+=== k3-2
+[0] Boot hart 0
+SMP:    2
+Memory: 0x80000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0x2000000..0x2010000
+Initrd: Some(
+[0] Relocate initrd data to 0x106289000
+[0] Frame allocator init success
+[0] Build kernel address space success
+[0] Activate paging mode success
+[0] K3_BOOT_OK
+[1] hart 1 start...
+
+=== k3-8
+[1] Boot hart 1
+SMP:    8
+Memory: 0x80000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0x2000000..0x2010000
+Initrd: Some(
+[1] Relocate initrd data to 0x1062e9000
+[1] Frame allocator init success
+[1] Build kernel address space success
+[1] Activate paging mode success
+[1] K3_BOOT_OK
+[7] hart 7 start...
+[6] hart 6 start...
+[5] hart 5 start...
+[0] hart 0 start...
+[2] hart 2 start...
+[3] hart 3 start...
+[4] hart 4 start...

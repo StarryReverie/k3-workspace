@@ -6,6 +6,8 @@ mod common_riscv;
 mod logger;
 #[cfg(qemu_riscv)]
 mod qemu_riscv;
+#[cfg(k3)]
+mod k3_riscv;
 
 #[cfg(vf2)]
 mod starfive2_riscv;
@@ -15,6 +17,10 @@ pub use common_riscv::{basic::MachineInfo as PlatformInfo, sbi::remote_fence_i};
 use qemu_riscv::*;
 #[cfg(qemu_riscv)]
 pub use qemu_riscv::{config, set_timer, system_shutdown};
+#[cfg(k3)]
+use k3_riscv::*;
+#[cfg(k3)]
+pub use k3_riscv::{config, set_timer, system_shutdown};
 use spin::Once;
 #[cfg(vf2)]
 pub use starfive2_riscv::{config, set_timer, system_shutdown};
@@ -67,6 +73,8 @@ pub fn platform_dtb_ptr() -> usize {
     return *starfive2_riscv::DTB.get().unwrap();
     #[cfg(qemu_riscv)]
     return *qemu_riscv::DTB.get().unwrap();
+    #[cfg(k3)]
+    return *k3_riscv::DTB.get().unwrap();
 }
 
 static MACHINE_INFO: Once<PlatformInfo> = Once::new();

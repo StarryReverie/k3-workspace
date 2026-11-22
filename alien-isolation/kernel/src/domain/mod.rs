@@ -44,6 +44,10 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         ty: PlicType::Qemu,
         #[cfg(vf2)]
         ty: PlicType::SiFive,
+        // K3 uses AIA rather than PLIC. The value only keeps the type checker
+        // complete until the K3 interrupt domain replaces this path.
+        #[cfg(k3)]
+        ty: PlicType::SiFive,
     };
     plic.init_by_box(Box::new(plic_info))?;
     register_domain!(

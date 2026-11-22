@@ -38,6 +38,45 @@ static STARTED: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]
 fn main(hart_id: usize) {
+    #[cfg(feature = "k3-diag")]
+    diag_main(hart_id);
+    #[cfg(not(feature = "k3-diag"))]
+    normal_main(hart_id);
+}
+
+/// K3 diagnostic path: verify DTB, memory, paging and secondary harts.
+///
+/// The domain set still assumes PLIC, virtio and the QEMU UART, so it is not
+/// started here. M3 replaces the interrupt and console paths before domains
+/// are enabled on K3.
+#[cfg(feature = "k3-diag")]
+fn diag_main(hart_id: usize) {
+    if STARTED
+        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+        .is_ok()
+    {
+        println!("Boot hart {}", hart_id);
+        let machine_info = platform::platform_machine_info();
+        println!("{:#?}", machine_info);
+        mem::init_memory_system(machine_info.memory.end, true);
+        arch::allow_access_user_memory();
+        println!("K3_BOOT_OK");
+        STARTED.store(false, Ordering::Relaxed);
+    } else {
+        while STARTED.load(Ordering::Relaxed) {
+            spin_loop();
+        }
+        mem::init_memory_system(0, false);
+        arch::allow_access_user_memory();
+        println!("hart {} start...", arch::hart_id());
+    }
+    loop {
+        spin_loop();
+    }
+}
+
+#[cfg(not(feature = "k3-diag"))]
+fn normal_main(hart_id: usize) {
     if STARTED
         .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
         .is_ok()

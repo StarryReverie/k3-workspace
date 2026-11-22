@@ -12,7 +12,7 @@
 | 统一 devShell 工具链 | 完成，`nightly-2024-10-25` |
 | QEMU 基线构建与启动 | 完成，26 init 域、8 disk 域、shell 可用 |
 | QEMU 回归矩阵 | 完成，1/2/4/8 核、磁盘域动态装载、日志稳定 |
-| K3 平台适配 | 待开始 |
+| K3 诊断内核 | 完成，高地址 QEMU 与真实板卡 1/2/8 核 |
 
 ## 固定信息
 
@@ -33,10 +33,14 @@ domain-lib  136007cdca82531f97a4e8da082b2ce48b839d2f
 
 | 路径 | 内容 |
 |---|---|
+| [`architecture/README.md`](architecture/README.md) | 隔离内核启动路径、平台接口与域依赖 |
 | [`setup/vendoring.md`](setup/vendoring.md) | 源码版本、目录约定、裁剪范围与更新方式 |
 | [`setup/toolchain.md`](setup/toolchain.md) | Rust 与交叉编译工具链 |
 | [`setup/qemu-baseline.md`](setup/qemu-baseline.md) | QEMU 构建、启动与 shell 验收 |
+| [`setup/k3-platform.md`](setup/k3-platform.md) | K3 平台配置、诊断镜像与 FIT |
 | [`testing/qemu-matrix.md`](testing/qemu-matrix.md) | 1/2/4/8 核回归、磁盘域动态装载与日志稳定性 |
+| [`testing/k3-qemu.md`](testing/k3-qemu.md) | K3 诊断内核的高地址 QEMU 回归 |
+| [`testing/k3-board.md`](testing/k3-board.md) | K3 诊断内核的真实板卡启动 |
 | [`plan/roadmap.md`](plan/roadmap.md) | 从 vendor 到 K3 PCIe/NVMe 的粗略路线 |
 
 新文档按主题放入子目录，不使用数字前缀。

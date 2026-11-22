@@ -30,8 +30,14 @@ M0 已完成，记录见 [`../setup/qemu-baseline.md`](../setup/qemu-baseline.md
 记录见 [`../testing/qemu-matrix.md`](../testing/qemu-matrix.md)：QEMU 可按 1/2/4/8 核
 重复构建与启动，`dvfs` 可从 FAT 盘装载 `vfs2` 并替换 `vfs` 域，日志降噪后可稳定断言。
 
-当前进入 M2：为 K3 增加平台配置、链接地址、内存与设备地址空间、DTB 与 SBI 支持，
-并在高地址 QEMU 上回归。
+M2 已完成，记录见 [`../setup/k3-platform.md`](../setup/k3-platform.md)、
+[`../testing/k3-qemu.md`](../testing/k3-qemu.md) 与
+[`../testing/k3-board.md`](../testing/k3-board.md)：K3 内核链接到 `0x102200000`，
+在高地址 QEMU 与真实 BananaPi BPI-SM10 上以 1/2/8 核完成 DTB、内存、分页、
+initrd 重定位与从 hart 启动，FIT 可由 U-Boot `bootm` 加载。
+
+当前进入 M3：IMSIC/APLIC 中断域、K3 XScale UART 控制台与输入中断。M3 还要把
+域构建切换到 `PLATFORM=k3`，并替换依赖 PLIC 与 virtio 的 QEMU 域集合。
 
 ## 与旧计划的对应
 

@@ -44,7 +44,7 @@ NET_INIT = [
     ("setexpr.l sm10_dline *0xd4282bf0", 1.0),
     ('setexpr sm10_dline $sm10_dline "|" 0x10001', 1.0),
     ("mw.l 0xd4282bf0 $sm10_dline 1", 1.0),
-    ("setenv netretry no && setenv autoload no && dhcp && setenv autoload yes", 5.0),
+    ("setenv netretry no && setenv autoload no && dhcp && setenv autoload yes", 1.0),
 ]
 
 
@@ -373,14 +373,21 @@ def main() -> int:
                             command_index += 1
                             next_command_at = now + delay
                         else:
-                            stage = "tftp"
-                            next_command_at = now + 0.5
+                            # Wait until DHCP really finished; a fixed delay
+                            # can send tftpboot while U-Boot is still busy,
+                            # which loses the command and leaves bootm with
+                            # no image at the load address.
+                            if b"DHCP client bound" not in text:
+                                next_command_at = now + 1.0
+                            else:
+                                stage = "tftp"
+                                next_command_at = now + 1.5
                     elif stage == "tftp":
                         cmd = f"tftpboot {args.load_addr} {path}"
                         send(cmd.encode() + b"\r")
                         log(f"> {cmd}")
                         stage = "bootm_wait"
-                        next_command_at = now + 2.0
+                        next_command_at = now + 6.0
                     elif stage == "bootm_wait":
                         if args.fdt:
                             cmd = f"bootm {args.load_addr} - {args.fdt}"

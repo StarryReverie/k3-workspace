@@ -1,0 +1,50 @@
+Alien isolation K3 board diagnostics, 2026-11-22
+Sources:
+  logs/boot-20261122-205358.log
+  logs/boot-20261122-205807.log
+  logs/boot-20261122-205703.log
+Note: excerpt only; ANSI escapes removed.
+
+=== board-1
+Bytes transferred = 83567 (1466f hex)
+=> [  26.781] bootm 0x140000000 - $fdtcontroladdr
+[0] Boot hart 0
+SMP:    16
+Memory: 0x102000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0xf1810000..0xf1820000
+Initrd: None
+[0] Activate paging mode success
+[0] K3_BOOT_OK
+
+=== board-2
+Bytes transferred = 83987 (14813 hex)
+=> [  2w.851] bootm 0x140000000 - $fdtcontroladdr
+[0] Boot hart 0
+SMP:    16
+Memory: 0x102000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0xf1810000..0xf1820000
+Initrd: None
+[0] Activate paging mode success
+[0] K3_BOOT_OK
+[1] hart 1 start...
+
+=== board-8
+Bytes transferred = 85311 (14d3f hex)
+=> [  25.790] bootm 0x140000000 - $fdtcontroladdr
+[0] Boot hart 0
+SMP:    16
+Memory: 0x102000000..0x300000000
+PLIC:   0x0..0x0
+CLINT:  0xf1810000..0xf1820000
+Initrd: None
+[0] Activate paging mode success
+[0] K3_BOOT_OK
+[2] hart 2 start...
+[3] hart 3 start...
+[1] hart 1 start...
+[7] hart 7 start...
+[4] hart 4 start...
+[5] hart 5 start...
+[6] hart 6 start...
