@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "loopback",
+	"gloopback",
+]
+
+resolver = "2"

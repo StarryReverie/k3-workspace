@@ -1,0 +1,7 @@
+[alias]
+server = "run -p domain-server --"
+
+[profile.release]
+strip = true
+opt-level = 3
+lto = true

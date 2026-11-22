@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "syscall",
+	"gsyscall",
+]
+
+resolver = "2"

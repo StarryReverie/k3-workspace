@@ -1,0 +1,11 @@
+[package]
+name = "domain_manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+spin = "0.9.8"
+hashbrown = "0.14.5"
+shared_heap = { path = "../shared_heap" }
+log = "0.4.26"
+storage = { path = "../storage" }

@@ -1,0 +1,188 @@
+mod scheduler;
+
+use alloc::{boxed::Box, string::String, vec::Vec};
+use core::{any::Any, cell::UnsafeCell, fmt::Debug, mem::forget, net::SocketAddrV4, ops::Range};
+
+use arch::hart_id;
+use config::CPU_NUM;
+use interface::*;
+use ksync::{Mutex, RwLock};
+use mem::free_frames;
+use pconst::{
+    epoll::EpollEvent,
+    io::{PollEvents, RtcTime, SeekFrom},
+    net::*,
+};
+pub use scheduler::SchedulerDomainProxy;
+use shared_heap::{DBox, DVec, SharedData};
+use spin::Once;
+use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
+
+use crate::{
+    domain_helper::{free_domain_resource, FreeShared},
+    domain_loader::loader::DomainLoader,
+    error::{AlienError, AlienResult},
+    sync::{sync_cpus, RcuData, SleepMutex},
+    task::yield_now,
+    timer::TimeTick,
+    *,
+};
+
+pub trait ProxyBuilder {
+    type T;
+    fn build(domain: Self::T, domain_loader: DomainLoader) -> Self;
+    fn build_empty(domain_loader: DomainLoader) -> Self;
+    fn init_by_box(&self, argv: Box<dyn Any + Send + Sync>) -> AlienResult<()>;
+}
+
+#[derive(Debug)]
+pub struct PerCpuCounter {
+    counter: [UnsafeCell<isize>; CPU_NUM],
+}
+
+unsafe impl Sync for PerCpuCounter {}
+
+const PER_CPU_VALUE: UnsafeCell<isize> = UnsafeCell::new(0);
+impl PerCpuCounter {
+    pub const fn new() -> Self {
+        Self {
+            counter: [PER_CPU_VALUE; CPU_NUM],
+        }
+    }
+    pub fn inc(&self) {
+        let v = read_once!(self.counter[hart_id()].get());
+        write_once!(self.counter[hart_id()].get(), v + 1);
+    }
+    pub fn dec(&self) {
+        let v = read_once!(self.counter[hart_id()].get());
+        // assert!(v as isize - 1 >= 0);
+        write_once!(self.counter[hart_id()].get(), v - 1);
+    }
+    pub fn all(&self) -> usize {
+        let mut sum = 0;
+        for i in 0..CPU_NUM {
+            sum += read_once!(self.counter[i].get());
+        }
+        sum as usize
+    }
+}
+
+gen_for_BufInputDomain!();
+gen_for_BufUartDomain!();
+gen_for_CacheBlkDeviceDomain!();
+gen_for_EmptyDeviceDomain!();
+gen_for_FsDomain!();
+gen_for_GpuDomain!();
+gen_for_InputDomain!();
+gen_for_NetDeviceDomain!();
+gen_for_RtcDomain!();
+gen_for_SysCallDomain!();
+gen_for_TaskDomain!();
+gen_for_UartDomain!();
+gen_for_VfsDomain!();
+gen_for_PLICDomain!();
+// show how to use the macro
+// gen_for_SchedulerDomain!();
+gen_for_ShadowBlockDomain!();
+gen_for_BlkDeviceDomain!();
+
+gen_for_DevFsDomain!();
+gen_for_LogDomain!();
+gen_for_NetDomain!();
+impl_for_FsDomain!(DevFsDomainProxy);
+
+impl_empty_for_FsDomain!(DevFsDomainEmptyImpl);
+impl Basic for DevFsDomainEmptyImpl {
+    fn domain_id(&self) -> u64 {
+        u64::MAX
+    }
+    fn is_active(&self) -> bool {
+        false
+    }
+}
+impl Basic for DevFsDomainProxy {
+    fn domain_id(&self) -> u64 {
+        if self.flag.load(Ordering::SeqCst) {
+            return self.__domain_id_with_lock();
+        }
+        self.__domain_id_no_lock()
+    }
+    fn is_active(&self) -> bool {
+        true
+    }
+}
+
+impl DevFsDomainProxy {
+    fn __domain_id(&self) -> u64 {
+        self.domain.read_directly(|domain| domain.domain_id())
+    }
+    fn __domain_id_no_lock(&self) -> u64 {
+        self.counter.inc();
+        let r = self.__domain_id();
+        self.counter.dec();
+        r
+    }
+    fn __domain_id_with_lock(&self) -> u64 {
+        let lock = self.lock.read();
+        let r = self.__domain_id();
+        drop(lock);
+        r
+    }
+}
+
+impl BlkDomainProxy {
+    pub fn reload(
+        &self,
+        new_domain: Box<dyn BlkDeviceDomain>,
+        loader: DomainLoader,
+    ) -> AlienResult<()> {
+        // stage1: get the sleep lock and change to updating state
+        let mut loader_guard = self.domain_loader.lock();
+        let old_id = self.domain_id();
+
+        let tick = TimeTick::new("Task Sync");
+        // stage2: get the write lock and wait for all readers to finish
+        let w_lock = self.lock.write();
+
+        self.flag.store(true, Ordering::SeqCst);
+
+        sync_cpus();
+
+        // wait if there are readers which are reading the old domain but no read lock
+        while self.all_counter() > 0 {
+            println!("Wait for all reader to finish");
+            // yield_now();
+        }
+        drop(tick);
+
+        let tick = TimeTick::new("Reinit and state transfer");
+        // stage3: init the new domain before swap
+        let device_info = self.resource.get().unwrap();
+        let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
+
+        let new_domain_id = new_domain.domain_id();
+        new_domain.init(info).unwrap();
+        drop(tick);
+
+        let tick = TimeTick::new("Domain swap");
+        // stage4: swap the domain and change to normal state
+        let old_domain = self.domain.update_directly(Box::new(new_domain));
+        // change to normal state
+        self.flag.store(false, Ordering::SeqCst);
+        drop(tick);
+
+        let tick = TimeTick::new("Recycle resources");
+        // stage5: recycle all resources
+        let real_domain = Box::into_inner(old_domain);
+        forget(real_domain);
+
+        free_domain_resource(old_id, FreeShared::NotFree(new_domain_id), free_frames);
+        drop(tick);
+
+        // stage6: release all locks
+        *loader_guard = loader;
+        drop(w_lock);
+        drop(loader_guard);
+        Ok(())
+    }
+}

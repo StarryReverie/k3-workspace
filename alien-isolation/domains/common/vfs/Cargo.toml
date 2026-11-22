@@ -1,0 +1,7 @@
+[workspace]
+members = [
+	"vfs",
+	"gvfs",
+]
+
+resolver = "2"

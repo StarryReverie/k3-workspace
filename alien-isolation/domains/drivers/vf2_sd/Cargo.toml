@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "vf2_sd",
+	"gvf2_sd",
+]
+
+resolver = "2"

@@ -1,0 +1,18 @@
+[alias]
+domain = "run -p domain --"
+
+[target.riscv64]
+# --cfg getrandom_backend="linux_getrandom"
+rustflags = [
+    "-Clink-arg=-T../../domain.ld",
+    "-Clink-arg=-pie",
+    "-A", "unused_imports",
+    "--cfg", "getrandom_backend=\"custom\""
+]
+linker = "riscv64-linux-gnu-gcc"
+
+
+[profile.release]
+lto = true
+strip = true
+opt-level = 3

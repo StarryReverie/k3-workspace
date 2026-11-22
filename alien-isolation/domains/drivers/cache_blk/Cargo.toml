@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "cache_blk",
+	"gcache_blk",
+]
+
+resolver = "2"

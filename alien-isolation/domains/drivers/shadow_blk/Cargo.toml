@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "shadow_blk",
+	"gshadow_blk",
+]
+
+resolver = "2"

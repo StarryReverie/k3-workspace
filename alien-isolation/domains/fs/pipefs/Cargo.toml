@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "pipefs",
+	"gpipefs",
+]
+
+resolver = "2"

@@ -1,0 +1,13 @@
+[package]
+name = "loader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+shared_heap = { path = "../shared_heap" }
+storage = { path = "../storage" }
+
+xmas-elf = "0.10"
+bitflags = "2.6.0"
+memory_addr = { git ="https://github.com/os-module/memory_addr" }
+log = "0"

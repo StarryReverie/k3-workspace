@@ -1,0 +1,11 @@
+[package]
+name = "domain-helper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+Mstd = { path = "../../userlib" }
+
+[features]
+default = []
+std = ["Mstd/std"]

@@ -1,0 +1,22 @@
+[workspace]
+members = [
+    "arch",
+    "basic",
+    "config",
+    "corelib",
+    "domain_main",
+    "gproxy",
+    "interface",
+    "ksync",
+    "loader",
+    "malloc",
+    "shared_heap",
+    "storage",
+    "task_meta",
+    "wrapper_macro",
+    "domain_manager",
+    "io",
+]
+
+
+resolver = "2"

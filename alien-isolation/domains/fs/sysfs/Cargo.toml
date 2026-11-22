@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "sysfs",
+	"gsysfs",
+]
+
+resolver = "2"

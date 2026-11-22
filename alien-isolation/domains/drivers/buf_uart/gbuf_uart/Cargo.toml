@@ -1,0 +1,20 @@
+[package]
+name = "gbuf_uart"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+corelib = { path = "../../../../domain-lib/corelib" }
+basic = { path = "../../../../domain-lib/basic" }
+shared_heap = { path = "../../../../domain-lib/shared_heap" }
+interface = { path = "../../../../domain-lib/interface",  features = ["domain"]  }
+malloc = { path = "../../../../domain-lib/malloc" }
+buf_uart = { path = "../buf_uart" }
+storage = { path = "../../../../domain-lib/storage", features = ["impl"] }
+
+
+[features]
+default = ["rust-unwind"]
+rust-unwind = []

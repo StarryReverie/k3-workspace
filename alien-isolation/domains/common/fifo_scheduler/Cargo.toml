@@ -1,0 +1,7 @@
+[workspace]
+members = [
+	"fifo_scheduler",
+	"gfifo_scheduler",
+]
+
+resolver = "2"

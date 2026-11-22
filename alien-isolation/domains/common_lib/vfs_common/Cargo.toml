@@ -1,0 +1,14 @@
+[package]
+name = "vfs_common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+basic = { path = "../../../domain-lib/basic" }
+vfscore = { path = "../../../rvfs-ref/vfscore-ref", package = "vfscore-ref", features = ["linux_error"] }
+unifs = { path = "../../../rvfs-ref/unifs-ref", package = "unifs-ref" }
+shared_heap = { path = "../../../domain-lib/shared_heap" }
+
+interface = { path = "../../../domain-lib/interface" }
+log = "0"
+storage = { path = "../../../domain-lib/storage", features = ["impl"] }

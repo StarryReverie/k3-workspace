@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "task",
+	"gtask",
+]
+
+resolver = "2"

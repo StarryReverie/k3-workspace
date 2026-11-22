@@ -1,0 +1,15 @@
+[package]
+name = "ramfs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+interface = { path = "../../../../domain-lib/interface" }
+basic = { path = "../../../../domain-lib/basic" }
+
+generic = { path = "../../../common_lib/generic" }
+ramfs = { path = "../../../../rvfs-ref/ramfs-ref", package = "ramfs-ref" }
+vfscore = { path = "../../../../rvfs-ref/vfscore-ref", package = "vfscore-ref", features = ["linux_error"] }
+log = "0"

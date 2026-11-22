@@ -1,0 +1,13 @@
+[package]
+name = "storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+spin = "0"
+log = "0"
+shared_heap = { path = "../shared_heap" }
+constcat = "0.6.0"
+#bevy_reflect = { git = "https://github.com/bevyengine/bevy", default-features = false }
+[features]
+impl = []

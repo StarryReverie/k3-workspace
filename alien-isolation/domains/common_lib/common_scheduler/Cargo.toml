@@ -1,0 +1,14 @@
+[package]
+name = "common_scheduler"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+basic = { path = "../../../domain-lib/basic", features = ["task"]  }
+interface = { path = "../../../domain-lib/interface" }
+shared_heap = { path = "../../../domain-lib/shared_heap" }
+task_meta = { path = "../../../domain-lib/task_meta" }
+spin = "0"
+log = "0"

@@ -1,0 +1,7 @@
+[workspace]
+members = [
+	"random_scheduler",
+	"grandom_scheduler",
+]
+
+resolver = "2"

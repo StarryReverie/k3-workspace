@@ -1,0 +1,60 @@
+[package]
+name = "kernel"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mem = { path = "../base/mem" }
+platform = { path = "../base/platform" }
+riscv = "0.11"
+log = "0"
+xmas-elf = "0.10"
+pconst = { git = "https://github.com/os-module/pconst.git", features = [
+    "special_error",
+] }
+spin = "0"
+
+ksync = { path = "../domain-lib/ksync" }
+arch = { path = "../domain-lib/arch" }
+config = { path = "../domain-lib/config" }
+shared_heap = { path = "../domain-lib/shared_heap" }
+interface = { path = "../domain-lib/interface" }
+corelib = { path = "../domain-lib/corelib" }
+basic = { path = "../domain-lib/basic", features = ["task"] }
+task_meta = { path = "../domain-lib/task_meta" }
+storage = { path = "../domain-lib/storage" }
+loader = { path = "../domain-lib/loader" }
+domain_manager = { path = "../domain-lib/domain_manager" }
+
+vfscore = { path = "../rvfs-ref/vfscore-ref", package = "vfscore-ref", features = [
+    "linux_error",
+] }
+cpio_reader = { workspace = true }
+libflate = { workspace = true }
+core2 = { version = "0.4", default-features = false }
+fdt = { git = "https://github.com/repnop/fdt" }
+hashbrown = "0.14.5"
+unwinding = { git = "https://github.com/nbdd0121/unwinding", rev = "ff0e91b", default-features = false, features = [
+    "unwinder",
+    "fde-gnu-eh-frame-hdr",
+    "panic",
+    "personality",
+], optional = true }
+
+
+[features]
+default = ["rust-unwind", "time-tick", "test"]
+rust-unwind = ["dep:unwinding"]
+bench = []
+test = []
+time-tick = []
+
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(vf2)',
+    'cfg(qemu_riscv)',
+    'cfg(vf2_sd)',
+] }

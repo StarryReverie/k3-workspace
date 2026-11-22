@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "buf_input",
+	"gbuf_input",
+]
+
+resolver = "2"

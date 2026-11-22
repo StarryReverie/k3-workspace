@@ -1,0 +1,23 @@
+[package]
+name = "custom_fs-ref"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lock_api = { version = "0",default-features = false }
+log = "0.4.14"
+unifs = { path = "../unifs-ref", package = "unifs-ref" }
+vfscore = { path = "../vfscore-ref", package = "vfscore-ref" }
+
+
+[dependencies.uuid]
+version = "1.13.1"
+default-features = false
+features = ["v4"]
+
+[dev-dependencies]
+spin = "0"
+env_logger = "0.9"
+fake_rref = { path = "../fake_rref" }

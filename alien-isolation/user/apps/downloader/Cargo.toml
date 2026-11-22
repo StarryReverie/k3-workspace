@@ -1,0 +1,8 @@
+[package]
+name = "downloader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+Mstd = {path = "../../userlib" }
+pconst = { git = "https://github.com/os-module/pconst.git" }

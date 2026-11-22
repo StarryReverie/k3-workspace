@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "buf_uart",
+	"gbuf_uart",
+]
+
+resolver = "2"

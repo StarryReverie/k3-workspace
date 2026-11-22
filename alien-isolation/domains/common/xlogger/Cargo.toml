@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "xlogger",
+	"gxlogger",
+]
+
+resolver = "2"

@@ -1,0 +1,21 @@
+[package]
+name = "gsyscall"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+corelib = { path = "../../../../domain-lib/corelib" }
+malloc = { path = "../../../../domain-lib/malloc" }
+basic = { path = "../../../../domain-lib/basic" }
+shared_heap = { path = "../../../../domain-lib/shared_heap" }
+interface = { path = "../../../../domain-lib/interface",  features = ["domain"]  }
+storage = { path = "../../../../domain-lib/storage", features = ["impl"] }
+
+syscall = { path = "../syscall" }
+
+
+[features]
+default = ["rust-unwind"]
+rust-unwind = []

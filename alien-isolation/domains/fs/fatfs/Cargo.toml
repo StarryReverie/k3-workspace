@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "fatfs",
+	"gfatfs",
+]
+
+resolver = "2"

@@ -1,0 +1,14 @@
+[package]
+name = "domainfs"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+interface = { path = "../../../../domain-lib/interface" }
+shared_heap = { path = "../../../../domain-lib/shared_heap" }
+basic = { path = "../../../../domain-lib/basic" }
+
+generic = { path = "../../../common_lib/generic" }
+vfscore = { path = "../../../../rvfs-ref/vfscore-ref", package = "vfscore-ref", features = ["linux_error"] }
+custom_fs = { path = "../../../../rvfs-ref/customfs-ref", package = "custom_fs-ref" }

@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "DOMAIN_NAME",
+	"gDOMAIN_NAME",
+]
+
+resolver = "2"

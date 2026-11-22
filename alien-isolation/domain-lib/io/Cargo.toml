@@ -1,0 +1,7 @@
+[package]
+name = "io"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+memory_addr = { git = "https://github.com/os-module/memory_addr" }

@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "net_stack",
+	"gnet_stack",
+]
+
+resolver = "2"
