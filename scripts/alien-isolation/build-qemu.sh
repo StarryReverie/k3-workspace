@@ -1,31 +1,70 @@
 #!/usr/bin/env bash
-# Build the Alien isolation QEMU baseline.
+# Build the Alien isolation QEMU image.
 #
-# Optional:
-#   ALIEN_DIR  source directory (default: <workspace>/alien-isolation)
-#   OUT_DIR    output directory (default: $ALIEN_DIR/build)
-#   QEMU_SMP   number of harts (default: 2)
-#   LOG        domain log level (default: INFO)
+# Options:
+#   --smp N      number of harts (default: 2)
+#   --log LEVEL  domain log level; the kernel stays quiet (default: INFO)
+#   --out DIR    output directory (default: <alien>/build/smp-<N>)
 #
-# The script follows the upstream Makefile for the kernel, init, domains
-# and disk image. It adds two things the upstream Makefile does not have:
-# artifact checks after `cargo domain build-all`, and a lock seed for the
-# yanked `core2` crate used by the vfs domains.
+# Environment variables are also accepted: QEMU_SMP, LOG, OUT_DIR, ALIEN_DIR.
+#
+# The script follows the upstream Makefile for the kernel, domains, user
+# programs and disk image. It adds three things the upstream Makefile does not
+# have: artifact checks after `cargo domain build-all`, a lock seed for the
+# yanked `core2` crate, and a separate output tree per hart count.
 
 set -euo pipefail
 
+usage() {
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+}
+
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien-isolation}
+QEMU_SMP=${QEMU_SMP:-2}
+LOG=${LOG:-INFO}
+OUT_DIR=${OUT_DIR:-}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --smp)
+            QEMU_SMP=$2
+            shift 2
+            ;;
+        --log)
+            LOG=$2
+            shift 2
+            ;;
+        --out)
+            OUT_DIR=$2
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+if ! [[ "$QEMU_SMP" =~ ^[1-9][0-9]*$ ]]; then
+    echo "SMP must be a positive integer: $QEMU_SMP" >&2
+    exit 2
+fi
 if [ ! -d "$ALIEN_DIR" ]; then
     echo "Alien isolation source not found: $ALIEN_DIR" >&2
     exit 2
 fi
 ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
-OUT_DIR=${OUT_DIR:-$ALIEN_DIR/build}
-QEMU_SMP=${QEMU_SMP:-2}
-LOG=${LOG:-INFO}
+OUT_DIR=${OUT_DIR:-$ALIEN_DIR/build/smp-$QEMU_SMP}
+mkdir -p "$OUT_DIR"
+OUT_DIR=$(cd "$OUT_DIR" && pwd)
 
-for cmd in cargo rustc cpio gzip mkfs.fat mcopy python3; do
+for cmd in cargo rustc cpio gzip mkfs.fat mcopy mmd python3; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
         echo "missing command: $cmd" >&2
         echo "run this script inside nix develop" >&2
@@ -33,16 +72,10 @@ for cmd in cargo rustc cpio gzip mkfs.fat mcopy python3; do
     fi
 done
 
-mkdir -p "$OUT_DIR"
-CPU_FILE="$ALIEN_DIR/domain-lib/config/src/lib.rs"
-CPU_BAK="$OUT_DIR/config-lib.rs.bak"
-cp "$CPU_FILE" "$CPU_BAK"
-restore_cpu() {
-    cp "$CPU_BAK" "$CPU_FILE"
-}
-trap restore_cpu EXIT
+USER_APPS="dvfs dlog dtest dtask dnet"
+USER_BINARIES="$ALIEN_DIR/target/riscv64gc-unknown-none-elf/release"
 
-echo "[1/5] building domains"
+echo "[1/6] building domains (LOG=$LOG)"
 # The vfs workspaces depend on core2 0.4.0, which is yanked from crates.io.
 # A lock that already contains it lets Cargo keep using it.
 for workspace in common/vfs common/vfs2; do
@@ -50,9 +83,16 @@ for workspace in common/vfs common/vfs2; do
         cp "$ALIEN_DIR/Cargo.lock" "$ALIEN_DIR/domains/$workspace/Cargo.lock"
     fi
 done
+# Remove old artifacts so that a failed build cannot pass the check below by
+# leaving a previously built ELF in place.
+rm -rf "$OUT_DIR/init" "$OUT_DIR/disk"
 (
     cd "$ALIEN_DIR/domains"
+    # Domain ELFs index per-hart arrays with MAX_CPU_NUM, so they do not depend
+    # on the hart count and can be reused across SMP builds.
+    unset SMP
     CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback \
+        LOG="$LOG" \
         cargo domain build-all -l "$LOG" -o "$OUT_DIR"
 ) > "$OUT_DIR/domains.log" 2>&1
 
@@ -78,7 +118,7 @@ if failed:
 print(f"domains: {len(config['init_members'])} init, {len(config['disk_members'])} disk")
 PY
 
-echo "[2/5] building kernel"
+echo "[2/6] building kernel"
 (
     cd "$ALIEN_DIR"
     PLATFORM=qemu_riscv SMP="$QEMU_SMP" \
@@ -87,18 +127,26 @@ echo "[2/5] building kernel"
         -Zbuild-std=core,alloc \
         -Zbuild-std-features=compiler-builtins-mem
 ) > "$OUT_DIR/kernel.log" 2>&1
+cp "$ALIEN_DIR/target/riscv64/release/kernel" "$OUT_DIR/kernel"
 
-echo "[3/5] building init"
+echo "[3/6] building user programs"
 (
     cd "$ALIEN_DIR"
     RUSTFLAGS="-C link-arg=-T$ALIEN_DIR/user/apps/linker.ld" \
-        cargo build --release -p init --target riscv64gc-unknown-none-elf
-) > "$OUT_DIR/init.log" 2>&1
+        cargo build --release --target riscv64gc-unknown-none-elf \
+        -p init $(printf -- '-p %s ' $USER_APPS)
+) > "$OUT_DIR/user.log" 2>&1
+for app in $USER_APPS; do
+    if [ ! -f "$USER_BINARIES/$app" ]; then
+        echo "missing user program: $app" >&2
+        exit 1
+    fi
+done
 
-echo "[4/5] creating initramfs"
+echo "[4/6] creating initramfs"
 rm -rf "$OUT_DIR/initrd" "$OUT_DIR/rootfs"
 mkdir -p "$OUT_DIR/initrd/bin" "$OUT_DIR/rootfs"
-cp "$ALIEN_DIR/target/riscv64gc-unknown-none-elf/release/init" "$OUT_DIR/rootfs/init"
+cp "$USER_BINARIES/init" "$OUT_DIR/rootfs/init"
 cp "$ALIEN_DIR/user/bin/bash" "$OUT_DIR/rootfs/bash"
 cp "$ALIEN_DIR/user/bin/bash" "$OUT_DIR/initrd/bin/bash"
 ln -s bash "$OUT_DIR/initrd/bin/sh"
@@ -108,26 +156,39 @@ cp "$OUT_DIR"/init/g* "$OUT_DIR/initrd/"
     find . -print0 | cpio --null -o --format=newc 2>/dev/null | gzip -9
 ) > "$OUT_DIR/initramfs.cpio.gz"
 
-echo "[5/5] creating FAT disk"
+echo "[5/6] copying user programs"
+for app in $USER_APPS; do
+    cp "$USER_BINARIES/$app" "$OUT_DIR/rootfs/$app"
+done
+
+echo "[6/6] creating FAT disk"
 rm -f "$OUT_DIR/sdcard.img"
 dd if=/dev/zero of="$OUT_DIR/sdcard.img" bs=1M count=72 status=none
 mkfs.fat -F 32 "$OUT_DIR/sdcard.img" >/dev/null
 mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR/rootfs/init" "::/init"
 mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR/rootfs/bash" "::/bash"
+for app in $USER_APPS; do
+    mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR/rootfs/$app" "::$app"
+done
 if [ -n "$(find "$OUT_DIR/disk" -maxdepth 1 -name 'g*' -print -quit 2>/dev/null)" ]; then
+    # The loader tools use /tests/domains/<name>, while the older tools use
+    # /tests/<name>. Keep both layouts on the FAT root.
     mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR"/disk/g* "::/"
+    mmd -i "$OUT_DIR/sdcard.img" ::/domains
+    mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR"/disk/g* "::/domains/"
 fi
 
 cat > "$OUT_DIR/build-info" <<EOF
 SMP=$QEMU_SMP
+LOG=$LOG
 INIT_DOMAINS=$(find "$OUT_DIR/init" -type f | wc -l)
 DISK_DOMAINS=$(find "$OUT_DIR/disk" -type f | wc -l)
+USER_PROGRAMS=$USER_APPS
 EOF
 
 echo
-echo "built:"
-ls -lh "$ALIEN_DIR/target/riscv64/release/kernel"
-ls -lh "$OUT_DIR/initramfs.cpio.gz" "$OUT_DIR/sdcard.img"
+echo "built (SMP=$QEMU_SMP, LOG=$LOG):"
+ls -lh "$OUT_DIR/kernel" "$OUT_DIR/initramfs.cpio.gz" "$OUT_DIR/sdcard.img"
 echo
 echo "run:"
-echo "  $ROOT/scripts/alien-isolation/run-qemu.sh"
+echo "  $ROOT/scripts/alien-isolation/run-qemu.sh --smp $QEMU_SMP --out $OUT_DIR"

@@ -1,6 +1,4 @@
-use core::fmt::{Arguments, Write};
-
-use ksync::Mutex;
+use core::fmt::Arguments;
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
@@ -46,16 +44,10 @@ macro_rules! println_color {
     };
 }
 
-pub struct Stdout;
-
-impl Write for Stdout {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        corelib::write_console(s);
-        Ok(())
-    }
-}
-
-static STDOUT: Mutex<Stdout> = Mutex::new(Stdout);
 pub fn __print(args: Arguments) {
-    STDOUT.lock().write_fmt(args).unwrap();
+    // Format the whole line first. The kernel serializes each write_console
+    // call, so this keeps a log line from interleaving with output from
+    // another domain or hart.
+    let line = alloc::format!("{}", args);
+    corelib::write_console(&line);
 }

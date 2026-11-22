@@ -15,13 +15,13 @@ use core::{
     fmt::{Debug, Formatter},
 };
 
-use basic::{arch, config::CPU_NUM, io::SafeIORegion, println, sync::Mutex, AlienResult};
+use basic::{arch, config::MAX_CPU_NUM, io::SafeIORegion, println, sync::Mutex, AlienResult};
 use interface::{define_unwind_for_PLICDomain, Basic, DeviceBase, PLICDomain, PlicInfo, PlicType};
 use raw_plic::{Mode, PlicIO, PLIC};
 use shared_heap::DVec;
 use spin::Once;
 
-static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
+static PLIC: Once<PLIC<MAX_CPU_NUM>> = Once::new();
 
 #[derive(Debug)]
 pub struct SafeIORegionWrapper(SafeIORegion);
@@ -82,9 +82,9 @@ impl PLICDomain for PLICDomainImpl {
         println!("plic region: {:#x?}", plic_info.device_info);
         let plic_space = SafeIORegion::from(plic_info.device_info.clone());
         let privileges = match plic_info.ty {
-            PlicType::Qemu => [2; CPU_NUM],
+            PlicType::Qemu => [2; MAX_CPU_NUM],
             PlicType::SiFive => {
-                let mut privileges = [2; CPU_NUM];
+                let mut privileges = [2; MAX_CPU_NUM];
                 // core 0 don't have S mode
                 privileges[0] = 1;
                 privileges

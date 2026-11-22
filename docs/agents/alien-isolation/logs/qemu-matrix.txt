@@ -1,0 +1,48 @@
+Alien isolation QEMU regression matrix, 2026-11-22
+Sources:
+  logs/tests/20261122-203612-alien-isolation-smp-1.log
+  logs/tests/20261122-203612-alien-isolation-smp-2.log
+  logs/tests/20261122-203612-alien-isolation-smp-4.log
+  logs/tests/20261122-203612-alien-isolation-smp-8.log
+  logs/tests/20261122-203612-alien-isolation-disk-load.log
+Note: excerpt only; ANSI escapes removed.
+
+=== smp-1
+[0] Boot hart 0
+Init process is running
+M1_SMP1_OK
+
+=== smp-2
+[0] Boot hart 0
+[1] hart 1 start...
+Init process is running
+M1_SMP2_OK
+
+=== smp-4
+[3] Boot hart 3
+[2] hart 2 start...
+[0] hart 0 start...
+[1] hart 1 start...
+Init process is running
+M1_SMP4_OK
+
+=== smp-8
+[3] Boot hart 3
+[1] hart 1 start...
+[7] hart 7 start...
+[4] hart 4 start...
+[6] hart 6 start...
+[2]Init process is running
+[2] hart 2 start...
+[5] hart 5 start...
+[0] hart 0 start...
+M1_SMP8_OK
+
+=== disk-load
+[0] Boot hart 0
+[1] hart 1 start...
+Init process is running
+[1][Domain:25] [ WARN] ["syscall/src/domain/mod.rs":29] <sys_load_domain> domain_name: "vfs2", ty:VfsDomain, size: 445KB
+[0] Try to replace vfs domain vfs with vfs2 ok
+Test register and update vfs domain success
+M1_DISK_OK

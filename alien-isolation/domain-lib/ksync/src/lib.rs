@@ -5,7 +5,7 @@ use core::{
 };
 
 use arch::{hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable};
-use config::CPU_NUM;
+use config::MAX_CPU_NUM;
 use kernel_sync::{EmptyLockAction, LockAction, TicketMutexGuard};
 
 pub type SpinMutex<T> = kernel_sync::spin::SpinMutex<T, EmptyLockAction>;
@@ -53,7 +53,7 @@ impl<T> SafeRefCell<T> {
 #[allow(clippy::declare_interior_mutable_const)]
 const DEFAULT_CPU: SafeRefCell<Cpu> = SafeRefCell::new(Cpu::new());
 
-static CPUS: [SafeRefCell<Cpu>; CPU_NUM] = [DEFAULT_CPU; CPU_NUM];
+static CPUS: [SafeRefCell<Cpu>; MAX_CPU_NUM] = [DEFAULT_CPU; MAX_CPU_NUM];
 
 fn mycpu() -> RefMut<'static, Cpu> {
     CPUS[hart_id()].0.borrow_mut()

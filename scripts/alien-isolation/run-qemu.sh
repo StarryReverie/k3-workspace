@@ -1,25 +1,64 @@
 #!/usr/bin/env bash
-# Run the Alien isolation QEMU baseline built by build-qemu.sh.
+# Run the Alien isolation QEMU image built by build-qemu.sh.
 #
-# Optional:
-#   ALIEN_DIR     source directory (default: <workspace>/alien-isolation)
-#   OUT_DIR       build directory (default: $ALIEN_DIR/build)
-#   QEMU_SMP      number of harts (default: 2)
-#   QEMU_MEMORY   memory size (default: 2048M)
-#   QEMU_TIMEOUT  seconds before stopping QEMU (default: 60; 0 = run forever)
+# Options:
+#   --smp N        number of harts (default: 2)
+#   --memory SIZE  memory size (default: 2048M)
+#   --timeout SEC  stop after SEC seconds; 0 runs until Ctrl+A x (default: 60)
+#   --out DIR      build directory (default: <alien>/build/smp-<N>)
+#
+# Environment variables are also accepted: QEMU_SMP, QEMU_MEMORY,
+# QEMU_TIMEOUT, OUT_DIR, ALIEN_DIR.
 
 set -euo pipefail
 
+usage() {
+    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+}
+
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien-isolation}
-ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
-OUT_DIR=${OUT_DIR:-$ALIEN_DIR/build}
 QEMU_SMP=${QEMU_SMP:-2}
 QEMU_MEMORY=${QEMU_MEMORY:-2048M}
 QEMU_TIMEOUT=${QEMU_TIMEOUT:-60}
+OUT_DIR=${OUT_DIR:-}
 
-for file in "$ALIEN_DIR/target/riscv64/release/kernel" \
-            "$OUT_DIR/initramfs.cpio.gz" "$OUT_DIR/sdcard.img"; do
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --smp)
+            QEMU_SMP=$2
+            shift 2
+            ;;
+        --memory)
+            QEMU_MEMORY=$2
+            shift 2
+            ;;
+        --timeout)
+            QEMU_TIMEOUT=$2
+            shift 2
+            ;;
+        --out)
+            OUT_DIR=$2
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
+OUT_DIR=${OUT_DIR:-$ALIEN_DIR/build/smp-$QEMU_SMP}
+OUT_DIR=$(cd "$OUT_DIR" && pwd)
+
+KERNEL=${KERNEL:-$OUT_DIR/kernel}
+for file in "$KERNEL" "$OUT_DIR/initramfs.cpio.gz" "$OUT_DIR/sdcard.img"; do
     if [ ! -f "$file" ]; then
         echo "missing $file; run build-qemu.sh first" >&2
         exit 2
@@ -38,7 +77,7 @@ QEMU_ARGS=(
     -m "$QEMU_MEMORY"
     -smp "$QEMU_SMP"
     -nographic
-    -kernel "$ALIEN_DIR/target/riscv64/release/kernel"
+    -kernel "$KERNEL"
     -initrd "$OUT_DIR/initramfs.cpio.gz"
     -append "rdinit=/init"
     -drive "file=$OUT_DIR/sdcard.img,if=none,format=raw,id=x0"

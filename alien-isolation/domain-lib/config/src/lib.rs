@@ -30,8 +30,13 @@ pub const STACK_SIZE: usize = 1024 * 64;
 /// 内核启动栈大小的位数
 pub const STACK_SIZE_BITS: usize = 16;
 
-/// 可配置的启动cpu数量
-pub const CPU_NUM: usize = 2;
+// 可配置的启动cpu数量，由 build.rs 根据 SMP 环境变量生成
+include!(concat!(env!("OUT_DIR"), "/cpu_num.rs"));
+
+/// 域侧按 hart 编号索引的数组容量。
+///
+/// 域产物与具体启动核数解耦，只保证容量覆盖 K3 的 8 个 hart。
+pub const MAX_CPU_NUM: usize = 8;
 
 const HEAP_SIZE: usize = 0x400_0000;
 pub const KERNEL_HEAP_SIZE: usize = HEAP_SIZE;

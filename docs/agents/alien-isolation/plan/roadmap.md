@@ -26,8 +26,12 @@ SDHCI/NVMe 协议逻辑，以及测试与上板工具的思路。
 | M5 PCIe/NVMe | 在域架构下接入 NVMe | TCB 内 QEMU ECAM 与 K3 主机桥；APMU、PHY、PERST#、LTSSM、iATU；NVMe 块设备域；分区与 FAT | QEMU 与 K3 均能 Identify、读取文件 |
 | M6 收尾 | 固化成果 | 干净构建；完整测试矩阵；文档；分组提交；可选域故障与重载测试 | 全部场景通过，工作区干净 |
 
-M0 已完成，记录见 [`../setup/qemu-baseline.md`](../setup/qemu-baseline.md)。当前进入
-M1：把 QEMU 基线扩展为可重复的 1/2/4/8 核、磁盘域与动态域加载场景。
+M0 已完成，记录见 [`../setup/qemu-baseline.md`](../setup/qemu-baseline.md)。M1 已完成，
+记录见 [`../testing/qemu-matrix.md`](../testing/qemu-matrix.md)：QEMU 可按 1/2/4/8 核
+重复构建与启动，`dvfs` 可从 FAT 盘装载 `vfs2` 并替换 `vfs` 域，日志降噪后可稳定断言。
+
+当前进入 M2：为 K3 增加平台配置、链接地址、内存与设备地址空间、DTB 与 SBI 支持，
+并在高地址 QEMU 上回归。
 
 ## 与旧计划的对应
 

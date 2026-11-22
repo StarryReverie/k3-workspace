@@ -1,26 +1,27 @@
-use std::{fs, path::Path};
+use std::{env, fs, path::PathBuf};
 
 fn main() {
-    let cpus = option_env!("SMP");
+    // The kernel and the domains read CPU_NUM at compile time. Track the
+    // environment so that switching SMP rebuilds every crate that uses it.
+    println!("cargo:rerun-if-env-changed=SMP");
+    println!("cargo:rerun-if-env-changed=PLATFORM");
 
-    if let Some(cpus) = cpus {
-        let cpus = cpus.parse::<usize>().unwrap();
-        let config_file = Path::new("src/lib.rs");
-        let config = fs::read_to_string(config_file).unwrap();
-        let cpus = format!("pub const CPU_NUM: usize = {};\n", cpus);
-        let mut new_config = String::new();
-        for line in config.lines() {
-            if line.starts_with("pub const CPU_NUM: usize = ") {
-                new_config.push_str(cpus.as_str());
-            } else {
-                new_config.push_str(line);
-                new_config.push('\n');
-            }
-        }
-        fs::write(config_file, new_config).unwrap();
-    }
+    let cpus = match env::var("SMP") {
+        Ok(value) if !value.trim().is_empty() => value
+            .trim()
+            .parse::<usize>()
+            .expect("SMP must be a positive integer"),
+        _ => 2,
+    };
+    assert!(cpus > 0, "SMP must be greater than zero");
 
-    println!("cargo:rerun-if-changed=src/lib.rs");
-    let platform = option_env!("PLATFORM").unwrap_or("qemu_riscv");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by Cargo"));
+    fs::write(
+        out_dir.join("cpu_num.rs"),
+        format!("/// 可配置的启动 cpu 数量\npub const CPU_NUM: usize = {cpus};\n"),
+    )
+    .expect("write cpu_num.rs");
+
+    let platform = env::var("PLATFORM").unwrap_or_else(|_| "qemu_riscv".to_string());
     println!("cargo::rustc-cfg={}", platform);
 }

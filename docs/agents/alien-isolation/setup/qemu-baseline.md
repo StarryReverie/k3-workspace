@@ -32,21 +32,24 @@ nix develop
 1. 使用上游 `cargo domain build-all` 构建 26 个 init 域与 8 个 disk 域。
 2. 校验 `domain-list.toml` 中每个域都产生了对应 ELF。
 3. 构建 `kernel`，参数为 `PLATFORM=qemu_riscv`、`SMP=2`、`-Z build-std`。
-4. 构建用户态 `init`。
+4. 构建用户态 `init` 与动态装载工具。
 5. 生成 initramfs 与 72 MiB FAT 磁盘。
 
-产物位于 `alien-isolation/build/`：
+产物位于 `alien-isolation/build/smp-2/`：
 
 ```text
+kernel              596 KiB
 initramfs.cpio.gz   4.0 MiB
 sdcard.img          72 MiB
-build-info          2 核、26 init 域、8 disk 域
+build-info          核数、日志级别、26 init 域、8 disk 域
 domains.log         域构建日志
 kernel.log
-init.log
+user.log
 ```
 
-内核位于 `alien-isolation/target/riscv64/release/kernel`。
+M1 起构建按核数分目录，默认 `SMP=2`。内核同时复制到该目录，运行脚本无需再访问
+`alien-isolation/target/`。其他核数与动态装载场景见
+[`../testing/qemu-matrix.md`](../testing/qemu-matrix.md)。
 
 ## 运行
 
@@ -76,11 +79,12 @@ virtio-net-device   hostfwd tcp:55555 / udp:5555
 结果：
 
 ```text
-PASS alien-isolation qemu baseline
+PASS alien-isolation qemu: 1 scenarios
 ```
 
-测试等待 `Init process is running` 与 `exec args: ["sh`，发送
-`echo M0_OK`，收到 `M0_OK` 后通过。完整串口记录在 `logs/tests/`。
+测试等待 `exec args: ["sh`，随后通过 `echo __M1_READY__` 往返确认 shell
+可读写，最后发送 `echo M1_OK` 并要求标记独占一行。完整串口记录在
+`logs/tests/`。
 
 启动日志中的关键节点：
 
