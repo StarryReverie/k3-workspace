@@ -37,6 +37,12 @@ pub const STACK_SIZE_BITS: usize = 16;
 // 可配置的启动cpu数量，由 build.rs 根据 SMP 环境变量生成
 include!(concat!(env!("OUT_DIR"), "/cpu_num.rs"));
 
+/// 当前编译平台是否为 K3。
+///
+/// `cfg(k3)` 只由 `build.rs` 发给本 crate；域 crate 没有各自的 `build.rs`，
+/// 因此域侧统一通过这个常量判断平台。
+pub const IS_K3: bool = cfg!(k3);
+
 /// 域侧按 hart 编号索引的数组容量。
 ///
 /// 域产物与具体启动核数解耦，只保证容量覆盖 K3 的 8 个 hart。

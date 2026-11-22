@@ -28,6 +28,12 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("uart16550", DomainTypeRaw::UartDomain),
     #[cfg(qemu_riscv)]
     ("virtio_mmio_block", DomainTypeRaw::BlkDeviceDomain),
+    #[cfg(k3)]
+    ("uart16550", DomainTypeRaw::UartDomain),
+    #[cfg(k3)]
+    ("uart8250", DomainTypeRaw::UartDomain),
+    #[cfg(k3)]
+    ("loopback", DomainTypeRaw::NetDeviceDomain),
     ("net_stack", DomainTypeRaw::NetDomain),
     ("logger", DomainTypeRaw::LogDomain),
     ("domainfs", DomainTypeRaw::FsDomain),

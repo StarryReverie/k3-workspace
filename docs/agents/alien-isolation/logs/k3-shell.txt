@@ -1,0 +1,78 @@
+Alien isolation K3 shell, 2026-11-22
+Sources:
+  logs/tests/20261122-212740-alien-isolation-k3-shell-1.log
+  logs/tests/20261122-214558-alien-isolation-k3-shell-2.log
+  logs/tests/20261122-212740-alien-isolation-k3-shell-8.log
+  logs/boot-20261122-214017.log
+Note: excerpt only; ANSI escapes removed.
+
+=== k3-shell-1
+[0] Boot hart 0
+Initrd: Some(
+[0] register 3 devices
+[0][Domain:12] plic disabled: external interrupts are not routed
+[0][Domain:13] init uart success
+[0][Domain:10] blk domain not found, skip /dev/sda on k3
+[0][Domain:10] Initrd populate success
+[0][Domain:10] Init filesystem success
+[0][Domain:11] Init task domain success
+[0] Load domains done
+Alien:/# echo __M3_K3_READY__
+Alien:/# echo M3_K3_OK
+M3_K3_OK
+
+=== k3-shell-2
+[0] Boot hart 0
+Initrd: Some(
+[0][Domain:12] plic disabled: external interrupts are not routed
+[0][Domain:13] init uart success
+[0][Domain:10] blk domain not found, skip /dev/sda on k3
+[0][Domain:10] Initrd populate success
+[0][Domain:10] Init filesystem success
+[0][Domain:11] Init task domain success
+[0] Load domains done
+[1] hart 1 start...
+Alien:/# echo __M3_K3_READY__
+Alien:/# echo M3_K3_OK
+M3_K3_OK
+
+=== k3-shell-8
+[7] Boot hart 7
+Initrd: Some(
+[7] register 3 devices
+[7][Domain:12] plic disabled: external interrupts are not routed
+[7][Domain:13] init uart success
+[7][Domain:10] blk domain not found, skip /dev/sda on k3
+[7][Domain:10] Initrd populate success
+[7][Domain:10] Init filesystem success
+[7][Domain:11] Init task domain success
+[7] Load domains done
+[6] hart 6 start...
+[1] hart 1 start...
+[3] hart 3 start...
+[4] hart 4 start...
+[2] hart 2 start...
+[5] hart 5 start...
+[0] hart 0 start...
+Alien:/# echo __M3_K3_READY__
+Alien:/# echo M3_K3_OK
+M3_K3_OK
+
+=== board-shell-2
+Bytes transferred = 4458639 (44088f hex)
+=> [  42.152] bootm 0x140000000 - $fdtcontroladdr
+[0] Boot hart 0
+Initrd: Some(
+[0] uart fallback: ns16550 0xd4017000-0xd4017100
+[0] register 2 devices
+[0][Domain:12] plic disabled: external interrupts are not routed
+[0][Domain:13] init uart success
+[0][Domain:10] blk domain not found, skip /dev/sda on k3
+[0][Domain:10] Initrd populate success
+[0][Domain:10] Init filesystem success
+[0][Domain:11] Init task domain success
+[0] Load domains done
+[1] hart 1 start...
+Alien:/# echo M3_K3_OK
+M3_K3_OK
+Alien:/#

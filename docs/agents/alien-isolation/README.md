@@ -13,6 +13,8 @@
 | QEMU 基线构建与启动 | 完成，26 init 域、8 disk 域、shell 可用 |
 | QEMU 回归矩阵 | 完成，1/2/4/8 核、磁盘域动态装载、日志稳定 |
 | K3 诊断内核 | 完成，高地址 QEMU 与真实板卡 1/2/8 核 |
+| K3 轮询控制台与 shell | 完成，QEMU 1/2/8 核；板端 2 核交互、8 核到提示符 |
+| K3 AIA 中断 | 待开始 |
 
 ## 固定信息
 
@@ -38,9 +40,11 @@ domain-lib  136007cdca82531f97a4e8da082b2ce48b839d2f
 | [`setup/toolchain.md`](setup/toolchain.md) | Rust 与交叉编译工具链 |
 | [`setup/qemu-baseline.md`](setup/qemu-baseline.md) | QEMU 构建、启动与 shell 验收 |
 | [`setup/k3-platform.md`](setup/k3-platform.md) | K3 平台配置、诊断镜像与 FIT |
+| [`setup/k3-console.md`](setup/k3-console.md) | K3 轮询 UART、域调整与多核启动修复 |
 | [`testing/qemu-matrix.md`](testing/qemu-matrix.md) | 1/2/4/8 核回归、磁盘域动态装载与日志稳定性 |
 | [`testing/k3-qemu.md`](testing/k3-qemu.md) | K3 诊断内核的高地址 QEMU 回归 |
 | [`testing/k3-board.md`](testing/k3-board.md) | K3 诊断内核的真实板卡启动 |
+| [`testing/k3-shell.md`](testing/k3-shell.md) | K3 shell 的 QEMU 与板端回归 |
 | [`plan/roadmap.md`](plan/roadmap.md) | 从 vendor 到 K3 PCIe/NVMe 的粗略路线 |
 
 新文档按主题放入子目录，不使用数字前缀。

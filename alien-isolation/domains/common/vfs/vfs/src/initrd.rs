@@ -27,7 +27,10 @@ fn parse_initrd_data(root: Arc<dyn VfsDentry>, initrd: &[u8]) -> AlienResult<()>
     for entry in cpio_reader::iter_files(&buf) {
         let mode = entry.mode();
         let name = entry.name();
-        if name.starts_with("bin/") | name.starts_with("sbin/") {
+        if name.starts_with("bin/")
+            | name.starts_with("sbin/")
+            | name.starts_with("tests/")
+        {
             let inode_mode = VfsInodeMode::from_bits_truncate(mode.bits());
             if mode.contains(Mode::SYMBOLIK_LINK) {
                 // create symlink

@@ -97,6 +97,12 @@ impl UartDomain for UartDomainImpl {
     }
 
     fn enable_receive_interrupt(&self) -> AlienResult<()> {
+        if basic::config::IS_K3 {
+            // K3 has no external interrupt controller yet; the UART domain is
+            // polled through buf_uart.
+            println!("uart16550 polling mode");
+            return Ok(());
+        }
         let uart = self.uart.get_must();
         let ier = uart.ier();
         let region = uart.io_region();
@@ -106,6 +112,9 @@ impl UartDomain for UartDomainImpl {
     }
 
     fn disable_receive_interrupt(&self) -> AlienResult<()> {
+        if basic::config::IS_K3 {
+            return Ok(());
+        }
         let uart = self.uart.get_must();
         let ier = uart.ier();
         let region = uart.io_region();

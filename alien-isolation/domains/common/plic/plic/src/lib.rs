@@ -13,6 +13,7 @@ use alloc::{
 use core::{
     cmp::min,
     fmt::{Debug, Formatter},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use basic::{arch, config::MAX_CPU_NUM, io::SafeIORegion, println, sync::Mutex, AlienResult};
@@ -54,6 +55,7 @@ impl Debug for DeviceDomain {
 pub struct PLICDomainImpl {
     table: Mutex<BTreeMap<usize, DeviceDomain>>,
     count: Mutex<BTreeMap<usize, usize>>,
+    enabled: AtomicBool,
 }
 
 impl Default for PLICDomainImpl {
@@ -67,6 +69,7 @@ impl PLICDomainImpl {
         Self {
             table: Mutex::new(BTreeMap::new()),
             count: Mutex::new(BTreeMap::new()),
+            enabled: AtomicBool::new(true),
         }
     }
 }
@@ -80,6 +83,11 @@ impl Basic for PLICDomainImpl {
 impl PLICDomain for PLICDomainImpl {
     fn init(&self, plic_info: &PlicInfo) -> AlienResult<()> {
         println!("plic region: {:#x?}", plic_info.device_info);
+        if matches!(plic_info.ty, PlicType::None) {
+            self.enabled.store(false, Ordering::Relaxed);
+            println!("plic disabled: external interrupts are not routed");
+            return Ok(());
+        }
         let plic_space = SafeIORegion::from(plic_info.device_info.clone());
         let privileges = match plic_info.ty {
             PlicType::Qemu => [2; MAX_CPU_NUM],
@@ -89,6 +97,8 @@ impl PLICDomain for PLICDomainImpl {
                 privileges[0] = 1;
                 privileges
             }
+            // Handled by the early return above.
+            PlicType::None => unreachable!(),
         };
         PLIC.call_once(|| PLIC::new(Box::new(SafeIORegionWrapper(plic_space)), privileges));
         println!("Init qemu plic success");
@@ -96,6 +106,9 @@ impl PLICDomain for PLICDomainImpl {
     }
 
     fn handle_irq(&self) -> AlienResult<()> {
+        if !self.enabled.load(Ordering::Relaxed) {
+            return Ok(());
+        }
         let plic = PLIC.get().unwrap();
         let hart_id = arch::hart_id();
         let irq = plic.claim(hart_id as u32, Mode::Supervisor) as usize;
@@ -127,6 +140,9 @@ impl PLICDomain for PLICDomainImpl {
     }
 
     fn register_irq(&self, irq: usize, device_domain_name: &DVec<u8>) -> AlienResult<()> {
+        if !self.enabled.load(Ordering::Relaxed) {
+            return Ok(());
+        }
         let hard_id = arch::hart_id();
         println!(
             "PLIC enable irq {} for hart {}, priority {}",

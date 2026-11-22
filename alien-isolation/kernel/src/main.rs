@@ -51,10 +51,8 @@ fn main(hart_id: usize) {
 /// are enabled on K3.
 #[cfg(feature = "k3-diag")]
 fn diag_main(hart_id: usize) {
-    if STARTED
-        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
-        .is_ok()
-    {
+    if platform::boot_hart() == hart_id {
+        STARTED.store(true, Ordering::Relaxed);
         println!("Boot hart {}", hart_id);
         let machine_info = platform::platform_machine_info();
         println!("{:#?}", machine_info);
@@ -77,10 +75,8 @@ fn diag_main(hart_id: usize) {
 
 #[cfg(not(feature = "k3-diag"))]
 fn normal_main(hart_id: usize) {
-    if STARTED
-        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
-        .is_ok()
-    {
+    if platform::boot_hart() == hart_id {
+        STARTED.store(true, Ordering::Relaxed);
         println!("Boot hart {}", hart_id);
         let machine_info = platform::platform_machine_info();
         println!("{:#?}", machine_info);

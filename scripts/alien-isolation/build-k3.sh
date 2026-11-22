@@ -1,28 +1,29 @@
 #!/usr/bin/env bash
-# Build the Alien isolation K3 diagnostic image.
+# Build an Alien isolation image for SpacemiT K3.
 #
 # Options:
 #   --smp N        number of harts (default: 1)
-#   --out DIR      output directory (default: <alien>/build/k3/smp-<N>)
+#   --mode MODE    diag or shell (default: diag)
+#   --out DIR      output directory (default: <alien>/build/k3[-shell]/smp-<N>)
 #   --kernel-base  kernel link address (default: 0x102200000)
 #
-# Environment variables are also accepted: K3_SMP, OUT_DIR, ALIEN_DIR,
-# KERNEL_BASE.
+# Environment variables are also accepted: K3_SMP, K3_MODE, OUT_DIR,
+# ALIEN_DIR, KERNEL_BASE.
 #
-# The diagnostic kernel stops after DTB, memory, paging and secondary harts
-# are initialized. It does not start the domain set, which still assumes PLIC,
-# virtio and the QEMU UART. The output contains the ELF, a gzipped raw binary
-# and a U-Boot FIT image.
+# diag:  TCB only, no domains, no userspace. Outputs K3_BOOT_OK.
+# shell: builds K3 domains, user init and bash, and boots to an interactive
+#        polling UART shell. External interrupts are not enabled yet.
 
 set -euo pipefail
 
 usage() {
-    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien-isolation}
 K3_SMP=${K3_SMP:-1}
+K3_MODE=${K3_MODE:-diag}
 KERNEL_BASE=${KERNEL_BASE:-0x102200000}
 OUT_DIR=${OUT_DIR:-}
 
@@ -30,6 +31,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --smp)
             K3_SMP=$2
+            shift 2
+            ;;
+        --mode)
+            K3_MODE=$2
             shift 2
             ;;
         --out)
@@ -56,12 +61,25 @@ if ! [[ "$K3_SMP" =~ ^[1-9][0-9]*$ ]]; then
     echo "SMP must be a positive integer: $K3_SMP" >&2
     exit 2
 fi
+case "$K3_MODE" in
+    diag|shell) ;;
+    *)
+        echo "mode must be diag or shell: $K3_MODE" >&2
+        exit 2
+        ;;
+esac
 if [ ! -d "$ALIEN_DIR" ]; then
     echo "Alien isolation source not found: $ALIEN_DIR" >&2
     exit 2
 fi
 ALIEN_DIR=$(cd "$ALIEN_DIR" && pwd)
-OUT_DIR=${OUT_DIR:-$ALIEN_DIR/build/k3/smp-$K3_SMP}
+if [ -z "$OUT_DIR" ]; then
+    if [ "$K3_MODE" = "shell" ]; then
+        OUT_DIR="$ALIEN_DIR/build/k3-shell/smp-$K3_SMP"
+    else
+        OUT_DIR="$ALIEN_DIR/build/k3/smp-$K3_SMP"
+    fi
+fi
 mkdir -p "$OUT_DIR"
 OUT_DIR=$(cd "$OUT_DIR" && pwd)
 
@@ -73,7 +91,86 @@ for cmd in cargo rustc llvm-objcopy gzip cpio mkimage readelf; do
     fi
 done
 
-echo "[1/4] building diagnostic kernel (SMP=$K3_SMP, base=$KERNEL_BASE)"
+TARGET=riscv64gc-unknown-none-elf
+USER_BINARIES="$ALIEN_DIR/target/$TARGET/release"
+
+if [ "$K3_MODE" = "shell" ]; then
+    echo "[1/6] building K3 domains"
+    for workspace in common/vfs common/vfs2; do
+        if [ ! -f "$ALIEN_DIR/domains/$workspace/Cargo.lock" ]; then
+            cp "$ALIEN_DIR/Cargo.lock" "$ALIEN_DIR/domains/$workspace/Cargo.lock"
+        fi
+    done
+    rm -rf "$OUT_DIR/domains"
+    (
+        cd "$ALIEN_DIR/domains"
+        PLATFORM=k3 CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback \
+            LOG=WARN cargo domain build-all -l WARN -o "$OUT_DIR/domains"
+    ) > "$OUT_DIR/domains.log" 2>&1
+    python3 - "$ALIEN_DIR" "$OUT_DIR" <<'PY'
+import pathlib
+import sys
+import tomllib
+alien = pathlib.Path(sys.argv[1])
+out = pathlib.Path(sys.argv[2]) / "domains"
+config = tomllib.loads((alien / "domains/domain-list.toml").read_text())["domains"]
+failed = False
+for group, directory in (("init_members", "init"), ("disk_members", "disk")):
+    expected = {f"g{name}" for name in config[group]}
+    path = out / directory
+    actual = {entry.name for entry in path.glob("g*")} if path.is_dir() else set()
+    missing = sorted(expected - actual)
+    if missing:
+        failed = True
+        print(f"missing {directory} domains: {', '.join(missing)}", file=sys.stderr)
+if failed:
+    raise SystemExit(1)
+PY
+else
+    echo "[1/6] diagnostic mode: skip domains"
+fi
+
+if [ "$K3_MODE" = "shell" ]; then
+    echo "[2/6] building user init"
+    (
+        cd "$ALIEN_DIR"
+        RUSTFLAGS="-C link-arg=-T$ALIEN_DIR/user/apps/linker.ld" \
+            cargo build --release -p init --target "$TARGET"
+    ) > "$OUT_DIR/init.log" 2>&1
+else
+    echo "[2/6] diagnostic mode: skip user init"
+fi
+
+echo "[3/6] creating initramfs"
+rm -rf "$OUT_DIR/initrd"
+if [ "$K3_MODE" = "diag" ]; then
+    mkdir -p "$OUT_DIR/initrd/tests"
+    echo "K3 diagnostic initramfs" > "$OUT_DIR/initrd/tests/init"
+else
+    mkdir -p "$OUT_DIR/initrd/bin" "$OUT_DIR/initrd/tests"
+    cp "$OUT_DIR"/domains/init/g* "$OUT_DIR/initrd/"
+    # loopback supplies the NIC that net_stack and vfs expect.
+    cp "$OUT_DIR/domains/disk/gloopback" "$OUT_DIR/initrd/"
+    cp "$USER_BINARIES/init" "$OUT_DIR/initrd/tests/init"
+    cp "$ALIEN_DIR/user/bin/bash" "$OUT_DIR/initrd/bin/bash"
+    ln -sf bash "$OUT_DIR/initrd/bin/sh"
+fi
+(
+    cd "$OUT_DIR/initrd"
+    find . -print0 | cpio --null -o --format=newc 2>/dev/null | gzip -9
+) > "$OUT_DIR/initramfs.cpio.gz"
+
+echo "[4/6] building kernel (MODE=$K3_MODE, SMP=$K3_SMP, base=$KERNEL_BASE)"
+FEATURES=()
+if [ "$K3_MODE" = "diag" ]; then
+    FEATURES=(--features k3-diag)
+else
+    # The U-Boot control DTB does not reliably carry a ramdisk, so the shell
+    # image embeds the initramfs in the kernel.
+    mkdir -p "$ALIEN_DIR/build"
+    cp "$OUT_DIR/initramfs.cpio.gz" "$ALIEN_DIR/build/k3-initramfs.cpio.gz"
+    FEATURES=(--features k3-initrd)
+fi
 (
     cd "$ALIEN_DIR"
     PLATFORM=k3 SMP="$K3_SMP" KERNEL_BASE="$KERNEL_BASE" \
@@ -81,20 +178,11 @@ echo "[1/4] building diagnostic kernel (SMP=$K3_SMP, base=$KERNEL_BASE)"
         cargo build --release -p kernel --target ./tools/riscv64.json \
         -Zbuild-std=core,alloc \
         -Zbuild-std-features=compiler-builtins-mem \
-        --features k3-diag
+        "${FEATURES[@]}"
 ) > "$OUT_DIR/kernel.log" 2>&1
 cp "$ALIEN_DIR/target/riscv64/release/kernel" "$OUT_DIR/kernel-k3"
 
-echo "[2/4] creating diagnostic initramfs"
-rm -rf "$OUT_DIR/initrd"
-mkdir -p "$OUT_DIR/initrd/tests"
-echo "K3 diagnostic initramfs" > "$OUT_DIR/initrd/tests/init"
-(
-    cd "$OUT_DIR/initrd"
-    find . -print0 | cpio --null -o --format=newc 2>/dev/null | gzip -9
-) > "$OUT_DIR/initramfs.cpio.gz"
-
-echo "[3/4] creating raw binary and FIT"
+echo "[5/6] creating raw binary and FIT"
 llvm-objcopy --strip-all -O binary "$OUT_DIR/kernel-k3" "$OUT_DIR/kernel-k3.bin"
 gzip -9 -c "$OUT_DIR/kernel-k3.bin" > "$OUT_DIR/kernel-k3.bin.gz"
 BASE_HI=$(printf '0x%x' $((KERNEL_BASE >> 32)))
@@ -103,7 +191,7 @@ cat > "$OUT_DIR/k3.its" <<ITS
 /dts-v1/;
 
 / {
-    description = "Alien isolation diagnostic image for SpacemiT K3";
+    description = "Alien isolation ${K3_MODE} image for SpacemiT K3";
     #address-cells = <2>;
 
     images {
@@ -128,9 +216,10 @@ cat > "$OUT_DIR/k3.its" <<ITS
     };
 };
 ITS
-mkimage -f "$OUT_DIR/k3.its" "$OUT_DIR/alien-k3-diag.itb" >/dev/null
+FIT_NAME=alien-k3-${K3_MODE}.itb
+mkimage -f "$OUT_DIR/k3.its" "$OUT_DIR/$FIT_NAME" >/dev/null
 
-echo "[4/4] checking addresses"
+echo "[6/6] checking addresses"
 ENTRY_ADDR=$(readelf -h "$OUT_DIR/kernel-k3" | sed -n 's/.*Entry point address:[[:space:]]*//p')
 if [ "$ENTRY_ADDR" != "$(printf '0x%x' "$KERNEL_BASE")" ]; then
     echo "unexpected entry point: $ENTRY_ADDR (expected $KERNEL_BASE)" >&2
@@ -139,20 +228,24 @@ fi
 
 cat > "$OUT_DIR/build-info" <<EOF
 PLATFORM=k3
-MODE=diag
+MODE=$K3_MODE
 SMP=$K3_SMP
 KERNEL_BASE=$KERNEL_BASE
 ENTRY=$ENTRY_ADDR
 EOF
 
 echo
-echo "built (SMP=$K3_SMP):"
+echo "built (MODE=$K3_MODE, SMP=$K3_SMP):"
 ls -lh "$OUT_DIR/kernel-k3" "$OUT_DIR/kernel-k3.bin.gz" \
-    "$OUT_DIR/initramfs.cpio.gz" "$OUT_DIR/alien-k3-diag.itb"
+    "$OUT_DIR/initramfs.cpio.gz" "$OUT_DIR/$FIT_NAME"
 echo
 echo "run on QEMU:"
-echo "  $ROOT/scripts/alien-isolation/run-k3-qemu.sh --smp $K3_SMP --out $OUT_DIR"
+if [ "$K3_MODE" = "diag" ]; then
+    echo "  $ROOT/scripts/alien-isolation/run-k3-qemu.sh --smp $K3_SMP --out $OUT_DIR"
+else
+    echo "  $ROOT/scripts/alien-isolation/run-k3-shell-qemu.sh --smp $K3_SMP --out $OUT_DIR"
+fi
 echo
 echo "U-Boot:"
-echo "  tftpboot 0x140000000 alien-k3-diag.itb"
+echo "  tftpboot 0x140000000 $FIT_NAME"
 echo "  bootm 0x140000000 - \$fdtcontroladdr"

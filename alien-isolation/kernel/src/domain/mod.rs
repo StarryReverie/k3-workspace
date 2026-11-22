@@ -29,26 +29,36 @@ fn init_kernel_domain() {
 fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
     let platform_bus = platform_bus!();
 
-    let plic_device = platform_bus
-        .common_devices()
-        .iter()
-        .find(|device| device.name() == "plic")
-        .expect("plic device not found");
-
+    let plic_info = {
+        #[cfg(not(k3))]
+        {
+            let plic_device = platform_bus
+                .common_devices()
+                .iter()
+                .find(|device| device.name() == "plic")
+                .expect("plic device not found");
+            let plic_address = plic_device.address_range();
+            PlicInfo {
+                device_info: plic_address.start.as_usize()..plic_address.end.as_usize(),
+                #[cfg(qemu_riscv)]
+                ty: PlicType::Qemu,
+                #[cfg(vf2)]
+                ty: PlicType::SiFive,
+            }
+        }
+        #[cfg(k3)]
+        {
+            // K3 has no PLIC. Keep the domain slot so the rest of the domain
+            // set initializes; external interrupts stay disabled until the
+            // AIA controller is implemented.
+            PlicInfo {
+                device_info: 0..0,
+                ty: PlicType::None,
+            }
+        }
+    };
     let (plic, domain_file_info) =
         create_domain!(PLICDomainProxy, DomainTypeRaw::PLICDomain, "plic")?;
-    let plic_address = plic_device.address_range();
-    let plic_info = PlicInfo {
-        device_info: plic_address.start.as_usize()..plic_address.end.as_usize(),
-        #[cfg(qemu_riscv)]
-        ty: PlicType::Qemu,
-        #[cfg(vf2)]
-        ty: PlicType::SiFive,
-        // K3 uses AIA rather than PLIC. The value only keeps the type checker
-        // complete until the K3 interrupt domain replaces this path.
-        #[cfg(k3)]
-        ty: PlicType::SiFive,
-    };
     plic.init_by_box(Box::new(plic_info))?;
     register_domain!(
         "plic",
@@ -88,6 +98,13 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     "snps,dw-apb-uart" => {
                         create_domain!(UartDomainProxy, DomainTypeRaw::UartDomain, "uart8250")?
                     }
+                    #[cfg(k3)]
+                    _ => {
+                        // K3 UART is an XScale-compatible 8250 with 32-bit
+                        // registers and reg-shift 2.
+                        create_domain!(UartDomainProxy, DomainTypeRaw::UartDomain, "uart8250")?
+                    }
+                    #[cfg(not(k3))]
                     _ => panic!("unknown uart device: {}", compatible),
                 };
 
@@ -102,7 +119,10 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainType::BufUartDomain(buf_uart),
                     true
                 );
+                #[cfg(not(k3))]
                 plic.register_irq(irq.unwrap() as _, &DVec::from_slice("buf_uart".as_bytes()))?;
+                #[cfg(k3)]
+                let _ = irq;
             }
             "ramdisk" => {
                 let (ramdisk, domain_file_info) =
@@ -259,6 +279,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         plic.register_irq(nic_irq as _, &DVec::from_slice("net_stack".as_bytes()))?
     }
     // create shadow block and cache block device
+    #[cfg(not(k3))]
     {
         let (shadow_blk, domain_file_info) = create_domain!(
             ShadowBlockDomainProxy,

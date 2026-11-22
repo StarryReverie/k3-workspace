@@ -21,7 +21,13 @@ pub use qemu_riscv::{config, set_timer, system_shutdown};
 use k3_riscv::*;
 #[cfg(k3)]
 pub use k3_riscv::{config, set_timer, system_shutdown};
+use core::sync::atomic::{AtomicUsize, Ordering};
+
 use spin::Once;
+
+/// Hart that executed `platform_init`. Secondary harts enter `main` directly
+/// and must never elect themselves as the boot hart.
+static BOOT_HART: AtomicUsize = AtomicUsize::new(usize::MAX);
 #[cfg(vf2)]
 pub use starfive2_riscv::{config, set_timer, system_shutdown};
 
@@ -49,6 +55,7 @@ pub fn platform_init(hart_id: usize, dtb: usize) {
     let machine_info = basic_machine_info();
     MACHINE_INFO.call_once(|| machine_info);
     logger::init_logger();
+    BOOT_HART.store(hart_id, Ordering::Relaxed);
     init_other_hart(hart_id);
     unsafe { main(hart_id) }
 }
@@ -81,4 +88,9 @@ static MACHINE_INFO: Once<PlatformInfo> = Once::new();
 
 pub fn platform_machine_info() -> PlatformInfo {
     MACHINE_INFO.get().unwrap().clone()
+}
+
+/// Hart that owns TCB initialization.
+pub fn boot_hart() -> usize {
+    BOOT_HART.load(Ordering::Relaxed)
 }

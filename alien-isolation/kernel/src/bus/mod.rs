@@ -35,6 +35,7 @@ pub fn init_with_dtb() -> AlienResult<()> {
     let dtb = unsafe { Fdt::from_ptr(ptr as *const u8) }.unwrap();
 
     let mut devices = vec![];
+    #[cfg(not(k3))]
     if let Some(ty) = dtb.probe_rtc() {
         devices.push(ty);
     }
@@ -44,11 +45,14 @@ pub fn init_with_dtb() -> AlienResult<()> {
     if let Some(ty) = dtb.probe_plic() {
         devices.push(ty);
     }
+    #[cfg(not(k3))]
     if let Some(ty) = dtb.probe_pci() {
         devices.push(ty);
     }
-    let virtio = dtb.probe_virtio();
-    if let Some(virtio) = virtio {
+    // K3 has no virtio-mmio. Probing empty slots reads MMIO before the trap
+    // subsystem exists, so skip it entirely on this platform.
+    #[cfg(not(k3))]
+    if let Some(virtio) = dtb.probe_virtio() {
         for ty in virtio {
             devices.push(ty);
         }
@@ -64,6 +68,18 @@ pub fn init_with_dtb() -> AlienResult<()> {
             compatible: None,
         };
         devices.push(CommonDeviceType::Ramdisk(info));
+    }
+
+    #[cfg(k3)]
+    {
+        // The domain set expects a NIC even when there is no network driver.
+        // A loopback device keeps net_stack and vfs initializable.
+        let loopback = CommonDeviceInfo {
+            address_range: PhysAddr::from(0)..PhysAddr::from(0),
+            irq: Some(0),
+            compatible: None,
+        };
+        devices.push(CommonDeviceType::LoopBack(loopback));
     }
 
     #[cfg(vf2)]

@@ -53,6 +53,9 @@ time-tick = []
 # Stop after the TCB is initialized. Used for the K3 diagnostic image before
 # the PLIC/virtio based domain set has a K3 replacement.
 k3-diag = []
+# Embed the initramfs into the K3 kernel. The U-Boot control DTB does not
+# reliably carry a ramdisk, so the shell image avoids depending on it.
+k3-initrd = ["platform/k3-initrd"]
 
 
 [lints.rust]

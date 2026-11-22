@@ -93,15 +93,32 @@ impl BufUartDomain for Uart {
     }
 
     fn getc(&self) -> AlienResult<Option<u8>> {
-        loop {
-            let mut inner = self.inner.lock();
-            if inner.rx_buf.is_empty() {
-                let tid = basic::current_tid()?.unwrap();
-                inner.wait_queue.push_back(tid);
-                drop(inner);
-                basic::wait_now()?;
-            } else {
-                return Ok(inner.rx_buf.pop_front());
+        if basic::config::IS_K3 {
+            // No interrupt controller on K3 yet, so poll the UART directly.
+            loop {
+                {
+                    let mut inner = self.inner.lock();
+                    if let Some(ch) = inner.rx_buf.pop_front() {
+                        return Ok(Some(ch));
+                    }
+                }
+                let uart = self.uart.get_must();
+                if let Some(ch) = uart.getc()? {
+                    return Ok(Some(ch));
+                }
+                basic::yield_now()?;
+            }
+        } else {
+            loop {
+                let mut inner = self.inner.lock();
+                if inner.rx_buf.is_empty() {
+                    let tid = basic::current_tid()?.unwrap();
+                    inner.wait_queue.push_back(tid);
+                    drop(inner);
+                    basic::wait_now()?;
+                } else {
+                    return Ok(inner.rx_buf.pop_front());
+                }
             }
         }
     }
@@ -112,7 +129,13 @@ impl BufUartDomain for Uart {
     }
 
     fn have_data_to_get(&self) -> AlienResult<bool> {
-        Ok(!self.inner.lock().rx_buf.is_empty())
+        if !self.inner.lock().rx_buf.is_empty() {
+            return Ok(true);
+        }
+        if basic::config::IS_K3 {
+            return self.uart.get_must().have_data_to_get();
+        }
+        Ok(false)
     }
 
     fn have_space_to_put(&self) -> AlienResult<bool> {

@@ -108,6 +108,11 @@ fn init_filesystem_before(initrd: &[u8]) -> VfsResult<Arc<dyn VfsDentry>> {
         map_shadow.insert(VFS_STDERR_ID, ());
     }
 
+    if basic::config::IS_K3 {
+        // K3 has no block device yet; the root filesystem comes from
+        // ramfs and initramfs.
+        return Ok(ramfs_root);
+    }
     let fatfs_domain = basic::get_domain("fatfs-1").unwrap();
     match fatfs_domain {
         DomainType::FsDomain(fatfs) => {

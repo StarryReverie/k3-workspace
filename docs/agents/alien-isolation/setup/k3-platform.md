@@ -55,6 +55,19 @@ initrd 重定位
 `cfg(k3)` 在 `kernel/src/domain/mod.rs` 中为 `PlicType` 选择了 SiFive 分支，
 只是为了通过类型检查；诊断模式不会走到该代码。
 
+## Shell 模式
+
+M3 增加 `--mode shell`。该模式构建 K3 域、用户 init 与 bash，并把 initramfs
+嵌入内核，启动后进入轮询 UART shell。控制台细节见
+[`k3-console.md`](k3-console.md)，测试见 [`../testing/k3-shell.md`](../testing/k3-shell.md)。
+
+```bash
+./scripts/alien-isolation/build-k3.sh --mode shell --smp 2
+./scripts/alien-isolation/test-k3-shell.py --build all
+```
+
+诊断模式仍保留，用于只验证 TCB 的场景。
+
 ## 构建
 
 ```bash
@@ -174,8 +187,8 @@ DTB 报告 16 个 hart，诊断内核只启动 `CPU_NUM` 范围内的前 N 个�
 
 ## 已知限制
 
-- 诊断模式不启动域，也没有用户态与 shell。
+- 诊断模式不启动域；shell 模式已提供用户态与轮询控制台。
 - 未初始化 IMSIC、APLIC 或 PLIC，外部中断不可用。
-- 未接入 K3 UART 输入，控制台只有 SBI 输出。
-- 域构建仍是 QEMU 配置；启用域之前必须用 `PLATFORM=k3` 重建。
-- FIT 只包含内核，未包含 ramdisk 与设备树。
+- 内核日志仍走 SBI，用户态控制台走 UART MMIO。
+- 域构建必须使用 `PLATFORM=k3`，否则会退回 QEMU 配置。
+- FIT 只包含内核；shell 模式的 initramfs 嵌入内核。

@@ -162,6 +162,7 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
         }
     }
 
+    if !basic::config::IS_K3 {
     match blk {
         Some(_) => {
             let blk_id = alloc_device_id(VfsNodeType::BlockDevice);
@@ -177,6 +178,10 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
             .unwrap();
         }
         None => panic!("blk domain not found"),
+    }
+    } else {
+        let _ = blk;
+        println!("blk domain not found, skip /dev/sda on k3");
     }
 
     match rtc {

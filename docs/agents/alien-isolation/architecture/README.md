@@ -54,6 +54,10 @@
 从 hart 在 `STARTED` 标志上自旋，等主 hart 完成域装载后再开启分页、初始化
 trap，并进入调度。
 
+主 hart 不能靠 `STARTED` 的 `compare_exchange` 选举。`platform_init` 会在
+进入 `main` 之前启动从 hart，从 hart 可能先到达比较操作并抢到主路径。
+`platform_init` 现在先记录 `BOOT_HART`，`main` 只允许该 hart 初始化 TCB。
+
 ## 平台选择
 
 平台由构建时的 `PLATFORM` 环境变量决定，默认 `qemu_riscv`。
@@ -71,9 +75,11 @@ trap，并进入调度。
 
 两者必须一致。K3 均为 24 MHz。
 
-域构建默认不传 `PLATFORM`，因此域配置按 QEMU 的 12.5 MHz 编译。M2 的诊断
-模式不启动域，暂不受影响。启用域之前必须用 `PLATFORM=k3` 重建域，否则时间
-换算会偏差约一倍。
+域构建必须传 `PLATFORM=k3`，否则域配置按 QEMU 的 12.5 MHz 编译，时间换算
+会偏差约一倍。
+
+`cfg(k3)` 只对发出该 cfg 的 crate 生效。域 crate 没有自己的 `build.rs`，
+因此域侧不使用 `#[cfg(k3)]`，而是读取 `config::IS_K3` 常量。
 
 ## 内存模型
 
@@ -114,8 +120,15 @@ K3 使用 IMSIC 与 APLIC，不使用 PLIC。`MachineInfo.plic` 在 K3 上为 `0
 `clint` 字段会匹配到 `0xf1810000..0xf1820000`，但该节点不是 K3 外部中断的
 使用入口。依赖 PLIC 的初始化不能在 K3 上直接运行。
 
-`initrd` 只有在启动器填充 `/chosen` 时才存在。QEMU 的 `-initrd` 与 U-Boot
-`bootm` 的 ramdisk 都会填充。诊断模式允许没有 initrd。
+`initrd` 只有在启动器填充 `/chosen` 时才存在。QEMU 的 `-initrd` 可以填充；
+K3 的 U-Boot 控制设备树不会可靠地携带 FIT ramdisk，因此 K3 shell 镜像通过
+`k3-initrd` 特性把 initramfs 嵌入内核，并在 `basic_machine_info` 中覆盖
+`initrd`。
+
+设备探测会跳过 `status != "okay"` 的节点。K3 的 UART 节点没有 `interrupts`
+属性，节点名也不一定是 `uart*` 或 `serial*`，因此 `probe_uart` 还会按
+`ns16550`、`8250`、`xscale`、`k3-uart` 扫描 compatible。K3 不探测 PCIe 与
+virtio：virtio-mmio 注册会读取 MMIO，而该操作发生在 trap 初始化之前。
 
 ## 域装载的前置条件
 
@@ -159,11 +172,29 @@ M2 因此引入 `k3-diag`：只验证 DTB、内存、分页、initrd 重定位�
   `rerun-if-env-changed` 跟踪，否则 Cargo 会复用旧产物。
 - 启动 hart 不固定。高地址 QEMU 的 8 核运行中出现过启动 hart 为 1 的情况。
 
+## K3 控制台阶段的域调整
+
+在 AIA 尚未接入时，域集合通过以下调整运行：
+
+| 位置 | 调整 |
+|---|---|
+| `plic` 域 | `PlicType::None`，只占位，不访问硬件 |
+| `uart8250` 域 | K3 下按 XScale 初始化，FCR/MCR/IER 分别处理 FIFO、OUT2、UUE |
+| `uart16550` 域 | K3 构建中不启用接收中断，保持轮询 |
+| `buf_uart` 域 | K3 下直接轮询 UART，不等待 IRQ 唤醒 |
+| `vfs` 域 | K3 跳过 FAT 与 `/dev/sda`，根文件系统来自 ramfs 与 initramfs |
+| `devfs` 域 | K3 不创建 `/dev/sda` |
+| 设备表 | K3 添加 loopback，满足 `net_stack` 与 `vfs` 对 NIC 的依赖 |
+| 域构建工具 | 子 `cargo build` 失败时立即退出，不再复制旧产物 |
+
+`cargo domain` 原先会忽略子构建失败，导致“构建成功但运行旧 ELF”。该问题在
+PLIC 域上实际出现过。
+
 ## 对后续阶段的含义
 
 | 阶段 | 需要在 TCB 或平台层完成的工作 |
 |---|---|
-| M3 中断与控制台 | IMSIC/APLIC 初始化；UART 域替换为 XScale 模型；控制台输入中断 |
+| M3 中断与控制台 | IMSIC/APLIC 初始化与中断驱动 UART；轮询控制台与 shell 已完成 |
 | M4 存储 | SDHCI 块设备域；`/tests` 从 SD 卡挂载；域构建切换到 `PLATFORM=k3` |
 | M5 PCIe/NVMe | K3 主机桥与 PHY 初始化；ECAM 映射；NVMe 块设备域 |
 | M6 收尾 | 域集合的平台化；K3 上完整 shell 与多核回归 |

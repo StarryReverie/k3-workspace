@@ -10,6 +10,21 @@ impl<const W: usize> Uart8250<W> {
     }
 
     pub fn enable_receive_interrupt(&self) -> AlienResult<()> {
+        if basic::config::IS_K3 {
+            // XScale UART: IER bit6 (UUE) enables the unit and MCR bit3
+            // (OUT2) gates the interrupt line. RX interrupt stays off while
+            // the console is polled.
+            const IER_UUE: u32 = 0x40;
+            const MCR_OUT2: u32 = 0x08;
+            const FCR_ENABLE_RX1: u32 = 0x01;
+            while self.getc()?.is_some() {}
+            self.region.write_at::<u32>(W * 2, FCR_ENABLE_RX1).unwrap();
+            let mcr = self.region.read_at::<u32>(W * 4).unwrap();
+            self.region.write_at::<u32>(W * 4, mcr | MCR_OUT2).unwrap();
+            let ier = self.region.read_at::<u32>(W).unwrap();
+            self.region.write_at::<u32>(W, ier | IER_UUE).unwrap();
+            return Ok(());
+        }
         let ier = self.region.read_at::<u32>(W).unwrap() as u8;
         self.region.write_at::<u32>(W, (ier | 1) as u32).unwrap();
         Ok(())

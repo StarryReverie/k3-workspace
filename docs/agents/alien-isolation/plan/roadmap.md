@@ -36,8 +36,13 @@ M2 已完成，记录见 [`../setup/k3-platform.md`](../setup/k3-platform.md)、
 在高地址 QEMU 与真实 BananaPi BPI-SM10 上以 1/2/8 核完成 DTB、内存、分页、
 initrd 重定位与从 hart 启动，FIT 可由 U-Boot `bootm` 加载。
 
-当前进入 M3：IMSIC/APLIC 中断域、K3 XScale UART 控制台与输入中断。M3 还要把
-域构建切换到 `PLATFORM=k3`，并替换依赖 PLIC 与 virtio 的 QEMU 域集合。
+M3 的控制台与 shell 部分已完成，记录见 [`../setup/k3-console.md`](../setup/k3-console.md)
+与 [`../testing/k3-shell.md`](../testing/k3-shell.md)：域构建切换到 `PLATFORM=k3`，
+K3 XScale UART 使用轮询模式，PLIC 位点由 `PlicType::None` 占位，shell 在
+QEMU 与真实板卡上可用。
+
+M3 剩余工作是 IMSIC/APLIC 中断域与中断驱动 UART。完成后再进入 M4 的 SDHCI
+存储。
 
 ## 与旧计划的对应
 

@@ -26,4 +26,9 @@ pub struct PlicInfo {
 pub enum PlicType {
     Qemu,
     SiFive,
+    /// No external interrupt controller is initialized.
+    ///
+    /// K3 uses this while the UART is polled and the AIA domain is not yet in
+    /// place.
+    None,
 }

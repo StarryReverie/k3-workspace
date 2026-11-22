@@ -12,5 +12,9 @@ config = { path = "../../domain-lib/config" }
 spin = "0"
 fdt = { git = "https://github.com/repnop/fdt" }
 
+[features]
+# Embed build/k3-initramfs.cpio.gz into the K3 kernel image.
+k3-initrd = []
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(vf2)','cfg(qemu_riscv)','cfg(k3)'] }

@@ -52,7 +52,7 @@ pub fn build_domain(name: &str, log: String, dir: &str, output: &String) {
             let path = format!("./{}/{}/g{}/Cargo.toml", ty, name, name);
             let path = Path::new(&path);
             println!("Start building domain,path: {:?}", path);
-            let _cmd = std::process::Command::new("cargo")
+            let status = std::process::Command::new("cargo")
                 .arg("build")
                 .arg("--release")
                 .env("LOG", log)
@@ -66,6 +66,10 @@ pub fn build_domain(name: &str, log: String, dir: &str, output: &String) {
                 .arg("./target")
                 .status()
                 .expect("failed to execute cargo build");
+            if !status.success() {
+                eprintln!("Build domain [{}] failed: {}", name, status);
+                std::process::exit(1);
+            }
             println!("Build domain [{}] project success", name);
             std::process::Command::new("cp")
                 .arg(format!("./target/riscv64/release/g{}", name))
