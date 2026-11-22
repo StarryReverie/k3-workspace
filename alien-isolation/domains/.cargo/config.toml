@@ -16,3 +16,6 @@ linker = "riscv64-linux-gnu-gcc"
 lto = true
 strip = true
 opt-level = 3
+
+[resolver]
+incompatible-rust-versions = "fallback"

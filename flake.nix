@@ -5,7 +5,9 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     rust-overlay = {
-      url = "github:oxalica/rust-overlay";
+      # This revision still ships the 2024-10-25 nightly manifest and
+      # lets fetchurl infer the rust-src archive name.
+      url = "github:oxalica/rust-overlay/6604534e44090c917db714faa58d47861657690c";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -32,10 +34,18 @@
     {
       devShells = forAllSystems ({ pkgs, system, ... }:
         let
-          # The isolation tree upstream uses nightly-2024-10-25. That
-          # manifest is no longer exposed by current rust-overlay; use the
-          # earliest available nightly with a working rust-src.
-          rust = pkgs.rust-bin.nightly."2025-01-01".minimal.override {
+          crossGnu = pkgs.pkgsCross.riscv64.stdenv.cc;
+          crossMusl = pkgs.pkgsCross.riscv64-musl.stdenv.cc;
+          # Upstream build files use Debian-style cross names.
+          crossAliases = pkgs.runCommand "riscv64-cross-aliases" { } ''
+            mkdir -p $out/bin
+            ln -s ${crossGnu}/bin/riscv64-unknown-linux-gnu-gcc $out/bin/riscv64-linux-gnu-gcc
+            ln -s ${crossMusl}/bin/riscv64-unknown-linux-musl-gcc $out/bin/riscv64-linux-musl-gcc
+            ln -s ${crossMusl}/bin/riscv64-unknown-linux-musl-gcc $out/bin/riscv64-linux-musl-cc
+          '';
+
+          # Match the toolchain recorded by the isolation tree.
+          rust = pkgs.rust-bin.nightly."2024-10-25".minimal.override {
             targets = [
               "riscv64gc-unknown-none-elf"
               "riscv64gc-unknown-linux-musl"
@@ -54,6 +64,9 @@
             packages = [
               starrynix.packages.${system}.ostool
               rust
+              crossGnu
+              crossMusl
+              crossAliases
               pkgs.binutils
               pkgs.cpio
               pkgs.curl
@@ -106,7 +119,7 @@
               echo "  Alien K3 board boot:"
               echo "    ./scripts/alien/boot-k3-board.py"
               echo
-              echo "  toolchain: nightly-2025-01-01, targets riscv64gc-unknown-none-elf + riscv64gc-unknown-linux-musl"
+              echo "  toolchain: nightly-2024-10-25, targets riscv64gc-unknown-none-elf + riscv64gc-unknown-linux-musl"
               echo
               echo "  interrupt autoboot: Ctrl+C during 'Autoboot in 3 seconds'"
               echo "  serial exit: Ctrl+A, release, then x"

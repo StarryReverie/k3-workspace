@@ -1,0 +1,20 @@
+Alien isolation QEMU baseline, 2026-11-22
+Source: logs/tests/20261122-202123-alien-isolation-baseline.log
+Note: excerpt only; ANSI escapes removed.
+
+[0] Relocate initrd data to 0x842c5000
+[0] <register domain>: task
+[0] <register domain>: vfs
+[0][Domain:12] Init qemu plic success
+[0][Domain:14] init uart success
+[0][Domain:16] virtio_blk_addr: 0x10008000-0x10009000
+[0][Domain:16] [ INFO] ["/home/starryreverie/.cargo/git/checkouts/safe-virtio-drivers-517ed6a3b8a13a26/c926eb5/virtio-drivers/src/device/block/mod.rs":37] block device size: 73728KB
+[0][Domain:17] net stack init successes!
+[0][Domain:10] Initrd populate success
+[0][Domain:3] fatfs mount success
+[0][Domain:10] Init filesystem success
+[0][Domain:11] Init task domain success
+[0] Load domains done
+Init process is running
+[1][Domain:11] [ WARN] ["task/src/syscall/execve.rs":21] exec args: ["sh\0"] ,env: ["SHELL=/bash\0", "PWD=/\0", "LOGNAME=root\0", "MOTD_SHOWN=pam\0", "HOME=/root\0", "LANG=C.UTF-8\0", "TERM=vt220\0", "USER=root\0", "SHLVL=0\0", "OLDPWD=/root\0", "PS1=\u{1b}[1m\u{1b}[32mAlien\u{1b}[0m:\u{1b}[1m\u{1b}[34m\\w\u{1b}[0m\\$ \0", "_=/bin/bash\0", "PATH=/:/bin:/sbin:/tests\0", "LD_LIBRARY_PATH=/tests:/bin\0"]
+M0_OK

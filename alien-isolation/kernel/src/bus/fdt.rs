@@ -35,7 +35,32 @@ impl Probe for Fdt<'_> {
     }
 
     fn probe_plic(&self) -> Option<CommonDeviceType> {
-        self.probe_common("plic", false).map(CommonDeviceType::Plic)
+        if let Some(info) = self.probe_common("plic", false) {
+            return Some(CommonDeviceType::Plic(info));
+        }
+
+        // QEMU names the PLIC node "interrupt-controller@...".
+        for node in self.all_nodes() {
+            if !node.name.starts_with("interrupt-controller@") {
+                continue;
+            }
+            let compatible = node.compatible().map(Compatible::first).unwrap_or("");
+            if !compatible.contains("plic") || compatible.contains("aplic") {
+                continue;
+            }
+            let Some(reg) = node.reg().and_then(|mut reg| reg.next()) else {
+                continue;
+            };
+            return Some(CommonDeviceType::Plic(CommonDeviceInfo {
+                address_range: Range {
+                    start: PhysAddr::from(reg.starting_address as usize),
+                    end: PhysAddr::from(reg.starting_address as usize + reg.size.unwrap()),
+                },
+                irq: None,
+                compatible: Some(compatible.to_string()),
+            }));
+        }
+        None
     }
 
     fn probe_virtio(&self) -> Option<Vec<CommonDeviceType>> {

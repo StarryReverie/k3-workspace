@@ -9,8 +9,8 @@
 |---|---|
 | `main` 合并旧 `alien` | 完成，快进合并 |
 | vendor Alien `isolation` 与两个子模块 | 完成 |
-| 统一 devShell 工具链 | 完成，`nightly-2025-01-01` |
-| QEMU 基线构建与启动 | 待开始 |
+| 统一 devShell 工具链 | 完成，`nightly-2024-10-25` |
+| QEMU 基线构建与启动 | 完成，26 init 域、8 disk 域、shell 可用 |
 | K3 平台适配 | 待开始 |
 
 ## 固定信息
@@ -33,7 +33,8 @@ domain-lib  136007cdca82531f97a4e8da082b2ce48b839d2f
 | 路径 | 内容 |
 |---|---|
 | [`setup/vendoring.md`](setup/vendoring.md) | 源码版本、目录约定、裁剪范围与更新方式 |
-| [`setup/toolchain.md`](setup/toolchain.md) | devShell 工具链选择与兼容性 |
+| [`setup/toolchain.md`](setup/toolchain.md) | Rust 与交叉编译工具链 |
+| [`setup/qemu-baseline.md`](setup/qemu-baseline.md) | QEMU 构建、启动与 shell 验收 |
 | [`plan/roadmap.md`](plan/roadmap.md) | 从 vendor 到 K3 PCIe/NVMe 的粗略路线 |
 
 新文档按主题放入子目录，不使用数字前缀。
