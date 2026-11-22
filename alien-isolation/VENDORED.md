@@ -69,7 +69,15 @@ Cargo 缓存。以下依赖仍从 crates.io 或 Git 仓库获取：
 因此本目录不是完全离线可构建的快照；这与“只 vendor Alien、domains、
 domain-lib 三个源码仓库”的约定一致。
 
-## 6. 本地改动
+## 6. 工具链
+
+上游 `rust-toolchain.toml` 固定 `nightly-2024-10-25`，但当前 rust-overlay 已不再
+提供该 nightly 的清单；强行使用旧 overlay 时，`rust-src` 组件无法被 Nix 解包。
+因此根目录 `flake.nix` 暂用 `nightly-2025-01-01`，这是当前 rust-overlay 中
+仍然带可用 `rust-src` 的最早版本。上游工具链文件保留原值，仅作版本记录；
+实际构建以 devShell 中的 `rustc`、`cargo` 为准。
+
+## 7. 本地改动
 
 本地平台适配、构建脚本与测试直接提交在 `alien-isolation/` 中，不另存补丁
 文件。上游更新时：
@@ -80,7 +88,7 @@ domain-lib 三个源码仓库”的约定一致。
 4. 更新本文件的提交与日期。
 5. 重新执行 QEMU 与 K3 构建验证。
 
-## 7. 构建入口
+## 8. 构建入口
 
 上游 `Makefile` 保留作参考，但其 `sdcard` 目标依赖 `sudo mount`，`initrd`
 目标依赖交互式 BusyBox 配置。K3 工作流不直接使用该 Makefile，而是在

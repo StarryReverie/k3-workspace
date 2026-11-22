@@ -32,7 +32,10 @@
     {
       devShells = forAllSystems ({ pkgs, system, ... }:
         let
-          rust = pkgs.rust-bin.nightly."2025-05-20".minimal.override {
+          # The isolation tree upstream uses nightly-2024-10-25. That
+          # manifest is no longer exposed by current rust-overlay; use the
+          # earliest available nightly with a working rust-src.
+          rust = pkgs.rust-bin.nightly."2025-01-01".minimal.override {
             targets = [
               "riscv64gc-unknown-none-elf"
               "riscv64gc-unknown-linux-musl"
@@ -103,7 +106,7 @@
               echo "  Alien K3 board boot:"
               echo "    ./scripts/alien/boot-k3-board.py"
               echo
-              echo "  toolchain: nightly-2025-05-20, targets riscv64gc-unknown-none-elf + riscv64gc-unknown-linux-musl"
+              echo "  toolchain: nightly-2025-01-01, targets riscv64gc-unknown-none-elf + riscv64gc-unknown-linux-musl"
               echo
               echo "  interrupt autoboot: Ctrl+C during 'Autoboot in 3 seconds'"
               echo "  serial exit: Ctrl+A, release, then x"
