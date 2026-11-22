@@ -1,7 +1,8 @@
-# Vendored Alien isolation tree
+# 源码导入
 
-本目录是 AlienOS `isolation` 分支及其两个子模块的源码快照，用于 K3 平台的
-隔离域架构移植。旧的 `alien/` 目录保留为宏内核版本参考，不与本目录混合。
+日期：2026-11-22
+状态：完成
+范围：AlienOS `isolation` 分支、`domains` 与 `domain-lib` 的源码快照
 
 ## 1. 固定版本
 
@@ -15,8 +16,11 @@ Alien 快照日期为 2026-01-22；两个子模块快照日期为 2025-11-19。
 
 ## 2. 目录约定
 
+源码放在仓库根目录的 `alien-isolation/`。旧的 `alien/` 不删除，作为宏内核
+版本参考。
+
 `domains/` 与 `domain-lib/` 已从 Git 子模块展开为普通目录，并移除各自的
-`.git`。本目录不再包含 `.gitmodules`，也不使用 `git submodule`。
+`.git`。新目录不包含 `.gitmodules`，也不使用 `git submodule`。
 
 必须保持以下同级关系：
 
@@ -73,9 +77,12 @@ domain-lib 三个源码仓库”的约定一致。
 
 上游 `rust-toolchain.toml` 固定 `nightly-2024-10-25`，但当前 rust-overlay 已不再
 提供该 nightly 的清单；强行使用旧 overlay 时，`rust-src` 组件无法被 Nix 解包。
-因此根目录 `flake.nix` 暂用 `nightly-2025-01-01`，这是当前 rust-overlay 中
-仍然带可用 `rust-src` 的最早版本。上游工具链文件保留原值，仅作版本记录；
-实际构建以 devShell 中的 `rustc`、`cargo` 为准。
+因此根目录 `flake.nix` 使用 `nightly-2025-01-01`，这是当前 rust-overlay 中
+仍然带可用 `rust-src` 的最早版本。
+
+实测切换到原来的 `nightly-2025-05-20` 会直接编译失败：isolation 使用旧式
+`#[naked]`，而该版本要求 `#[unsafe(naked)]`。因此全仓库只保留一套 devShell
+工具链，旧 `alien/` 不再保证在新 devShell 下构建。
 
 ## 7. 本地改动
 

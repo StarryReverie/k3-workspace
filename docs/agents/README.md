@@ -7,10 +7,13 @@
 | 路径 | 内容 |
 |---|---|
 | `01-platform.md` 至 `05-os-options.md` | K3 平台模型、U-Boot、Alpine 修复与方案对比 |
-| `alien/` | AlienOS 调研、QEMU 基线、K3 移植记录 |
+| `alien/` | AlienOS 宏内核版本的调研、QEMU 基线、K3 移植记录 |
+| `alien-isolation/` | AlienOS `isolation` 分支的源码导入与隔离域移植记录 |
 | `doc-conventions.md` | 文档与用语规范 |
 
-仓库根目录的 `alien/` 是 Alien 源码的 vendored 子集，不是工作记录。其来源与更新方式见 `alien/VENDORED.md`。
+仓库根目录的 `alien/` 与 `alien-isolation/` 是 Alien 源码的 vendored 快照，
+不是工作记录。旧树的来源见 `alien/VENDORED.md`；隔离树的来源、工具链与
+更新方式见 `docs/agents/alien-isolation/01-vendoring.md`。
 
 ## 新增主题的约定
 
