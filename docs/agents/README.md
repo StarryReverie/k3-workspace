@@ -13,12 +13,12 @@
 
 仓库根目录的 `alien/` 与 `alien-isolation/` 是 Alien 源码的 vendored 快照，
 不是工作记录。旧树的来源见 `alien/VENDORED.md`；隔离树的来源、工具链与
-更新方式见 `docs/agents/alien-isolation/01-vendoring.md`。
+更新方式见 `docs/agents/alien-isolation/setup/vendoring.md`。
 
 ## 新增主题的约定
 
-- 一个主题一个子目录，入口使用 `README.md`。
-- 同一主题的阶段记录使用 `01-`、`02-` 前缀，按时间或阶段排序。
+- 一个主题一个子目录，入口使用 `README.md`；主题内按阶段或模块再分目录。
+- 新增文档不使用数字前缀。既有数字前缀文件保持原样，不单独重命名。
 - 本地改动直接提交，不单独维护补丁目录；日志节选放入 `logs/`。
 - 关键版本、命令、验收结果与未验证项必须写入记录。
 - 不写口令、令牌、私钥与会话 cookie。

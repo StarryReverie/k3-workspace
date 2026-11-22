@@ -28,12 +28,15 @@ domain-lib  136007cdca82531f97a4e8da082b2ce48b839d2f
 普通目录，不再使用 Git submodule。第三方 crate 不做 vendor，由 `Cargo.lock`
 固定版本。
 
-## 文件
+## 目录
 
-| 文件 | 内容 |
+| 路径 | 内容 |
 |---|---|
-| `01-vendoring.md` | 源码版本、目录约定、裁剪范围、工具链与更新方式 |
-| `02-roadmap.md` | 从 vendor 到 K3 PCIe/NVMe 的粗略路线 |
+| [`setup/vendoring.md`](setup/vendoring.md) | 源码版本、目录约定、裁剪范围与更新方式 |
+| [`setup/toolchain.md`](setup/toolchain.md) | devShell 工具链选择与兼容性 |
+| [`plan/roadmap.md`](plan/roadmap.md) | 从 vendor 到 K3 PCIe/NVMe 的粗略路线 |
+
+新文档按主题放入子目录，不使用数字前缀。
 
 ## 与旧记录的关系
 
