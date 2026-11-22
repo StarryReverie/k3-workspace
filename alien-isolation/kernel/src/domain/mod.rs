@@ -81,6 +81,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
     );
 
     let mut nic_irq = 0;
+    let mut has_block = false;
 
     for device in platform_bus.common_devices().iter() {
         let address = device.address().as_usize();
@@ -145,12 +146,15 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, "mem_block")?;
                 ramdisk.init_by_box(Box::new(address..address + size))?;
                 #[cfg(not(feature = "bench"))]
-                register_domain!(
-                    "block",
-                    domain_file_info,
-                    DomainType::BlkDeviceDomain(ramdisk),
-                    false
-                );
+                {
+                    register_domain!(
+                        "block",
+                        domain_file_info,
+                        DomainType::BlkDeviceDomain(ramdisk),
+                        false
+                    );
+                    has_block = true;
+                }
                 #[cfg(feature = "bench")]
                 register_domain!(
                     "bench_block",
@@ -176,15 +180,28 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 nic_irq = irq.unwrap();
             }
             "sdcard" => {
+                #[cfg(k3)]
+                let domain_name = "k3_sd";
+                #[cfg(not(k3))]
+                let domain_name = "vf2_sd";
                 let (sdcard, domain_file_info) =
-                    create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, "vf2_sd")?;
+                    create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, domain_name)?;
                 sdcard.init_by_box(Box::new(address..address + size))?;
-                register_domain!(
-                    "block",
-                    domain_file_info,
-                    DomainType::BlkDeviceDomain(sdcard),
-                    false
-                );
+                let capacity = sdcard.get_capacity()?;
+                if capacity == 0 {
+                    // No card or no formatted FAT partition. Keep the block
+                    // stack disabled instead of failing domain loading.
+                    println!("sdcard: no usable card, block stack disabled");
+                } else {
+                    println!("sdcard: {} blocks", capacity);
+                    register_domain!(
+                        "block",
+                        domain_file_info,
+                        DomainType::BlkDeviceDomain(sdcard),
+                        false
+                    );
+                    has_block = true;
+                }
             }
             _ => {
                 warn!("unknown device: {}", device.name());
@@ -229,6 +246,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainType::BlkDeviceDomain(blk_driver),
                     false
                 );
+                has_block = true;
                 // register irq
             }
             VirtioMmioDeviceType::Input => {
@@ -296,9 +314,9 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
             plic.register_irq(nic_irq as _, &DVec::from_slice("net_stack".as_bytes()))?
         }
     }
-    // create shadow block and cache block device
-    #[cfg(not(k3))]
-    {
+    // create shadow block and cache block device only when a usable block
+    // device exists; K3 must still boot without an SD card.
+    if has_block {
         let (shadow_blk, domain_file_info) = create_domain!(
             ShadowBlockDomainProxy,
             DomainTypeRaw::ShadowBlockDomain,

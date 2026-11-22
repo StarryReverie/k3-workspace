@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "k3_sd",
+    "gk3_sd",
+]
+
+resolver = "2"

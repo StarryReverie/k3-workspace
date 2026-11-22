@@ -89,13 +89,15 @@ K3 的 FDT 探测做以下调整：
 
 ## 根文件系统
 
-K3 没有块设备，VFS 调整如下：
+M3 阶段 K3 还没有块设备，VFS 以 ramfs 为根：
 
-- 跳过 `fatfs-1` 与 `/dev/sda` 挂载；
-- 根文件系统使用 ramfs；
+- 没有 `cache_blk-1` 时跳过 FAT 与 `/dev/sda`；
 - initramfs 解出 `bin/`、`sbin/` 与 `tests/`；
-- devfs 不创建 `/dev/sda`；
 - `/tests/init` 与 `/tests/bash` 来自 initramfs。
+
+M4 增加 SDHCI 后，有可用卡时块栈会创建 `cache_blk-1`，devfs 创建
+`/dev/sda`，FAT 挂载到 `/mnt`；无卡时仍走上面的回退路径。细节见
+[`k3-storage.md`](k3-storage.md)。
 
 initramfs 通过内核特性 `k3-initrd` 嵌入内核 `.rodata`。U-Boot 控制设备树
 不可靠地携带 ramdisk，因此 shell 镜像不依赖 FIT ramdisk。构建顺序必须是：
@@ -157,6 +159,6 @@ alien-k3-shell.itb     U-Boot FIT
 
 - 定时器中断仍由 SBI/CLINT 路径处理，AIA 只接管外部中断。
 - 内核日志走 SBI，用户态控制台走 UART MMIO，两条路径可能交错。
-- 无块设备、SDHCI、网络与 PCIe。
+- 存储见 [`k3-storage.md`](k3-storage.md)；网络与 PCIe 尚未接入。
 - 域仍按 QEMU/k3 两套 cfg 构建，尚未形成通用的平台抽象。
 - K3 不同固件版本的 AIA 地址不同，平台同时映射两套地址。

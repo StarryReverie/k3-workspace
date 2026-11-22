@@ -42,7 +42,12 @@ M3 已完成，记录见 [`../setup/k3-console.md`](../setup/k3-console.md)、
 K3 XScale UART 由 IMSIC/APLIC 驱动，QEMU 使用 UART IRQ 10，板端使用 IRQ 42。
 QEMU 1/2/8 核与真实板卡 2/8 核均可交互。
 
-下一步是 M4：SDHCI 只读块设备域、FAT 挂载与 K3 存储。
+M4 已完成，记录见 [`../setup/k3-storage.md`](../setup/k3-storage.md) 与
+[`../testing/k3-storage.md`](../testing/k3-storage.md)：新增 `k3_sd` 只读块设备
+域，复用 `shadow_blk`/`cache_blk` 块栈，在板端把 SD 卡 FAT 分区挂载到
+`/mnt`，2 核与 8 核均能读取 `HELLO.TXT`。无卡时跳过块栈并继续启动。
+
+下一步是 M5：PCIe/NVMe。
 
 ## 与旧计划的对应
 
@@ -66,9 +71,9 @@ QEMU 1/2/8 核与真实板卡 2/8 核均可交互。
 
 ## 下一步
 
-进入 M4：
+进入 M5：
 
-1. 从 K3 设备树探测 SDHCI 控制器与卡检测 GPIO。
-2. 实现 SDHCI 只读块设备域，使用安全的 MMIO 与 DMA 抽象。
-3. 让 FAT 域挂载 SD 卡，恢复 `/tests` 与块设备节点。
-4. 保持 QEMU virtio 路径不回归，并补 1/2/8 核与板端测试。
+1. 在 QEMU 上补 PCIe ECAM 与 NVMe 块设备域，验证 Identify 与 FAT 读取。
+2. 取证 K3 主机桥、APMU、PHY、PERST# 与 LTSSM 状态。
+3. 实现 K3 iATU 映射与 NVMe 块设备域。
+4. 保留 SDHCI 与 virtio 路径，补 QEMU 与板端回归。

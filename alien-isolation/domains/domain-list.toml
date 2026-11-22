@@ -33,6 +33,7 @@ members = [
     "loopback",
     "uart8250",
     "mem_block",
+    "k3_sd",
     "vf2_sd",
 ]
 
@@ -62,6 +63,7 @@ init_members = [
     "domainfs",
     "uart8250",
     "mem_block",
+    "k3_sd",
     "vf2_sd"
 ]
 

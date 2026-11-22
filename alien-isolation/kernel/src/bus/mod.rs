@@ -116,10 +116,10 @@ pub fn init_with_dtb() -> AlienResult<()> {
         };
         devices.push(CommonDeviceType::LoopBack(fake_nic));
     }
-    #[cfg(all(vf2, vf2_sd))]
-    dtb.probe_sd().map(|ty| {
+    #[cfg(any(k3, all(vf2, vf2_sd)))]
+    if let Some(ty) = dtb.probe_sd() {
         devices.push(ty);
-    });
+    }
 
     devices.into_iter().for_each(|ty| match ty {
         CommonDeviceType::Plic(info) => platform::register_platform_device(info, "plic"),

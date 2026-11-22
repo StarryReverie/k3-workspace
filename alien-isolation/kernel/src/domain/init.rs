@@ -34,6 +34,8 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("uart8250", DomainTypeRaw::UartDomain),
     #[cfg(k3)]
     ("loopback", DomainTypeRaw::NetDeviceDomain),
+    #[cfg(k3)]
+    ("k3_sd", DomainTypeRaw::BlkDeviceDomain),
     ("net_stack", DomainTypeRaw::NetDomain),
     ("logger", DomainTypeRaw::LogDomain),
     ("domainfs", DomainTypeRaw::FsDomain),

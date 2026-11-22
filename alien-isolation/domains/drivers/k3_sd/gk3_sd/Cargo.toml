@@ -1,0 +1,17 @@
+[package]
+name = "gk3_sd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+malloc = { path = "../../../../domain-lib/malloc" }
+corelib = { path = "../../../../domain-lib/corelib" }
+basic = { path = "../../../../domain-lib/basic" }
+shared_heap = { path = "../../../../domain-lib/shared_heap" }
+interface = { path = "../../../../domain-lib/interface", features = ["domain"] }
+storage = { path = "../../../../domain-lib/storage", features = ["impl"] }
+k3_sd = { path = "../k3_sd" }
+
+[features]
+default = ["rust-unwind"]
+rust-unwind = []

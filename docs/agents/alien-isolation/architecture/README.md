@@ -159,7 +159,7 @@ virtio，UART 也不是 16550 兼容的编程模型。
 |---|---|---|
 | 外部中断 | PLIC | IMSIC + APLIC |
 | 控制台 | SBI 或 16550 | SBI 输出，XScale 型 UART |
-| 块设备 | virtio-mmio | SDHCI、UFS、NVMe |
+| 块设备 | virtio-mmio | SDHCI（M4 只读）、后续 UFS/NVMe |
 | 启动方式 | `-kernel` 与 `-initrd` | U-Boot FIT 与 `bootm` |
 | 链接地址 | `0x80200000` | `0x102200000` |
 | 时间基准 | 12.5 MHz | 24 MHz |
@@ -202,11 +202,24 @@ K3 板端 DTB 同时暴露两套 S-level IMSIC/APLIC。内核优先选择带
 `msi-parent` 匹配其 phandle。板端最终选中 UART 所在的
 `0xe0400000/0xe0804000`；QEMU 选中 `0x28000000/0x0d000000`。
 
+## K3 存储
+
+M4 新增 `k3_sd` 块设备域，直接访问 `sdh@d4280000`：
+
+- 标准 SDHCI 寄存器，轮询 PIO 单块读，无 DMA 与中断。
+- `Present State` 的缓冲区就绪位为 bit11（通用 SDHCI 为 bit9）。
+- 读取 MBR 后取第一个 FAT 分区，`get_capacity` 返回分区扇区数。
+- `write_block` 返回 `EROFS`，保持只读。
+
+块栈保持通用结构：`block-1` → `shadow_blk-1` → `cache_blk-1` →
+`/dev/sda` → FAT。内核在 `get_capacity()` 为 0 时不创建块栈，因此无卡启动
+不会失败。K3 的 FAT 挂载到 `/mnt`，避免覆盖 initramfs 的 `/tests`。
+
 ## 对后续阶段的含义
 
 | 阶段 | 需要在 TCB 或平台层完成的工作 |
 |---|---|
 | M3 中断与控制台 | 完成：AIA 初始化、UART IRQ 与中断驱动 shell；板端 2/8 核通过 |
-| M4 存储 | SDHCI 块设备域；`/tests` 从 SD 卡挂载；域构建切换到 `PLATFORM=k3` |
+| M4 存储 | 完成：SDHCI 只读块设备域；FAT 挂载 `/mnt`；板端 2/8 核读取文件 |
 | M5 PCIe/NVMe | K3 主机桥与 PHY 初始化；ECAM 映射；NVMe 块设备域 |
 | M6 收尾 | 域集合的平台化；K3 上完整 shell 与多核回归 |

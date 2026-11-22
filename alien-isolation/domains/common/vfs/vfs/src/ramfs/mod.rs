@@ -46,6 +46,7 @@ pub fn init_ramfs(root_dt: &Arc<dyn VfsDentry>) -> VfsResult<()> {
     root_inode.create("sys", VfsNodeType::Dir, "rwxr-xr-x".into(), None)?;
     root_inode.create("tmp", VfsNodeType::Dir, "rwxrwxrwx".into(), None)?;
     root_inode.create("tests", VfsNodeType::Dir, "rwxr-xr-x".into(), None)?;
+    root_inode.create("mnt", VfsNodeType::Dir, "rwxr-xr-x".into(), None)?;
     root_inode.create("domain", VfsNodeType::Dir, "rwxr-xr-x".into(), None)?;
 
     let _bashrc = root.create(".bashrc", VfsNodeType::File, "rwxrwxrwx".into(), None)?;

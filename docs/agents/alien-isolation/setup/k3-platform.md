@@ -7,7 +7,8 @@
 相关文档：[`../architecture/README.md`](../architecture/README.md)、[`../testing/k3-qemu.md`](../testing/k3-qemu.md)
 
 本文记录隔离内核的 K3 平台配置、诊断镜像与高地址 QEMU 回归。诊断镜像只初始化
-可信基，不启动域；AIA 中断、XScale UART、SDHCI 与 PCIe 留给后续阶段。
+可信基，不启动域；M3/M4 已完成 AIA 中断、XScale UART 与 SDHCI，PCIe 留给
+后续阶段。
 
 ## 平台配置
 

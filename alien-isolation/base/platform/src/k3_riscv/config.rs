@@ -13,6 +13,7 @@ pub const UART_IRQ: usize = 42;
 /// S-level AIA 地址。
 pub const DEVICE_SPACE: &[(&str, usize, usize)] = &[
     ("uart", 0xd4017000, 0x1000),
+    ("sdhci", 0xd4280000, 0x1000),
     // Addresses reported by the current BPI-SM10 U-Boot control DTB.
     ("imsic-k3", 0xf1000000, 0x10000),
     ("aplic-k3", 0xf1800000, 0x4000),

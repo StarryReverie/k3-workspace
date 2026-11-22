@@ -19,7 +19,6 @@ pub trait Probe {
     fn probe_virtio(&self) -> Option<Vec<CommonDeviceType>>;
     fn probe_common(&self, device_name: &str, has_irq: bool) -> Option<CommonDeviceInfo>;
     fn probe_pci(&self) -> Option<CommonDeviceType>;
-    #[cfg(all(vf2, vf2_sd))]
     fn probe_sd(&self) -> Option<CommonDeviceType>;
 }
 
@@ -322,11 +321,41 @@ impl Probe for Fdt<'_> {
         self.probe_common("pci", false).map(CommonDeviceType::Pci)
     }
 
-    #[cfg(all(vf2, vf2_sd))]
     fn probe_sd(&self) -> Option<CommonDeviceType> {
-        match self.probe_common("sdio1", true) {
-            Some(device_info) => Some(CommonDeviceType::SdCard(device_info)),
-            None => None,
+        #[cfg(all(vf2, vf2_sd))]
+        if let Some(device_info) = self.probe_common("sdio1", true) {
+            return Some(CommonDeviceType::SdCard(device_info));
         }
+
+        // K3 uses a standard SDHCI controller at sdh@d4280000. The driver is
+        // polled, so no interrupt is required.
+        #[cfg(k3)]
+        for node in self.all_nodes() {
+            let Some(compatible) = node.compatible() else {
+                continue;
+            };
+            let is_sdhci = compatible
+                .all()
+                .any(|value| value.contains("sdhci") || value.contains("sdh"));
+            if !is_sdhci {
+                continue;
+            }
+            let Some(reg) = node.reg().and_then(|mut reg| reg.next()) else {
+                continue;
+            };
+            let start = reg.starting_address as usize;
+            let size = reg.size.unwrap_or(0x1000) as usize;
+            let first = node.compatible().map(Compatible::first).unwrap_or("");
+            println!("sdhci fallback: {} {:#x}-{:#x}", first, start, start + size);
+            return Some(CommonDeviceType::SdCard(CommonDeviceInfo {
+                address_range: Range {
+                    start: PhysAddr::from(start),
+                    end: PhysAddr::from(start + size),
+                },
+                irq: None,
+                compatible: Some(first.to_string()),
+            }));
+        }
+        None
     }
 }

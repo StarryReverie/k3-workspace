@@ -108,11 +108,14 @@ fn init_filesystem_before(initrd: &[u8]) -> VfsResult<Arc<dyn VfsDentry>> {
         map_shadow.insert(VFS_STDERR_ID, ());
     }
 
-    if basic::config::IS_K3 {
-        // K3 has no block device yet; the root filesystem comes from
-        // ramfs and initramfs.
+    if basic::get_domain("cache_blk-1").is_none() {
+        // No block device (for example K3 without an SD card): the root
+        // filesystem stays on ramfs and initramfs.
+        println!("no block device, skip FAT mount");
         return Ok(ramfs_root);
     }
+    // K3 mounts the SD card at /mnt so the initramfs /tests stays visible.
+    let mount_point = if basic::config::IS_K3 { "/mnt" } else { "/tests" };
     let fatfs_domain = basic::get_domain("fatfs-1").unwrap();
     match fatfs_domain {
         DomainType::FsDomain(fatfs) => {
@@ -121,7 +124,7 @@ fn init_filesystem_before(initrd: &[u8]) -> VfsResult<Arc<dyn VfsDentry>> {
                 .open(None)
                 .expect("open /dev/sda failed");
             let _id = insert_dentry(blk_inode.clone(), OpenFlags::O_RDWR);
-            let mp = DVec::from_slice(b"/tests");
+            let mp = DVec::from_slice(mount_point.as_bytes());
             let blk_inode = blk_inode
                 .downcast_arc::<RootShimDentry>()
                 .map_err(|_| "blk_inode downcast failed")
@@ -140,7 +143,7 @@ fn init_filesystem_before(initrd: &[u8]) -> VfsResult<Arc<dyn VfsDentry>> {
             let root_inode_id = fatfs.mount(&mp, Some(DBox::new(info))).unwrap();
             let shim_inode =
                 RootShimDentry::new(fatfs, root_inode_id, Arc::new(Vec::from("fatfs-1")));
-            path.join("tests")?.mount(shim_inode, 0)?;
+            path.join(&mount_point[1..])?.mount(shim_inode, 0)?;
         }
         _ => panic!("fatfs domain not found"),
     }

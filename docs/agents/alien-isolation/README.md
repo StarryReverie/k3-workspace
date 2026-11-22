@@ -15,6 +15,7 @@
 | K3 诊断内核 | 完成，高地址 QEMU 与真实板卡 1/2/8 核 |
 | K3 控制台与 shell | 完成，QEMU 1/2/8 核；板端 2/8 核可交互 |
 | K3 AIA 中断 | 完成，UART IRQ 10（QEMU）/42（K3）中断驱动 |
+| K3 SDHCI 与 FAT | 完成，只读块设备，板端 2/8 核挂载 `/mnt` |
 
 ## 固定信息
 
@@ -42,10 +43,12 @@ domain-lib  136007cdca82531f97a4e8da082b2ce48b839d2f
 | [`setup/k3-platform.md`](setup/k3-platform.md) | K3 平台配置、诊断镜像与 FIT |
 | [`setup/k3-console.md`](setup/k3-console.md) | K3 UART、域调整与多核启动修复 |
 | [`setup/k3-aia.md`](setup/k3-aia.md) | IMSIC/APLIC、UART IRQ 与中断驱动控制台 |
+| [`setup/k3-storage.md`](setup/k3-storage.md) | SDHCI 块设备域、块栈与 FAT 挂载 |
 | [`testing/qemu-matrix.md`](testing/qemu-matrix.md) | 1/2/4/8 核回归、磁盘域动态装载与日志稳定性 |
 | [`testing/k3-qemu.md`](testing/k3-qemu.md) | K3 诊断内核的高地址 QEMU 回归 |
 | [`testing/k3-board.md`](testing/k3-board.md) | K3 诊断内核的真实板卡启动 |
 | [`testing/k3-shell.md`](testing/k3-shell.md) | K3 shell 的 QEMU 与板端回归 |
+| [`testing/k3-storage.md`](testing/k3-storage.md) | SDHCI、块栈与 FAT 的板端回归 |
 | [`plan/roadmap.md`](plan/roadmap.md) | 从 vendor 到 K3 PCIe/NVMe 的粗略路线 |
 
 新文档按主题放入子目录，不使用数字前缀。

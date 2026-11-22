@@ -1,0 +1,72 @@
+Alien isolation K3 storage, 2026-11-22
+Sources:
+  logs/boot-20261122-233659.log
+  logs/boot-20261122-233821.log
+  logs/tests/20261122-233927-alien-isolation-k3-shell-2.log
+  logs/tests/20261122-234006-alien-isolation-disk-load.log
+Note: excerpt only; ANSI escapes removed. Serial interleaving can corrupt
+individual characters in the board logs.
+
+=== board-storage-2
+[0] sdhci fallback: spacemit,k3-sdhci 0xd4280000-0xd4280200
+[0] <register domain>: cache_blk
+[0] <register domain>: shadow_blk
+[0][Domain:16] k3 sd: 0xd4280000-0xd4280200
+[0][Domain:16] SDHCI: base=0xd4280000 base_clock=200MHz state=0x1f70000 clock=0x0 power=0xf caps=0x35fc0080
+[0][Domain:16] SDHCI: card ready rca=0xaaaa v2=true high_capacity=true
+[0][Domain:16] SDHCI: partition lba=8192 blocks=62325760 (30432 MiB)
+[0][Domain:16] k3 sd init success
+[0] sdcard: 62325760 blocks
+[0] <attach domain>: block, it's name is block-1
+[0] <attach domain>: shadow_blk, it's name is shadow_blk-1
+[0] <attach domain>: cache_blk, it's name is cache_blk-1
+[0][Domain:3] fatfs mount success
+cho M4_START
+M4_START
+Alien:/# echo M4_COUNT:${#lines[@]}
+M4_COUNT:1
+Alien:/# echo M4_FIRST:${lines[0]}
+M4_FIRST:alien k3 sd mount ok
+Alien:/# echo M4_END
+M4_END
+
+=== board-storage-8
+[0] sdhci fallback: spacemit,k3-sdhci 0xd4280000-0xd4280200
+[0] <register domain>: cache_blk
+[0] <register domain>: shadow_blk
+[0][Domain:16] k3 sd: 0xd4280000-0xd4280200
+[0][Domain:16] SDHCI: base=0xd4280000 base_clock=200MHz state=0x1f70000 clock=0x0 power=0xf caps=0x35fc0080
+[0][Domain:16] SDHCI: card ready rca=0xaaaa v2=true high_capacity=true
+[0][Domain:16] SDHCI: partition lba=8192 blocks=62325760 (30432 MiB)
+[0][Domain:16] k3 sd init success
+[0] sdcard: 62325760 blocks
+[0] <attach domain>: block, it's name is block-1
+[0] <attach domain>: shadow_blk, it's name is shadow_blk-1
+[0] <attach domain>: cache_blk, it's name is cache_blk-1
+cho M4_START
+M4_START
+Alien:/# echo M4_GLOB: /mnt/*
+M4_GLOB: /mnt/HELLO.TXT
+Alien:/# echo M4_FIRST:${lines[0]}
+M4_FIRST:alien k3 sd mount ok
+Alien:/# echo M4_END
+M4_END
+
+=== qemu-k3-no-card
+scenario: k3-shell-2
+result: PASS
+[0] <register domain>: cache_blk
+[0] <register domain>: shadow_blk
+[0][Domain:10] blk domain not found, skip /dev/sda
+[0][Domain:10] no block device, skip FAT mount
+
+=== qemu-virtio-disk
+scenario: disk-load
+result: PASS
+[0] <register domain>: cache_blk
+[0] <register domain>: shadow_blk
+[0] <attach domain>: block, it's name is block-1
+[0] <attach domain>: shadow_blk, it's name is shadow_blk-1
+[0] <attach domain>: cache_blk, it's name is cache_blk-1
+[0][Domain:3] fatfs mount success
+[1][Domain:11] [ WARN] ["task/src/syscall/execve.rs":20] exec path: /tests/dvfs
