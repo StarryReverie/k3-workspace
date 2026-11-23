@@ -407,7 +407,10 @@ docs: record stage 9B pcie recon
   `0xd42829f4 = 0x83bf0000`，LTSSM_EN 与 PERSTN 释放位已置位。
 - 租用板卡的 DTB `model` 为 `spacemit k3 com260 ifx board`，不是
   BananaPi BPI-SM10；控制 DTB 也没有 `vpcie3v3` 供电属性。
-- 按本文验收条件，停止 9B 代码工作，先检查插槽、供电、分叉与 PERST#。
+- 正常启动 Linux 后，`spacemit-k1-pcie` 初始化 Port0/Port3/Port4：
+  Port4 链路 up，设备为 `10ec:b852` RTL8852 WiFi；Port0 与 Port3 仍
+  Link down，日志中没有 NVMe 或 class `0x010802` 设备。
+- 按本文验收条件，停止 9B 代码工作；当前板卡没有可发现的 NVMe。
 - 隔离树 M5A 仍按计划完成 QEMU ECAM/NVMe，不受链路状态影响。
 - 新树的完整记录见
   `docs/agents/alien-isolation/setup/k3-pcie-recon.md`。

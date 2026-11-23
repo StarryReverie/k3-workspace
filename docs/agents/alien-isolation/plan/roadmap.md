@@ -62,6 +62,12 @@ U-Boot 枚举不到 NVMe，记录见
 [`../testing/pcie-core.md`](../testing/pcie-core.md)。RAM DTB 启用 Port4 的
 实验未生效，因为 U-Boot 驱动模型在启动时已完成绑定。
 
+正常启动板上的 Linux 后确认：Port4（`81000000`）链路 up，设备是
+`10ec:b852` RTL8852 WiFi；Port0（x4 M.2）在 Linux 完整初始化后仍 Link
+down，日志中没有 `nvme` 或 class `0x010802`。因此当前板卡没有可被 Linux
+发现的 NVMe，M5B/M5C 的真实硬件验收需要换一块确实装盘的板卡。证据见
+[`../setup/k3-pcie-recon.md`](../setup/k3-pcie-recon.md)。
+
 ## 与旧计划的对应
 
 ```text
@@ -84,10 +90,12 @@ U-Boot 枚举不到 NVMe，记录见
 
 ## 下一步
 
-先确认 K3 的 M.2 盘安装、供电与 PERST#，然后继续 M5B/M5C：
+当前板卡经 Linux 确认没有 NVMe，M5B/M5C 的硬件验收需要换板：
 
-1. 重跑只读取证，直到 U-Boot `pci enum` 出现 `Link up` 与 `nvme info`。
-2. 通过 iATU 访问配置空间，确认 `01:00.0 class=0x010802`。
-3. 映射 BAR 与入站 DMA 窗口，把 BAR 区间接入现有 `nvme` 域。
-4. K3 上完成 Identify、分区与 `/mnt` 挂载。
+1. 换到确实装有 NVMe 的板卡（优先 BananaPi BPI-SM10），先正常启动 Linux。
+2. 确认 `dmesg` 出现 class `0x010802` 设备与 `nvme` 日志。
+3. 再跑 Alien 只读取证；出现 `Link up` 后验证 iATU/BAR 映射。
+4. 复用现有 `nvme` 域完成 Identify、分区与 `/mnt` 挂载。
 5. 保留 SDHCI 与 virtio 回退，补 QEMU 1/2/8 核与板端回归。
+
+换板之前可以继续 M6 收尾，或维护现有 QEMU 与 `pci-core` 单元测试。

@@ -17,7 +17,7 @@
 | K3 AIA 中断 | 完成，UART IRQ 10（QEMU）/42（K3）中断驱动 |
 | K3 SDHCI 与 FAT | 完成，只读块设备，板端 2/8 核挂载 `/mnt` |
 | QEMU PCIe 与 NVMe | 完成，ECAM 枚举、BAR 分配、只读 NVMe 域，1/2/8 核 |
-| K3 PCIe 链路 | 取证完成，U-Boot 两个启用端口均 Link down，待硬件确认 |
+| K3 PCIe 链路 | Linux 侧确认：Port4 为 RTL8852 WiFi，Port0（x4 M.2）Link down，未发现 NVMe |
 | K3 PCIe TCB 路径 | 完成，DTB 解析、条件映射、iATU 与 Link down 降级；板端 SD 回退正常 |
 
 ## 固定信息

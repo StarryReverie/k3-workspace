@@ -1,0 +1,75 @@
+Alien isolation K3 Linux PCIe evidence, 2026-11-23
+Source: logs/linux-boot-20261123-231824.log
+Boot: stock installed Linux, normal boot; no bootargs override.
+
+[    2.031959] spacemit-k1-pcie 80000000.pcie: iommu bypassed
+[    2.032126] spacemit-k1-pcie 80c00000.pcie: host bridge /soc/pcie@80c00000 ranges:
+[    2.032302] spacemit-k1-pcie 81000000.pcie: host bridge /soc/pcie@81000000 ranges:
+[    2.032325] spacemit-k1-pcie 81000000.pcie:       IO 0x12c0010000..0x12c010ffff -> 0x0000000000
+[    2.032341] spacemit-k1-pcie 81000000.pcie:      MEM 0x12c0110000..0x12ffffffff -> 0x00c0110000
+[    2.032351] spacemit-k1-pcie 81000000.pcie:      MEM 0x1300000000..0x13ffffffff -> 0x1300000000
+[    2.036887] spacemit-k1-pcie 80000000.pcie: host bridge /soc/pcie@80000000 ranges:
+[    2.044365] spacemit-k1-pcie 80c00000.pcie:       IO 0x1280010000..0x128010ffff -> 0x0000010000
+[    2.051926] spacemit-k1-pcie 80000000.pcie:       IO 0x1100010000..0x110010ffff -> 0x0000010000
+[    2.060620] spacemit-k1-pcie 80c00000.pcie:      MEM 0x1280110000..0x12bfffffff -> 0x0080110000
+[    2.069275] spacemit-k1-pcie 80000000.pcie:      MEM 0x1100110000..0x117fffffff -> 0x0000110000
+[    2.077988] spacemit-k1-pcie 80c00000.pcie:      MEM 0x1400000000..0x14ffffffff -> 0x1400000000
+[    2.083503] spacemit-k1-pcie 80000000.pcie:      MEM 0x1800000000..0x18ffffffff -> 0x1800000000
+[    2.136669] spacemit-k1-pcie 81000000.pcie: iATU: unroll T, 16 ob, 16 ib, align 64K, limit 4G
+[    2.147685] spacemit-k1-pcie 81000000.pcie: PCI host bridge to bus 0004:00
+[    2.223297] spacemit-k1-pcie 80c00000.pcie: iATU: unroll T, 16 ob, 16 ib, align 64K, limit 4G
+[    2.232141] pci 0004:00:00/0: [201f:0002] type 01 class 0x060400 PCIe Root Port
+[    2.258040] spacemit-k1-pcie 80000000.pcie: iATU: unroll T, 31 ob, 31 ib, align 64K, limit 4G
+[    2.260421] pci 0004:00:00.0: PCI bridge to [bus 01-ff]
+[    2.274129] pci 0004:00:00.0:   bridge window [io  0x0000-0x0fff]
+[    2.274135] pci 0004:00:00.0:   bridge window [mem 0x00000000-0x000fffff]
+[    2.274143] pci 0004:00:00.0:   bridge window [mem 0x00000000-0x000fffff 64bit pref]
+[    2.274203] pci 0004:00:00.0: supports D1
+[    2.286979] pci 0004:00:00.0: PME# supported from D0 D1 D3hot D3cold
+[    2.317731] pci 0004:01:00.0: [10ec:b852] type 00 class 0x028000 PCIe Endpoint
+[    2.326165] pci 0004:01:00.0: BAR 0 [io  0x0000-0x00ff]
+[    2.317731] pci 0004:01:00.0: [10ec:b852] type 00 class 0x028000 PCIe Endpoint
+[    2.326165] pci 0004:01:00.0: BAR 0 [io  0x0000-0x00ff]
+[    2.358431] pci 0004:01:00.0: BAR 2 [mem 0x00000000-0x000fffff 64bit]
+[    2.365364] pci 0004:01:00.0: PME# supported from D0 D3hot D3cold
+[    2.380553] pci 0004:01:00.0: ASPM: default states L0s
+[    2.402119] pci 0004:00:00.0: bridge window [mem 0x12c0200000-0x12c02fffff]: assigned
+[    2.402126] pci 0004:00:00.0: bridge window [io  0x1000-0x1fff]: assigned
+[    2.402132] pci 0004:01:00.0: BAR 2 [mem 0x12c0200000-0x12c02fffff 64bit]: assigned
+[    2.402174] pci 0004:01:00.0: BAR 0 [io  0x1000-0x10ff]: assigned
+[    2.402185] spacemit-k1-pcie 80c00000.pcie: PCI host bridge to bus 0003:00
+[    2.402189] pci 0004:00:00.0: PCI bridge to [bus 01]
+[    2.402193] pci 0004:00:00.0:   bridge window [io  0x1000-0x1fff]
+[    2.402199] pci 0004:00:00.0:   bridge window [mem 0x12c0200000-0x12c02fffff]
+[    2.402227] pci 0003:00:00.0: [201f:0002] type 01 class 0x060400 PCIe Root Port
+[    2.402243] pci 0003:00:00.0: PCI bridge to [bus 01-ff]
+[    2.402250] pci 0003:00:00.0:   bridge window [io  0x0000-0x0fff]
+[    2.402255] pci 0003:00:00.0:   bridge window [mem 0x00000000-0x000fffff]
+[    2.402262] pci 0003:00:00.0:   bridge window [mem 0x00000000-0x000fffff 64bit pref]
+[    2.402306] pci 0003:00:00.0: supports D1
+[    2.402309] pci 0003:00:00.0: PME# supported from D0 D1 D3hot D3cold
+[    2.421209] pci 0003:00:00.0: PCI bridge to [bus 01]
+[    2.421392] spacemit-k1-pcie 80000000.pcie: PCI host bridge to bus 0000:00
+[    2.421436] pci 0000:00:00.0: [201f:0002] type 01 class 0x060400 PCIe Root Port
+[    2.421450] pci 0000:00:00.0: BAR 0 [mem 0x00000000-0x07ffffff]
+[    2.421455] pci 0000:00:00.0: BAR 1 [mem 0x00000000-0x07ffffff]
+[    2.421460] pci 0000:00:00.0: PCI bridge to [bus 01-ff]
+[    2.421466] pci 0000:00:00.0:   bridge window [io  0x0000-0x0fff]
+[    2.421471] pci 0000:00:00.0:   bridge window [mem 0x00000000-0x000fffff]
+[    2.4214w8] pci 0000:00:00.0:   bridge window [mem 0x00000000-0x000fffff 64bit pref]
+[    2.421527] pci 0000:00:00.0: supports D1
+[    2.421529] pci 0000:00:00.0: PME# supported from D0 D1 D3hot D3cold
+[    2.421587] spacemit-k1-pcie 81000000.pcie: spacemit-pcie: link is up after host_init
+[    2.427065] pci 0000:00:00.0: BAR 0 [mem 0x1108000000-0x110fffffff]: assigned
+[    2.427071] pci 0000:00:00.0: BAR 1 [mem 0x1110000000-0x1117ffffff]: assigned
+[    2.427077] pci 0000:00:00.0: PCI bridge to [bus 01]
+[    2.427400] spacemit-k1-pcie 80000000.pcie: spacemit-pcie: link is down after host_init
+[    2.459264] spacemit-k1-pcie 80c00000.pcie: spacemit-pcie: link is down after host_init
+[    2.538396] pci 0004:00:00.0: PCI bridge to [bus 01]
+[    2.538401] pci 0004:00:00.0:   bridge window [io  0x1000-0x1fff]
+[    2.549675] pci 0004:00:00.0:   bridge window [mem 0x12c0200000-0x12c02fffff]
+[    3.987562] rfkill_gpio rfkill-pcie-wlan: rfkill-pcie-wlan device registered.
+[    3.997889] rfkill_gpio rfkill-m2-bt: rfkill-m2-bt device registered.
+dwmac-spacemit-ethqos cac82000.ethernet end1: Link is Up - 1Gbps/Full - flow control off
+Welcome to Alpine Linux 3.23
+k3-alpine login:

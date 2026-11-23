@@ -165,6 +165,34 @@ link 寄存器：
 
 PHY 与 link 块可读，但端口未进入 L0。
 
+## Linux 侧验证
+
+2026-11-23 正常启动板上的 Linux（不覆盖 `bootargs`），内核 6.18.3 的
+`spacemit-k1-pcie` 完成了完整的 APMU、PHY 与 iATU 初始化：
+
+```text
+spacemit-k1-pcie 81000000.pcie: link is up after host_init
+spacemit-k1-pcie 80000000.pcie: link is down after host_init
+spacemit-k1-pcie 80c00000.pcie: link is down after host_init
+pci 0004:01:00.0: [10ec:b852] type 00 class 0x028000 PCIe Endpoint
+```
+
+- `81000000` 是 Port4，设备 `10ec:b852` 为 Realtek RTL8852 WiFi。
+- `80000000` 是 Port0（x4 M.2 槽），Linux 也无法建立链路。
+- 全日志没有 `nvme`，也没有 class `0x010802` 的设备。
+
+因此当前板卡上没有可被 Linux 发现的 NVMe。Port0 的 Link down 不是 Alien
+或 U-Boot 的软件问题；Linux 的完整驱动同样无法训练该端口。
+
+另外，Linux 使用的 DTB 与 U-Boot 控制 DTB 不同：前者把 Port4 标为
+`okay`，后者是 `disabled`。这解释了两件事：
+
+1. U-Boot 的 `pci enum` 只看到 Port0/Port3；
+2. 在 U-Boot 里用 `fdt set` 启用 Port4 不会生效，既有驱动模型绑定问题，
+   也存在 DTB 来源不同的问题。
+
+完整节选见 [`../logs/k3-linux-pcie.txt`](../logs/k3-linux-pcie.txt)。
+
 ## RAM DTB 启用端口实验
 
 2026-11-23 在 U-Boot 中尝试把 Port4（`pcie@81000000`，x1，带 PHY 与
@@ -197,16 +225,18 @@ FDT，`pci enum` 只枚举已绑定的控制器。
 
 ## 结论
 
-1. 当前租用板卡是 `spacemit k3 com260 ifx board`；两个已启用 PCIe 端口都是
-   Link down，U-Boot 枚举不到任何设备。
-2. 控制 DTB 没有 `vpcie3v3` 供电描述，且该参考板未必安装 NVMe，因此不能
-   把 Link down 归因于某一段驱动代码。
-3. Alien 目前无法复用 U-Boot 的链路与 BAR 分配，M5B 的 iATU 访问没有前置
-   条件。
-4. 需要在装有 NVMe 的板卡上重跑本文命令：确认 M.2 盘插在 x4 槽（Port0）、
-   压紧、槽位 3.3V 与 PERST# 正常；并确认设备树是否需要补 `vpcie3v3`。
-5. 只有出现 `Link up` 与 `nvme info`，才进入 iATU 配置空间访问与 K3 NVMe
-   域。若切换到 BananaPi BPI-SM10，先核对其 DTB 的端口与供电描述。
+1. 当前板卡是 `spacemit k3 com260 ifx board`；正常启动 Linux 后，Port4
+   （`81000000`）成功建立链路，设备是 RTL8852 WiFi；Port0（x4 M.2）在
+   Linux 下仍然 Link down，全日志没有 NVMe。
+2. 因此当前板卡上**没有可被 Linux 发现的 NVMe**。这不能归因于 Alien、
+   U-Boot 或 DTB 的软件问题；Linux 的完整 PCIe 驱动也训练不了 Port0。
+3. Alien 的 iATU/BAR 代码路径已就绪，但 M5B/M5C 的真实硬件验收需要一块
+   确实装盘的板卡；在此之前只能保留 QEMU 与主机侧单元测试。
+4. 若换到 BananaPi BPI-SM10 或 provider 提供带盘的板卡，先正常启动 Linux
+   确认 `[10ec:...]` 之外的 class `0x010802` 设备与 `nvme` 日志，再跑
+   Alien 的取证与 M5B。
+5. 若 Linux 仍然看不到盘，应检查 M.2 槽位供电、盘是否插紧以及载板是否
+   实际引出 PCIe，而不是继续改 Alien 代码。
 
 ## 对 M5A 的影响
 
