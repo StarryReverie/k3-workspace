@@ -6,9 +6,10 @@
 #   --mode MODE    diag or shell (default: diag)
 #   --out DIR      output directory (default: <alien>/build/k3[-shell]/smp-<N>)
 #   --kernel-base  kernel link address (default: 0x102200000)
+#   --disk         also build a FAT32 NVMe test image (shell mode)
 #
 # Environment variables are also accepted: K3_SMP, K3_MODE, OUT_DIR,
-# ALIEN_DIR, KERNEL_BASE.
+# ALIEN_DIR, KERNEL_BASE, K3_DISK.
 #
 # diag:  TCB only, no domains, no userspace. Outputs K3_BOOT_OK.
 # shell: builds K3 domains, user init and bash, and boots to an interactive
@@ -17,7 +18,7 @@
 set -euo pipefail
 
 usage() {
-    sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -25,6 +26,7 @@ ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien-isolation}
 K3_SMP=${K3_SMP:-1}
 K3_MODE=${K3_MODE:-diag}
 KERNEL_BASE=${KERNEL_BASE:-0x102200000}
+K3_DISK=${K3_DISK:-0}
 OUT_DIR=${OUT_DIR:-}
 
 while [ $# -gt 0 ]; do
@@ -44,6 +46,10 @@ while [ $# -gt 0 ]; do
         --kernel-base)
             KERNEL_BASE=$2
             shift 2
+            ;;
+        --disk)
+            K3_DISK=1
+            shift
             ;;
         -h|--help)
             usage
@@ -90,6 +96,14 @@ for cmd in cargo rustc llvm-objcopy gzip cpio mkimage readelf; do
         exit 2
     fi
 done
+if [ "$K3_DISK" = "1" ]; then
+    for cmd in mkfs.fat mcopy; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo "missing command: $cmd (required by --disk)" >&2
+            exit 2
+        fi
+    done
+fi
 
 TARGET=riscv64gc-unknown-none-elf
 USER_BINARIES="$ALIEN_DIR/target/$TARGET/release"
@@ -159,6 +173,24 @@ fi
     cd "$OUT_DIR/initrd"
     find . -print0 | cpio --null -o --format=newc 2>/dev/null | gzip -9
 ) > "$OUT_DIR/initramfs.cpio.gz"
+
+if [ "$K3_DISK" = "1" ]; then
+    if [ "$K3_MODE" != "shell" ]; then
+        echo "--disk requires --mode shell" >&2
+        exit 2
+    fi
+    echo "[3b/6] creating NVMe FAT image"
+    rm -rf "$OUT_DIR/diskfs"
+    mkdir -p "$OUT_DIR/diskfs"
+    printf 'alien k3 nvme mount ok\n' > "$OUT_DIR/diskfs/HELLO.TXT"
+    rm -f "$OUT_DIR/nvme.img"
+    dd if=/dev/zero of="$OUT_DIR/nvme.img" bs=1M count=72 status=none
+    mkfs.fat -F 32 "$OUT_DIR/nvme.img" >/dev/null
+    for file in "$OUT_DIR"/diskfs/*; do
+        mcopy -i "$OUT_DIR/nvme.img" "$file" "::/$(basename "$file")"
+    done
+    echo "      $OUT_DIR/nvme.img"
+fi
 
 echo "[4/6] building kernel (MODE=$K3_MODE, SMP=$K3_SMP, base=$KERNEL_BASE)"
 FEATURES=()
@@ -230,6 +262,7 @@ cat > "$OUT_DIR/build-info" <<EOF
 PLATFORM=k3
 MODE=$K3_MODE
 SMP=$K3_SMP
+DISK=$K3_DISK
 KERNEL_BASE=$KERNEL_BASE
 ENTRY=$ENTRY_ADDR
 EOF

@@ -1,0 +1,216 @@
+Alien isolation K3 PCIe reconnaissance, 2026-11-23
+Sources:
+  logs/probe-20261123-210351.log
+  logs/probe-20261123-210532.log
+  logs/probe-20261123-211846.log
+Mode: read-only U-Boot commands; no disk writes.
+
+=== logs/probe-20261123-210351.log
+[   1.232] Model: spacemit k3 com260 ifx board
+[   1.440] MMC:   spacemit_sdhci sdh@d4280000: probe done.
+[   1.859] ufs-spacemit_k3 ufs@c0e00000: [RX, TX]: gear=[3, 3], lane[2, 2], pwr[FAST MODE, FAST MODE], rate = 2
+[   1.884] spacemit_panel_of_to_plat panel lcd_tc358762xbg_dpi_800x480
+[   2.194] spacemit_display_init: device 'dpu@c0340000' display won't probe (ret=-1)
+[   2.396] spacemit reboot: read PMIC reg 0xab value 0xf0
+[   2.415] pcie_dw_spacemit pcie@80000000: Port0 has no device detect gpio
+[   2.449] pcie_dw_spacemit pcie@80000000: pcie config device cmd in rc mode: 0x3bf
+[   3.558] PCIE-0: Link down
+[   3.577] pcie_dw_spacemit pcie@80c00000: pcie config device cmd in rc mode: 0x33f
+[   4.685] PCIE-1: Link down
+=> [   7.685] version
+=> [  13.759] pci
+pcie_dw_spacemit pcie@80000000: Port0 has no device detect gpio
+[  13.766] pcie_dw_spacemit pcie@80000000: pcie config device cmd in rc mode: 0x3bf
+[  14.875] PCIE-0: Link down
+=> [  19.930] pci enum
+pcie_dw_spacemit pcie@80000000: Port0 has no device detect gpio
+[  19.938] pcie_dw_spacemit pcie@80000000: pcie config device cmd in rc mode: 0x3bf
+[  21.047] PCIE-0: Link down
+[  21.050] pcie_dw_spacemit pcie@80c00000: pcie config device cmd in rc mode: 0x33f
+=> [  26.030] pci
+pcie_dw_spacemit pcie@80000000: Port0 has no device detect gpio
+[  26.038] pcie_dw_spacemit pcie@80000000: pcie config device cmd in rc mode: 0x3bf
+[  27.146] PCIE-0: Link down
+=> [  32.207] nvme scan
+pcie_dw_spacemit pcie@80000000: Port0 has no device detect gpio
+[  32.216] pcie_dw_spacemit pcie@80000000: pcie config device cmd in rc mode: 0x3bf
+[  33.324] PCIE-0: Link down
+[  33.327] pcie_dw_spacemit pcie@80c00000: pcie config device cmd in rc mode: 0x33f
+[  34.432] PCIE-1: Link down
+=> [  38.295] nvme info
+pcie_dw_spacemit pcie@80000000: Port0 has no device detect gpio
+[  38.303] pcie_dw_spacemit pcie@80000000: pcie config device cmd in rc mode: 0x3bf
+[  39.411] PCIE-0: Link down
+[  39.414] pcie_dw_spacemit pcie@80c00000: pcie config device cmd in rc mode: 0x33f
+[  40.519] PCIE-1: Link down
+=> [  44.373] fdt addr $fdtcontroladdr
+=> fdt list /soc
+[  50.433] 	compatible = "simple-bus";
+[  50.481] 	power-management@0 {
+[  50.575] 	pcie-phy0@81d00000 {
+[  50.579] 	pcie-phy1@81e00000 {
+[  50.583] 	pcie-phy2@81f00000 {
+[  50.588] 	pcie-phy3@82000000 {
+[  50.592] 	pcie-phy4@82100000 {
+[  50.596] 	pcie-phy5@82200000 {
+[  50.601] 	pcie@80000000 {
+[  50.605] 	pcie@80400000 {
+[  50.608] 	pcie@80800000 {
+[  50.612] 	pcie@80c00000 {
+[  50.616] 	pcie@81000000 {
+=> [  56.613] fdt print /soc/pcie@80000000
+pcie@80000000 {
+[  56.616] 	compatible = "spacemit,k3-pcie";
+[  56.619] 	reg = <0x00000000 0x80000000 0x00000000 0x00001000 0x00000000 0x80100000 0x00000000 0x00001000 0x00000000 0x80300000 0x00000000 0x00003f20 0x00000011 0x00000000 0x00000000 0x00010000 0x00000000 0xd42829f0 0x00000000 0x00000008 0x00000000 0x82900000 0x00000000 0x00001000>;
+[  56.644] 	reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+[  56.651] 	spacemit,pcie-mgmt = <0xd42829d8>;
+[  56.655] 	clocks = <0x00000001 0x000000f6>;
+[  56.659] 	resets = <0x0000001e 0x00000087>;
+[  56.663] 	reset-names = "pcie-reset";
+[  56.666] 	spacemit,pcie-port = <0x00000000>;
+[  56.679] 	num-lanes = <0x00000004>;
+[  56.682] 	device_type = "pci";
+[  56.715] 	linux,pci-domain = <0x00000000>;
+[  56.719] 	status = "okay";
+[  56.728] 	phys = <0x00000023 0x00000024>;
+[  56.732] 	phy-names = "pcie-phy0", "pcie-phy1";
+=> [  62.799] md.l 0x80000000 20
+=> md.l 0x82900000 2
+82900000: 00008000 0e000000                    ........
+=> md.l 0x81d00000 20
+81d00000: 00000302 00004000 00000979 8f55a98c  .....@..y.....U.
+
+=== logs/probe-20261123-210532.log
+[   1.235] Model: spacemit k3 com264 ifx board
+[   1.442] MMC:   spacemit_sdhci sdh@d4280000: probe done.
+[   1.860] ufs-spacemit_k3 ufs@c0e00000: [RX, TX]: gear=[3, 3], lane[2, 2], pwr[FAST MODE, FAST MODE], rate = 2
+[   1.885] spacemit_panel_of_to_plat panel lcd_tc358762xbg_dpi_800x480
+[   2.195] spacemit_display_�nit: device 'dpu@c0340000' display won't probe (ret=-1)
+[   2.397] spacemit reboot: read PMIC reg 0xab value 0xf0
+[   2.416] pcie_dw_spacemit pcie@80000000: Port0 has no device detect gpio
+[   2.450] pcie_dw_spacemit pcie@80000000: pcie config device cmd in rc mode: 0x3bf
+[   3.559] PCIE-0: Link down
+[   3.578] pcie_dw_spacemit pcie@80c00000: pcie config device cmd in rc mode: 0x33f
+[   4.686] PCIE-1: Link down
+=> [   7.750] fdt addr $fdtcontroladdr
+=> fdt print /soc/pcie@80400000
+pcie@80400000 {
+[  12.804] 	compatible = "spacemit,k3-pcie";
+[  12.806] 	reg = <0x00000000 0x80400000 0x00000000 0x00001000 0x00000000 0x80500000 0x00000000 0x00001000 0x00000000 0x80700000 0x00000000 0x00003f20 0x00000011 0x80000000 0x00000000 0x00010000 0x00000000 0xd42829d0 0x00000000 0x00000008 0x00000000 0x82c00000 0x00000000 0x00001000>;
+[  12.831] 	reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+[  12.838] 	spacemit,pcie-mgmt = <0xd42829d8>;
+[  12.842] 	clocks = <0x00000001 0x000000f7>;
+[ $12.846] 	resets = <0x0000001e 0x00000088>;
+[  12.850] 	reset-names = "pcie-reset";
+[  12.854] 	spacemit,pcie-port = <0x00000001>;
+[  12.866] 	num-lanes = <0x00000002>;
+[  12.869] 	device_type = "pci";
+[  12.902] 	linux,pci-domain = <0x00000001>;
+[  12.906] 	status = "disabled";
+=> [  17.971] fdt print /soc/pcie@80800000
+pcie@80800000 {
+[  17.974] 	compatible = "spacemit,k3-pcie";
+[  17.977] 	reg = <0x00000000 0x80800000 0x00000000 0x00001000 0x00000000 0x80900000 0x00000000 0x00001000 0x00000000 0x80b00000 0x00000000 0x00003f20 0x00000012 0x00000000 0x00000000 0x00010000 0x00000000 0xd42829c8 0x00000000 0x00000008 0x00000000 0x82d00000 0x00000000 0x00001000>;
+[  18.002] 	reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+[  18.008] 	spacemit,pcie-mgmt = <0xd42829d8>;
+[  18.013] 	clocks = <0x00000001 0x000000f8>;
+[  18.017] 	resets = <0x0000001e 0x00000089>;
+[  18.021] 	reset-names = "pcie-reset";
+[  18.024] 	spacemit,pcie-port = <0x00000002>;
+[  18.037] 	num-lanes = <0x00000002>;
+[  18.040] 	device_type = "pci";
+[  18.073] 	linux,pci-domain = <0x00000002>;
+[  18.077] 	status = "disabled";
+=> [  23.139] fdt print /soc/pcie@80c00000
+pcie@80c00000 {
+[  23.142] 	compatible = "spacemit,k3-pcie";
+[  23.145] 	reg = <0x00000000 0x80c00000 0x00000000 0x00001000 0x00000000 0x80d00000 0x00000000 0x00001000 0x00000000 0x80f00000 0x00000000 0x00003f20 0x00000012 0x80000000 0x00000000 0x00010000 0x00000000 0xd42829e0 0x00000000 0x00000008 0x00000000 0x82a00000 0x00000000 0x00001000>;-
+[  23.170] 	reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+[  23.176] 	spacemit,pcie-mgmt = <0xd42829d8>;
+[  23.181] 	clocks = <0x00000001 0x000000f9>;
+[  23.185] 	resets = <0x0000001e 0x0000008a>;
+[  23.189] 	reset-names = "pcie-reset";
+[  23.192] 	spacemit,pcie-port = <0x00000003>;
+[  23.205] 	num-lanes = <0x00000001>;
+[  23.208] 	device_type = "pci";
+[  23.241] 	linux,pci-domain = <0x00000003>;
+[  23.244] 	status = "okay";
+[  23.254] 	phys = <0x00000026>;
+[  23.257] 	phy-names = "pcie-phy0";
+=> [  28.323] fdt print /soc/pcie@81000000
+pcie@81000000 {
+[  28.325] 	compatible = "spacemit,k3-pcie";
+[  28.329] 	reg = <0x00000000 0x81000000 0x00000000 0x00001000 0x00000000 0x81100000 0x00000000 0x00001000 0x00000000 0x81300000 0x00000000 0x00003f20 0x00000012 0xc0000000 0x00000000 0x00010000 0x00000000 0xd42829e8 0x00000000 0x00000008 0x00000000 0x82b00000 0x00000000 0x00001000>;
+[  28.353] 	reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+[  28.360] 	spacemit,pcie-mgmt = <0xd42829d8>;
+[  28.364] 	clocks = <0x00000001 0x000000fa>;
+[  28.368] 	resets = <0x0000001e 0x0000008b>;
+[  28.372] 	reset-names = "pcie-reset";
+[  28.376] 	spacemit,pcie-port = <0x00000004>;
+[  28.388] 	num-lanes = <0x00000p01>;
+[  28.392] 	device_type = "pci";
+[  28.424] 	linux,pci-domain = <0x00000004>;
+[  28.428] 	status = "disabled";
+[  28.438] 	phys = <0x00000028>;
+[  28.441] 	phy-names = "pcie-phy0";
+=> [  33.504] fdt print /soc/pcie-phy0@81d00000
+pcie-phy0@81d00000 {
+[  33.507] 	compatible = "spacemit,k3-pcie-phy";
+[  33.511] 	reg = <0x00000000 0x81d00000 0x00000000 0x00001000 0x00000000 0xd4090178 0x00000000 0x00000008>;
+[  33.521] 	reg-names = "phy", "apb_spare";
+[  33.524] 	spacemit,phy-id = <0x00000000>;
+[  33.528] 	spacemit,num-lanes = <0x00000002>;
+[  33.536] 	status = "okay";
+=> [  38.607] fdt print /soc/pcie-phy1@81e00000
+pcie-phy1@81e00000 {
+[  38.610] 	compatible = "spacemit,k3-pcie-phy";
+[  38.614] 	reg = <0x00000000 0x81e00000 0x00000000 0x00001000 0x00000000 0xd4090178 0x00000000 0x00000008>;
+[  38.624] 	reg-names = "phy", "apb_spare";
+[  38.627] 	spacemit,phy-id = <0x00000001>;
+[  38.631] 	spacemit,num-lanes = <0x00000002>;
+[  38.639] 	status = "okay";
+=> [  43.703] md.l 0xd42829f0 2
+d42829f0: 000003ff 83bf0000                    ........
+=> md.l 0xd42829d8 8
+d42829d8: 000000f4 00000000 0000037f 03bf0000  ................
+d42829e8: 40000700 003f0000 000003ff 83bf0000  ...@..?.........
+=> md.l 0x82c00000 4
+82c00000: 00c0a000 88000000 00000000 00000000  ................
+=> md.l 0x82d00000 2
+
+=== logs/probe-20261123-211846.log
+[   1.233] Model: spacemit k3 com260 ifx board
+[   1.440] MMC:   spacemit_sdhci sdh@d4280000: probe done.
+[   1.864] ufs-spacemit_k3 ufs@c0e00000: [RX, TX]: gear=[3, 3], lane[2, 2], pwr[FAST MODE, FAST MODE], rate = 2
+[   1.889] spacemit_panel_of_to_plat panel lcd_tc358762xbg_dpi_800x480
+[   2.199] spacemit_display_init: device 'dpu@c0340000' display won't probe (ret=-1)
+[   2.401] spacemit reboot: read PMIC reg 0xab value 0xf0
+[   2.420] pcie_dw_spacemit pcie@80000000: Port0 has no device detect gpio
+[   2.454] pcie_dw_spacemit pcie@80000000: pcie config device cmd in rc mode: 0x3bf
+[   3.563]�PCIE-0: Link down
+[   3.582] pcie_dw_spacemit pcie@80c00000: pcie config device cmd in rc mode: 0x33f
+[   4.690] PCIE-1: Link down
+=> [   7.706] fdt addr $fdtcontroladdr
+=> fdt print /soc/pcie@80000000
+pcie@80000000 {
+[  12.773] 	compatible = "spacemit,k3-pcie";
+[  12.776] 	reg = <0x00000000 0x80000000 0x00000000 0x00001000 0x00000000 0x80100000 0x00000000 0x00001000 0x00000000 0x80300000 0x00000000 0x00003f20 0x00000011 0x00000000 0x00000000 0x00010000 0x00000000 0xd42829f0 0x00000000 0x00000008 0x00000000 0x82900000 0x00000000 0x00001000>;
+[  12.801] 	reg-names = "dbi", "dbi2", "atu", "config", "app", "phy_ahb";
+[  12.807� 	spacemit,pcie-mgmt = <0xd42829d8>;
+[  12.811] 	clocks = <0x00000001 0x000000f6>;
+[  12.816] 	resets = <0x0000001e 0x00000087>;
+[  12.820] 	reset-names = "pcie-reset";
+[  12.823] 	spacemit,pcie-port = <0x00000000>;
+[  12.836] 	num-lanes = <0x00000004>;
+[  12.839] 	device_type = "pci";
+[  12.871] 	linux,pci-domain = <0x00000000>;
+[  12.875] 	status = "okay";
+[  12.885] 	phys = <0x00000023 0x00000024>;
+[  12.889] 	phy-names = "pcie-phy0", "pcie-phy1";
+=> [  17.779] fdt print /soc/power-management@0
+power-management@0 {
+[  17.782] 	compatible = "spacemit,k3-pm-domain";
+[  17.787] 	reg = <0x00000000 0xd4282800 0x00000000 0x00000400>;
+=> [  22.913] fdt list /
+[  22.920] 	compatible = "spacemit,k3";
+[  22.924] 	model = "spacemit k3 com260 ifx board";

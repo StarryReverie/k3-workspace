@@ -7,6 +7,7 @@
 #   --timeout SEC  stop after SEC seconds; 0 runs until Ctrl+A x (default: 60)
 #   --out DIR      build directory (default: <alien>/build/k3-shell/smp-<N>)
 #   --no-aia       use the default QEMU machine without IMSIC/APLIC
+#   --nvme         attach <out>/nvme.img as a PCIe NVMe drive
 #
 # AIA is enabled by default: QEMU exposes an S-level IMSIC at 0x28000000 and
 # an S-level APLIC at 0x0d000000, matching the addresses the K3 kernel maps.
@@ -14,7 +15,7 @@
 set -euo pipefail
 
 usage() {
-    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -23,6 +24,7 @@ K3_SMP=${K3_SMP:-2}
 QEMU_MEMORY=${QEMU_MEMORY:-10G}
 QEMU_TIMEOUT=${QEMU_TIMEOUT:-60}
 QEMU_AIA=${QEMU_AIA:-aplic-imsic}
+QEMU_NVME=${QEMU_NVME:-0}
 OUT_DIR=${OUT_DIR:-}
 
 while [ $# -gt 0 ]; do
@@ -32,6 +34,7 @@ while [ $# -gt 0 ]; do
         --timeout) QEMU_TIMEOUT=$2; shift 2 ;;
         --out) OUT_DIR=$2; shift 2 ;;
         --no-aia) QEMU_AIA=""; shift ;;
+        --nvme) QEMU_NVME=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -47,6 +50,10 @@ for file in "$OUT_DIR/kernel-k3" "$OUT_DIR/initramfs.cpio.gz"; do
         exit 2
     fi
 done
+if [ "$QEMU_NVME" = "1" ] && [ ! -f "$OUT_DIR/nvme.img" ]; then
+    echo "missing $OUT_DIR/nvme.img; run build-k3.sh --mode shell --disk first" >&2
+    exit 2
+fi
 
 for cmd in qemu-system-riscv64; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -71,6 +78,13 @@ QEMU_ARGS=(
     -initrd "$OUT_DIR/initramfs.cpio.gz"
     -append "rdinit=/init"
 )
+
+if [ "$QEMU_NVME" = "1" ]; then
+    QEMU_ARGS+=(
+        -drive "file=$OUT_DIR/nvme.img,if=none,id=nvme0,format=raw"
+        -device "nvme,serial=deadbeef,drive=nvme0"
+    )
+fi
 
 if [ "$QEMU_TIMEOUT" = "0" ]; then
     exec "${QEMU_ARGS[@]}"

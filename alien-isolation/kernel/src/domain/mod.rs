@@ -83,6 +83,27 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
     let mut nic_irq = 0;
     let mut has_block = false;
 
+    // NVMe is enumerated by the TCB from PCIe and takes priority over the SD
+    // card and virtio block devices.
+    if let Some(nvme) = crate::bus::pci::take_nvme() {
+        let (nvme_driver, domain_file_info) =
+            create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, "nvme")?;
+        nvme_driver.init_by_box(Box::new(nvme.bar.clone()))?;
+        let capacity = nvme_driver.get_capacity()?;
+        if capacity == 0 {
+            println!("nvme: no usable FAT partition, block stack disabled");
+        } else {
+            println!("nvme: {} blocks", capacity);
+            register_domain!(
+                "block",
+                domain_file_info,
+                DomainType::BlkDeviceDomain(nvme_driver),
+                false
+            );
+            has_block = true;
+        }
+    }
+
     for device in platform_bus.common_devices().iter() {
         let address = device.address().as_usize();
         let size = device.io_region().size();
@@ -180,6 +201,10 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 nic_irq = irq.unwrap();
             }
             "sdcard" => {
+                if has_block {
+                    println!("sdcard: block device already present, skip");
+                    continue;
+                }
                 #[cfg(k3)]
                 let domain_name = "k3_sd";
                 #[cfg(not(k3))]
@@ -230,6 +255,10 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 nic_irq = irq.unwrap();
             }
             VirtioMmioDeviceType::Block => {
+                if has_block {
+                    println!("virtio block: block device already present, skip");
+                    continue;
+                }
                 let (blk_driver, domain_file_info) = create_domain!(
                     BlkDomainProxy,
                     DomainTypeRaw::BlkDeviceDomain,

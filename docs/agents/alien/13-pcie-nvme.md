@@ -56,7 +56,7 @@
 | 9A-3 | I/O 队列与读取 | 完成，2026-11-16 |
 | 9A-4 | 分区与挂载 | 完成，2026-11-16 |
 | 9A-5 | 脚本、回归与文档 | 完成，2026-11-16 |
-| 9B-1 | K3 只读取证 | 未开始 |
+| 9B-1 | K3 只读取证 | 完成，2026-11-23：两个启用端口均 Link down |
 | 9B-2 | 配置空间访问 | 未开始 |
 | 9B-3 | 控制器初始化与链路训练 | 未开始 |
 | 9B-4 | PHY 与分叉 | 未开始 |
@@ -398,6 +398,19 @@ fdt print /soc/phy@81d00000
 ```text
 docs: record stage 9B pcie recon
 ```
+
+**实施结果（2026-11-23）**
+
+- U-Boot 2022.10 在 Port0（`pcie@80000000`，x4）与 Port3
+  （`pcie@80c00000`，x1）上都输出 `Link down`，`pci`/`nvme scan` 无设备。
+- `spacemit,pcie-mgmt = 0xd42829d8`；Port0 APP `0xd42829f0 = 0x3ff`，
+  `0xd42829f4 = 0x83bf0000`，LTSSM_EN 与 PERSTN 释放位已置位。
+- 租用板卡的 DTB `model` 为 `spacemit k3 com260 ifx board`，不是
+  BananaPi BPI-SM10；控制 DTB 也没有 `vpcie3v3` 供电属性。
+- 按本文验收条件，停止 9B 代码工作，先检查插槽、供电、分叉与 PERST#。
+- 隔离树 M5A 仍按计划完成 QEMU ECAM/NVMe，不受链路状态影响。
+- 新树的完整记录见
+  `docs/agents/alien-isolation/setup/k3-pcie-recon.md`。
 
 ### 4.2 9B-2：配置空间访问
 

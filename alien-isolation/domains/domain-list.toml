@@ -34,6 +34,7 @@ members = [
     "uart8250",
     "mem_block",
     "k3_sd",
+    "nvme",
     "vf2_sd",
 ]
 
@@ -64,6 +65,7 @@ init_members = [
     "uart8250",
     "mem_block",
     "k3_sd",
+    "nvme",
     "vf2_sd"
 ]
 

@@ -47,7 +47,12 @@ M4 已完成，记录见 [`../setup/k3-storage.md`](../setup/k3-storage.md) 与
 域，复用 `shadow_blk`/`cache_blk` 块栈，在板端把 SD 卡 FAT 分区挂载到
 `/mnt`，2 核与 8 核均能读取 `HELLO.TXT`。无卡时跳过块栈并继续启动。
 
-下一步是 M5：PCIe/NVMe。
+M5A 已完成，记录见 [`../setup/qemu-nvme.md`](../setup/qemu-nvme.md) 与
+[`../testing/qemu-nvme.md`](../testing/qemu-nvme.md)：TCB 增加 ECAM 枚举与
+BAR 分配，新增只读 `nvme` 块设备域，QEMU 1/2/8 核均能 Identify、挂载 FAT
+并读取文件。M5B 只读取证完成，但真实 K3 的两个已启用端口均 Link down，
+U-Boot 枚举不到 NVMe，记录见
+[`../setup/k3-pcie-recon.md`](../setup/k3-pcie-recon.md)。
 
 ## 与旧计划的对应
 
@@ -71,9 +76,10 @@ M4 已完成，记录见 [`../setup/k3-storage.md`](../setup/k3-storage.md) 与
 
 ## 下一步
 
-进入 M5：
+先确认 K3 的 M.2 盘安装、供电与 PERST#，然后继续 M5B/M5C：
 
-1. 在 QEMU 上补 PCIe ECAM 与 NVMe 块设备域，验证 Identify 与 FAT 读取。
-2. 取证 K3 主机桥、APMU、PHY、PERST# 与 LTSSM 状态。
-3. 实现 K3 iATU 映射与 NVMe 块设备域。
-4. 保留 SDHCI 与 virtio 路径，补 QEMU 与板端回归。
+1. 重跑只读取证，直到 U-Boot `pci enum` 出现 `Link up` 与 `nvme info`。
+2. 通过 iATU 访问配置空间，确认 `01:00.0 class=0x010802`。
+3. 映射 BAR 与入站 DMA 窗口，把 BAR 区间接入现有 `nvme` 域。
+4. K3 上完成 Identify、分区与 `/mnt` 挂载。
+5. 保留 SDHCI 与 virtio 回退，补 QEMU 1/2/8 核与板端回归。

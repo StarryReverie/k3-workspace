@@ -58,7 +58,7 @@ pub fn init_with_dtb() -> AlienResult<()> {
     if let Some(ty) = dtb.probe_plic() {
         devices.push(ty);
     }
-    #[cfg(not(k3))]
+    #[cfg(any(qemu_riscv, k3))]
     if let Some(ty) = dtb.probe_pci() {
         devices.push(ty);
     }

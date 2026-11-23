@@ -318,7 +318,44 @@ impl Probe for Fdt<'_> {
     }
 
     fn probe_pci(&self) -> Option<CommonDeviceType> {
-        self.probe_common("pci", false).map(CommonDeviceType::Pci)
+        // Only generic ECAM hosts are supported in M5A. K3's DesignWare host
+        // exposes DBI registers in its first `reg` entry, so a name-only match
+        // would misinterpret them as an ECAM window.
+        for node in self.all_nodes() {
+            if node
+                .property("status")
+                .and_then(|property| property.as_str())
+                .map(|status| status != "okay")
+                .unwrap_or(false)
+            {
+                continue;
+            }
+            let Some(compatible) = node.compatible() else {
+                continue;
+            };
+            if !compatible
+                .all()
+                .any(|value| value == "pci-host-ecam-generic")
+            {
+                continue;
+            }
+            let Some(reg) = node.reg().and_then(|mut reg| reg.next()) else {
+                continue;
+            };
+            let start = reg.starting_address as usize;
+            let size = reg.size.unwrap_or(0x0010_0000) as usize;
+            let first = node.compatible().map(Compatible::first).unwrap_or("");
+            println!("pci: ECAM {} {:#x}-{:#x}", first, start, start + size);
+            return Some(CommonDeviceType::Pci(CommonDeviceInfo {
+                address_range: Range {
+                    start: PhysAddr::from(start),
+                    end: PhysAddr::from(start + size),
+                },
+                irq: None,
+                compatible: Some(first.to_string()),
+            }));
+        }
+        None
     }
 
     fn probe_sd(&self) -> Option<CommonDeviceType> {

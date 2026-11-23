@@ -159,7 +159,7 @@ virtio，UART 也不是 16550 兼容的编程模型。
 |---|---|---|
 | 外部中断 | PLIC | IMSIC + APLIC |
 | 控制台 | SBI 或 16550 | SBI 输出，XScale 型 UART |
-| 块设备 | virtio-mmio | SDHCI（M4 只读）、后续 UFS/NVMe |
+| 块设备 | virtio-mmio | SDHCI（M4 只读）、NVMe（M5A，QEMU） |
 | 启动方式 | `-kernel` 与 `-initrd` | U-Boot FIT 与 `bootm` |
 | 链接地址 | `0x80200000` | `0x102200000` |
 | 时间基准 | 12.5 MHz | 24 MHz |
@@ -215,11 +215,31 @@ M4 新增 `k3_sd` 块设备域，直接访问 `sdh@d4280000`：
 `/dev/sda` → FAT。内核在 `get_capacity()` 为 0 时不创建块栈，因此无卡启动
 不会失败。K3 的 FAT 挂载到 `/mnt`，避免覆盖 initramfs 的 `/tests`。
 
+## PCIe 与 NVMe
+
+M5 把 PCIe 拆成 TCB 与域两层：
+
+- TCB 的 `kernel/src/bus/pci` 只支持 `pci-host-ecam-generic` 主机桥，扫描
+  bus 0、探测 BAR 大小、在固定窗口内分配 BAR，并打开 Memory Space 与
+  Bus Master。
+- NVMe 协议在 `nvme` 块设备域内，通过 `SafeIORegion` 访问 BAR0，队列与
+  PRP 页来自 `FrameTracker`（域内物理地址恒等）。
+- 域内解析 MBR/GPT，暴露第一个 FAT 分区；`write_block` 返回 `EROFS`。
+
+块设备优先级为 NVMe > SDHCI > virtio，第一个成功的设备成为 `block-1` 与
+`/dev/sda`。QEMU `virt` 上已通过 1/2/8 核枚举、Identify 与 FAT 读取。
+
+K3 的 `spacemit,k3-pcie` 节点不使用 ECAM：第一个 `reg` 是 DBI，配置空间需要
+iATU。当前板端取证显示两个已启用端口都是 Link down，因此真实 K3 仍走 SD
+回退；NVMe 待硬件链路确认后接入。
+
 ## 对后续阶段的含义
 
 | 阶段 | 需要在 TCB 或平台层完成的工作 |
 |---|---|
 | M3 中断与控制台 | 完成：AIA 初始化、UART IRQ 与中断驱动 shell；板端 2/8 核通过 |
 | M4 存储 | 完成：SDHCI 只读块设备域；FAT 挂载 `/mnt`；板端 2/8 核读取文件 |
-| M5 PCIe/NVMe | K3 主机桥与 PHY 初始化；ECAM 映射；NVMe 块设备域 |
+| M5A QEMU NVMe | 完成：ECAM 枚举、BAR 分配、NVMe 域与 1/2/8 核回归 |
+| M5B K3 链路 | 取证完成但 Link down；待确认插槽/供电后做 iATU 与 BAR 映射 |
+| M5C K3 NVMe | 复用 NVMe 域，Identify、分区与挂载 |
 | M6 收尾 | 域集合的平台化；K3 上完整 shell 与多核回归 |

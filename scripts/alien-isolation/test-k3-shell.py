@@ -40,18 +40,32 @@ from qemu_pty import QemuSession, SessionTimeout  # noqa: E402
 class Scenario:
     name: str
     smp: int
+    nvme: bool = False
 
     @property
     def title(self) -> str:
-        return f"{self.name} (smp={self.smp}, k3 shell)"
+        extra = ", nvme" if self.nvme else ""
+        return f"{self.name} (smp={self.smp}{extra}, k3 shell)"
 
 
 SCENARIOS = {
     "k3-shell-1": Scenario("k3-shell-1", 1),
     "k3-shell-2": Scenario("k3-shell-2", 2),
     "k3-shell-8": Scenario("k3-shell-8", 8),
+    "k3-nvme-1": Scenario("k3-nvme-1", 1, nvme=True),
+    "k3-nvme-2": Scenario("k3-nvme-2", 2, nvme=True),
+    "k3-nvme-8": Scenario("k3-nvme-8", 8, nvme=True),
 }
-ALIASES = {"all": ["k3-shell-1", "k3-shell-2", "k3-shell-8"]}
+ALIASES = {
+    "all": [
+        "k3-shell-1",
+        "k3-shell-2",
+        "k3-shell-8",
+        "k3-nvme-1",
+        "k3-nvme-2",
+        "k3-nvme-8",
+    ]
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -95,12 +109,14 @@ def image_dir(smp: int) -> Path:
     return ALIEN / "build" / "k3-shell" / f"smp-{smp}"
 
 
-def image_ok(smp: int) -> bool:
+def image_ok(smp: int, nvme: bool = False) -> bool:
     out = image_dir(smp)
     if not all(
         (out / name).is_file()
         for name in ("kernel-k3", "initramfs.cpio.gz", "alien-k3-shell.itb")
     ):
+        return False
+    if nvme and not (out / "nvme.img").is_file():
         return False
     info = out / "build-info"
     if not info.is_file():
@@ -122,6 +138,7 @@ def build_image(smp: int) -> None:
         "shell",
         "--smp",
         str(smp),
+        "--disk",
         "--out",
         str(image_dir(smp)),
     ]
@@ -162,9 +179,13 @@ def run_scenario(
         f"platform: k3\n"
         f"mode: shell\n"
         f"smp: {scenario.smp}\n"
+        f"nvme: {scenario.nvme}\n"
     )
+    command = [str(RUN), "--smp", str(scenario.smp), "--out", str(out), "--timeout", "0"]
+    if scenario.nvme:
+        command.append("--nvme")
     with QemuSession(
-        [str(RUN), "--smp", str(scenario.smp), "--out", str(out), "--timeout", "0"],
+        command,
         cwd=ROOT,
         env=env,
     ) as session:
@@ -179,6 +200,15 @@ def run_scenario(
                 session.wait_for(rf"hart {hart} start\.\.\.", args.timeout)
             wait_for_shell(session, args.command_timeout)
             session.wait_for(r"AIA/PLIC: irq \d+ delivered", args.command_timeout)
+            if scenario.nvme:
+                session.wait_for(r"NVMe: model=", args.timeout)
+                session.wait_for(r"nvme: FAT partition lba=", args.timeout)
+                session.wait_for(r"fatfs mount success", args.command_timeout)
+                session.send("mapfile -t lines < /mnt/HELLO.TXT")
+                session.send("echo M5_NVME:${lines[0]}")
+                session.wait_for(
+                    r"(?m)^M5_NVME:alien k3 nvme mount ok\s*$", args.command_timeout
+                )
             session.send("echo M3_K3_OK")
             session.wait_for(r"(?m)^M3_K3_OK\s*$", args.command_timeout)
             text = session.text()
@@ -211,7 +241,7 @@ def main() -> int:
             if args.build and scenario.smp not in built:
                 build_image(scenario.smp)
                 built.add(scenario.smp)
-            elif not image_ok(scenario.smp) and not args.build:
+            elif not image_ok(scenario.smp, scenario.nvme) and not args.build:
                 raise RuntimeError(
                     f"image {image_dir(scenario.smp)} is missing; rerun with --build"
                 )
