@@ -243,8 +243,14 @@ impl CoreFunction for DomainSyscall {
                 );
                 Err(AlienError::EINVAL)
             }
-            _ => {
-                panic!("replace domain not support");
+            other => {
+                // A domain may ask to replace a type the TCB cannot swap.
+                // Reject it instead of panicking the trusted core.
+                println!(
+                    "<sys_update_domain> replace {:?} not supported",
+                    other.map(|d| d.to_raw())
+                );
+                Err(AlienError::EINVAL)
             }
         }?;
         let domain_data = DomainDataInfo {
@@ -278,7 +284,8 @@ impl CoreFunction for DomainSyscall {
             }
             // todo!(release old domain's resource)
             ty => {
-                panic!("reload domain {:?} not support", ty);
+                println!("<sys_reload_domain> reload {:?} not supported", ty);
+                Err(AlienError::EINVAL)
             }
         }
     }
@@ -340,7 +347,6 @@ extern "C" {
     fn strampoline();
 }
 static BLK_CRASH: AtomicBool = AtomicBool::new(true);
-
 
 fn unwind() {
     BLK_CRASH.store(false, core::sync::atomic::Ordering::Relaxed);
