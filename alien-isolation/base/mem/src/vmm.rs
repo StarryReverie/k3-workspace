@@ -115,6 +115,18 @@ pub fn build_kernel_address_space(memory_end: usize) {
         kernel_space.map(VmAreaType::VmAreaEqual(io_area)).unwrap();
         println!("map {}: {:#x?}-{:#x?}", pair.0, pair.1, pair.1 + pair.2);
     }
+    // K3 PCIe DBI lives at 0x8000_0000, which is QEMU's RAM base. Only map
+    // these ranges on a real K3 board, never for the QEMU regression.
+    if platform::is_k3_board() {
+        for pair in platform::config::K3_PCIE_SPACE {
+            let io_area = VmAreaEqual::new(
+                pair.1..pair.1 + pair.2,
+                MappingFlags::READ | MappingFlags::WRITE,
+            );
+            kernel_space.map(VmAreaType::VmAreaEqual(io_area)).unwrap();
+            println!("map {}: {:#x?}-{:#x?}", pair.0, pair.1, pair.1 + pair.2);
+        }
+    }
     KERNEL_MAP_MAX.store(memory_end, core::sync::atomic::Ordering::SeqCst);
 }
 

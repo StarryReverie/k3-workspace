@@ -18,6 +18,7 @@
 | K3 SDHCI 与 FAT | 完成，只读块设备，板端 2/8 核挂载 `/mnt` |
 | QEMU PCIe 与 NVMe | 完成，ECAM 枚举、BAR 分配、只读 NVMe 域，1/2/8 核 |
 | K3 PCIe 链路 | 取证完成，U-Boot 两个启用端口均 Link down，待硬件确认 |
+| K3 PCIe TCB 路径 | 完成，DTB 解析、条件映射、iATU 与 Link down 降级；板端 SD 回退正常 |
 
 ## 固定信息
 
@@ -48,6 +49,7 @@ domain-lib  136007cdca82531f97a4e8da082b2ce48b839d2f
 | [`setup/k3-storage.md`](setup/k3-storage.md) | SDHCI 块设备域、块栈与 FAT 挂载 |
 | [`setup/qemu-nvme.md`](setup/qemu-nvme.md) | QEMU ECAM 枚举、BAR 分配与 NVMe 域 |
 | [`setup/k3-pcie-recon.md`](setup/k3-pcie-recon.md) | K3 PCIe 端口、APMU/PHY 与链路取证 |
+| [`setup/k3-pcie.md`](setup/k3-pcie.md) | K3 PCIe TCB 路径、iATU 与降级 |
 | [`testing/qemu-matrix.md`](testing/qemu-matrix.md) | 1/2/4/8 核回归、磁盘域动态装载与日志稳定性 |
 | [`testing/k3-qemu.md`](testing/k3-qemu.md) | K3 诊断内核的高地址 QEMU 回归 |
 | [`testing/k3-board.md`](testing/k3-board.md) | K3 诊断内核的真实板卡启动 |

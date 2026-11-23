@@ -4,6 +4,13 @@ pub const CLOCK_FREQ: usize = 1250_0000;
 pub const PCI_BAR_WINDOW_START: usize = 0x4000_0000;
 pub const PCI_BAR_WINDOW_END: usize = 0x4010_0000;
 
+/// K3 PCIe MMIO; empty on other platforms.
+pub const K3_PCIE_SPACE: &[(&str, usize, usize)] = &[];
+
+/// K3 BAR window; unused on this platform.
+pub const K3_PCI_BAR_WINDOW_START: usize = 0x11_0011_0000;
+pub const K3_PCI_BAR_WINDOW_END: usize = 0x11_0021_0000;
+
 /// qemu的设备地址空间
 pub const DEVICE_SPACE: &[(&str, usize, usize)] = &[
     ("test", 0x10_0000, 0x1000),

@@ -28,7 +28,7 @@ pub enum CommonDeviceType {
     Uart(CommonDeviceInfo),
     Rtc(CommonDeviceInfo),
     VirtIo(CommonDeviceInfo),
-    Pci(CommonDeviceInfo),
+    Pci(crate::bus::pci::PciHostInfo),
     Ramdisk(CommonDeviceInfo),
     LoopBack(CommonDeviceInfo),
     SdCard(CommonDeviceInfo),

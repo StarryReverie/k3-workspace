@@ -1,11 +1,12 @@
 Alien isolation M5A QEMU NVMe, 2026-11-23
 Sources:
-  logs/tests/20261123-211317-alien-isolation-k3-nvme-2.log
-  logs/tests/20261123-211317-alien-isolation-k3-nvme-1.log
-  logs/tests/20261123-211317-alien-isolation-k3-nvme-8.log
+  logs/tests/20261123-222719-alien-isolation-k3-nvme-2.log
+  logs/tests/20261123-222719-alien-isolation-k3-nvme-1.log
+  logs/tests/20261123-222719-alien-isolation-k3-nvme-8.log
+  logs/tests/20261123-221419-alien-isolation-k3-nvme-2.log
 Note: excerpt only; ANSI escapes removed.
 
-=== k3-nvme-1
+=== 20261123-222719-alien-isolation-k3-nvme-2.log
 nvme: True
 result: PASS
 [0] PCIe: ECAM base=0x30000000 size=0x10000000
@@ -27,7 +28,7 @@ result: PASS
 Alien:/# echo M5_NVME:${lines[0]}
 M5_NVME:alien k3 nvme mount ok
 
-=== k3-nvme-2
+=== 20261123-222719-alien-isolation-k3-nvme-1.log
 nvme: True
 result: PASS
 [0] PCIe: ECAM base=0x30000000 size=0x10000000
@@ -49,24 +50,48 @@ result: PASS
 Alien:/# echo M5_NVME:${lines[0]}
 M5_NVME:alien k3 nvme mount ok
 
-=== k3-nvme-8
+=== 20261123-222719-alien-isolation-k3-nvme-8.log
 nvme: True
 result: PASS
-[2] PCIe: ECAM base=0x30000000 size=0x10000000
-[2] PCIe: 2 device(s), 1 NVMe
-[2] PCIe: 00:00.0 vendor=0x1b36 device=0x0008 class=0x060000 header=0x00
-[2] PCIe: 00:01.0 vendor=0x1b36 device=0x0010 class=0x010802 header=0x00
-[2] PCIe:   bar0 base=0x0 size=0x4000 mem64
-[2] PCIe: NVMe BAR0 -> 0x40000000 size=0x4000, memory+bus master on
-[2][Domain:13] nvme: bar 0x40000000-0x40004000
-[2][Domain:13] NVMe: controller ready, cap=0x4008200f0107ff
-[2][Domain:13] NVMe: queue result=0x3f003f
-[2][Domain:13] NVMe: I/O queue ready
-[2][Domain:13] NVMe: model=QEMU NVMe Ctrl serial=deadbeef fw=11.1.2
-[2][Domain:13] NVMe: namespace 1 blocks=147456 lba=512
-[2][Domain:13] nvme: FAT partition lba=0 blocks=147456 (72 MiB)
-[2] nvme: 147456 blocks
-[2] <attach domain>: block, it's name is block-1
-[2][Domain:3] fatfs mount success
+[7] PCIe: ECAM base=0x30000000 size=0x10000000
+[7] PCIe: 2 device(s), 1 NVMe
+[7] PCIe: 00:00.0 vendor=0x1b36 device=0x0008 class=0x060000 header=0x00
+[7] PCIe: 00:01.0 vendor=0x1b36 device=0x0010 class=0x010802 header=0x00
+[7] PCIe:   bar0 base=0x0 size=0x4000 mem64
+[7] PCIe: NVMe BAR0 -> 0x40000000 size=0x4000, memory+bus master on
+[7][Domain:13] nvme: bar 0x40000000-0x40004000
+[7][Domain:13] NVMe: controller ready, cap=0x4008200f0107ff
+[7][Domain:13] NVMe: queue result=0x3f003f
+[7][Domain:13] NVMe: I/O queue ready
+[7][Domain:13] NVMe: model=QEMU NVMe Ctrl serial=deadbeef fw=11.1.2
+[7][Domain:13] NVMe: namespace 1 blocks=147456 lba=512
+[7][Domain:13] nvme: FAT partition lba=0 blocks=147456 (72 MiB)
+[7] nvme: 147456 blocks
+[7] <attach domain>: block, it's name is block-1
+[7][Domain:3] fatfs mount success
+Alien:/# echo M5_NVME:${lines[0]}
+M5_NVME:alien k3 nvme mount ok
+
+=== 20261123-221419-alien-isolation-k3-nvme-2.log
+nvme: True
+result: PASS
+[0] PCIe: ECAM base=0x30000000 size=0x10000000
+[0] PCIe: 2 device(s), 1 NVMe
+[0] PCIe: 00:00.0 vendor=0x1b36 device=0x0008 class=0x060000 header=0x00
+[0] PCIe: 00:01.0 vendor=0x1b36 device=0x0010 class=0x010802 header=0x00
+[0] PCIe:   bar0 base=0x0 size=0x4000 mem64
+[0] PCIe: NVMe BAR0 -> 0x40000000 size=0x4000, memory+bus master on
+[0][Domain:13] nvme: bar 0x40000000-0x40004000
+[0][Domain:13] NVMe: controller ready, cap=0x4008200f0107ff
+[0][Domain:13] NVMe: queue result=0x3f003f
+[0][Domain:13] NVMe: completion cid 0 != 3
+[0][Domain:13] nvme: controller init failed (attempt 1): completion cid mismatch
+[0][Domain:13] NVMe: I/O queue ready
+[0][Domain:13] NVMe: model=QEMU NVMe Ctrl serial=deadbeef fw=11.1.2
+[0][Domain:13] NVMe: namespace 1 blocks=147456 lba=512
+[0][Domain:13] nvme: FAT partition lba=0 blocks=147456 (72 MiB)
+[0] nvme: 147456 blocks
+[0] <attach domain>: block, it's name is block-1
+[0][Domain:3] fatfs mount success
 Alien:/# echo M5_NVME:${lines[0]}
 M5_NVME:alien k3 nvme mount ok

@@ -182,3 +182,9 @@ PHY 与 link 块可读，但端口未进入 L0。
 
 无影响。QEMU 的 ECAM 与 NVMe 域不依赖 K3 链路；M5A 已完成并通过
 1/2/8 核回归。真实 K3 的 NVMe 路径在硬件链路可用后继续。
+
+## 代码路径
+
+M5B-0 已把 K3 的 TCB 路径接入：解析 `spacemit,k3-pcie`、按板卡条件映射
+PCIe/APMU、识别 iATU 布局、检查 link 状态，并在 Link down 时跳过 NVMe。
+实现与寄存器细节见 [`k3-pcie.md`](k3-pcie.md)。

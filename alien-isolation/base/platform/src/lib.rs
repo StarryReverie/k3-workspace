@@ -20,7 +20,11 @@ pub use qemu_riscv::{config, set_timer, system_shutdown};
 #[cfg(k3)]
 use k3_riscv::*;
 #[cfg(k3)]
-pub use k3_riscv::{config, set_timer, system_shutdown};
+pub use k3_riscv::{config, is_k3_board, set_timer, system_shutdown};
+#[cfg(not(k3))]
+pub fn is_k3_board() -> bool {
+    false
+}
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use spin::Once;

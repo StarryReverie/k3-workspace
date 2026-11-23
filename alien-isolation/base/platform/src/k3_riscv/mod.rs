@@ -12,6 +12,23 @@ static INITRD: &[u8] = include_bytes!("../../../../build/k3-initramfs.cpio.gz");
 
 pub static DTB: Once<usize> = Once::new();
 
+/// True when the control DTB describes a SpacemiT K3 board.
+///
+/// QEMU runs the K3 image with a `riscv-virtio,qemu` root node, so this is
+/// also the gate for mapping K3-only PCIe MMIO.
+pub fn is_k3_board() -> bool {
+    let Some(ptr) = DTB.get() else {
+        return false;
+    };
+    let Ok(fdt) = (unsafe { fdt::Fdt::from_ptr(*ptr as *const u8) }) else {
+        return false;
+    };
+    fdt.root()
+        .compatible()
+        .all()
+        .any(|value| value.contains("spacemit,k3"))
+}
+
 pub fn init_dtb(dtb: Option<usize>) {
     let dtb_ptr = dtb.expect("No dtb found");
     DTB.call_once(|| dtb_ptr);

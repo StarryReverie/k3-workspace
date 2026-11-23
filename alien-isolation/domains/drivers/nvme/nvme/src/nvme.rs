@@ -4,10 +4,7 @@
 //! data pages come from `FrameTracker`, which returns identity-mapped physical
 //! frames, so queue addresses can be used as PRP values directly.
 
-use core::{
-    hint::spin_loop,
-    sync::atomic::{fence, Ordering},
-};
+use core::hint::spin_loop;
 
 use basic::{
     io::SafeIORegion,
@@ -57,8 +54,10 @@ impl DmaPage {
         self.frame.as_slice_with(0)
     }
 
-    fn bytes_mut(&mut self) -> &mut [u8] {
-        self.frame.as_mut_slice_with(0)
+    /// Device-visible view of this page, used for submission queue entries.
+    fn io(&self) -> SafeIORegion {
+        let start = self.frame.start_phy_addr().as_usize();
+        SafeIORegion::from(start..start + self.frame.size())
     }
 }
 
@@ -105,9 +104,16 @@ impl NvmeCommand {
         self.dwords[12] = value;
     }
 
-    fn write_to(&self, slot: &mut [u8]) {
-        for (index, dword) in self.dwords.iter().enumerate() {
-            slot[index * 4..index * 4 + 4].copy_from_slice(&dword.to_le_bytes());
+    /// Write the entry with 8-byte volatile stores.
+    ///
+    /// The controller may fetch the entry as soon as the doorbell is rung, so
+    /// the opcode and CID (both in dword 0) must become visible together.
+    fn write_volatile_to(&self, page: &DmaPage, slot: usize) {
+        let io = page.io();
+        for index in 0..8 {
+            let value = (self.dwords[index * 2] as u64)
+                | ((self.dwords[index * 2 + 1] as u64) << 32);
+            let _ = io.write_at(slot + index * 8, value);
         }
     }
 }
@@ -163,6 +169,8 @@ pub struct NvmeController {
     nsid: u32,
     block_size: u32,
     blocks: u64,
+    last_io_slot: usize,
+    last_io_cid: u16,
 }
 
 impl NvmeController {
@@ -210,6 +218,8 @@ impl NvmeController {
             nsid: 1,
             block_size: 512,
             blocks: 0,
+            last_io_slot: 0,
+            last_io_cid: 0,
         };
         controller.setup_io_queues()?;
         Ok(controller)
@@ -290,7 +300,25 @@ impl NvmeController {
         command.set_cdw10(start_lba as u32);
         command.set_cdw11((start_lba >> 32) as u32);
         command.set_cdw12((blocks as u32 - 1) & 0xffff);
-        self.submit_io(&mut command)
+
+        // A read is idempotent. If the controller reports a completion with an
+        // unexpected CID (seen intermittently under QEMU TCG), resubmit once
+        // or twice instead of failing the filesystem read.
+        for attempt in 0..3 {
+            match self.submit_io(&mut command) {
+                Ok(()) => return Ok(()),
+                Err(error)
+                    if error == "I/O completion cid mismatch" && attempt < 2 =>
+                {
+                    println!(
+                        "NVMe: resubmitting read after completion mismatch (attempt {})",
+                        attempt + 1
+                    );
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Err("I/O completion cid mismatch")
     }
 
     fn setup_io_queues(&mut self) -> NvmeResult<()> {
@@ -322,9 +350,9 @@ impl NvmeController {
         command.set_cid(cid);
 
         let slot = self.admin_sq_tail as usize * 64;
-        command.write_to(&mut self.admin_sq.bytes_mut()[slot..slot + 64]);
+        command.write_volatile_to(&self.admin_sq, slot);
         self.admin_sq_tail = (self.admin_sq_tail + 1) % ADMIN_QUEUE_SIZE;
-        fence(Ordering::SeqCst);
+        arch::fence_io();
         write32(&self.io, self.sq_doorbell(0), self.admin_sq_tail as u32);
 
         self.wait_admin(cid)
@@ -345,7 +373,7 @@ impl NvmeController {
                 if self.admin_cq_head == 0 {
                     self.admin_phase = !self.admin_phase;
                 }
-                fence(Ordering::SeqCst);
+                arch::fence_io();
                 write32(&self.io, self.cq_doorbell(0), self.admin_cq_head as u32);
                 if received != cid {
                     println!("NVMe: completion cid {} != {}", received, cid);
@@ -370,9 +398,11 @@ impl NvmeController {
         command.set_cid(cid);
 
         let slot = self.io_sq_tail as usize * 64;
-        command.write_to(&mut self.io_sq.bytes_mut()[slot..slot + 64]);
+        command.write_volatile_to(&self.io_sq, slot);
+        self.last_io_slot = slot;
+        self.last_io_cid = cid;
         self.io_sq_tail = (self.io_sq_tail + 1) % IO_QUEUE_SIZE;
-        fence(Ordering::SeqCst);
+        arch::fence_io();
         write32(&self.io, self.sq_doorbell(IO_QID), self.io_sq_tail as u32);
 
         self.wait_io(cid)
@@ -388,14 +418,43 @@ impl NvmeController {
             if phase == self.io_phase {
                 let received = (dw3 & 0xffff) as u16;
                 let status = (dw3 >> 16) & 0xfffe;
+                if received != cid {
+                    let sq = self.io_sq.bytes();
+                    let slot = self.last_io_slot;
+                    println!(
+                        "NVMe: I/O completion cid {} != {} (head={} phase={} dw0={:#x} dw1={:#x} dw2={:#x} dw3={:#x})",
+                        received,
+                        cid,
+                        self.io_cq_head,
+                        self.io_phase,
+                        read_u32(cq, entry),
+                        read_u32(cq, entry + 4),
+                        read_u32(cq, entry + 8),
+                        dw3
+                    );
+                    println!(
+                        "NVMe: last SQE slot={} cid={} dwords={:#x},{:#x},{:#x},{:#x}",
+                        slot,
+                        self.last_io_cid,
+                        read_u32(sq, slot),
+                        read_u32(sq, slot + 16),
+                        read_u32(sq, slot + 24),
+                        read_u32(sq, slot + 28)
+                    );
+                    for index in 0..IO_QUEUE_SIZE as usize {
+                        let dw0 = read_u32(sq, index * 64);
+                        if dw0 != 0 {
+                            println!("NVMe: SQE[{}] dw0={:#x}", index, dw0);
+                        }
+                    }
+                }
                 self.io_cq_head = (self.io_cq_head + 1) % IO_QUEUE_SIZE;
                 if self.io_cq_head == 0 {
                     self.io_phase = !self.io_phase;
                 }
-                fence(Ordering::SeqCst);
+                arch::fence_io();
                 write32(&self.io, self.cq_doorbell(IO_QID), self.io_cq_head as u32);
                 if received != cid {
-                    println!("NVMe: I/O completion cid {} != {}", received, cid);
                     return Err("I/O completion cid mismatch");
                 }
                 if status != 0 {

@@ -52,7 +52,10 @@ M5A 已完成，记录见 [`../setup/qemu-nvme.md`](../setup/qemu-nvme.md) 与
 BAR 分配，新增只读 `nvme` 块设备域，QEMU 1/2/8 核均能 Identify、挂载 FAT
 并读取文件。M5B 只读取证完成，但真实 K3 的两个已启用端口均 Link down，
 U-Boot 枚举不到 NVMe，记录见
-[`../setup/k3-pcie-recon.md`](../setup/k3-pcie-recon.md)。
+[`../setup/k3-pcie-recon.md`](../setup/k3-pcie-recon.md)。M5B-0 的 TCB 代码
+路径已完成：解析 `spacemit,k3-pcie`、按板卡条件映射 PCIe/APMU、识别 iATU
+布局、检查链路，并在 Link down 时安全跳过。实现见
+[`../setup/k3-pcie.md`](../setup/k3-pcie.md)。
 
 ## 与旧计划的对应
 

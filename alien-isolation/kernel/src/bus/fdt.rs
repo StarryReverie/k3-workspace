@@ -318,9 +318,7 @@ impl Probe for Fdt<'_> {
     }
 
     fn probe_pci(&self) -> Option<CommonDeviceType> {
-        // Only generic ECAM hosts are supported in M5A. K3's DesignWare host
-        // exposes DBI registers in its first `reg` entry, so a name-only match
-        // would misinterpret them as an ECAM window.
+        // Generic ECAM host (QEMU virt).
         for node in self.all_nodes() {
             if node
                 .property("status")
@@ -346,16 +344,114 @@ impl Probe for Fdt<'_> {
             let size = reg.size.unwrap_or(0x0010_0000) as usize;
             let first = node.compatible().map(Compatible::first).unwrap_or("");
             println!("pci: ECAM {} {:#x}-{:#x}", first, start, start + size);
-            return Some(CommonDeviceType::Pci(CommonDeviceInfo {
-                address_range: Range {
-                    start: PhysAddr::from(start),
-                    end: PhysAddr::from(start + size),
-                },
-                irq: None,
-                compatible: Some(first.to_string()),
+            return Some(CommonDeviceType::Pci(crate::bus::pci::PciHostInfo {
+                compatible: first.to_string(),
+                ecam: Some(start..start + size),
+                spacemit: None,
             }));
         }
-        None
+
+        // SpacemiT K3 DesignWare host bridge. Pick the enabled port with the
+        // most lanes (Port0 is the x4 M.2 slot).
+        let mut best: Option<(u32, crate::bus::pci::SpacemitPciInfo, &str)> = None;
+        for node in self.all_nodes() {
+            if node
+                .property("status")
+                .and_then(|property| property.as_str())
+                .map(|status| status != "okay")
+                .unwrap_or(false)
+            {
+                continue;
+            }
+            let Some(compatible) = node.compatible() else {
+                continue;
+            };
+            if !compatible
+                .all()
+                .any(|value| value == "spacemit,k3-pcie")
+            {
+                continue;
+            }
+
+            let mut ranges = Vec::new();
+            if let Some(regs) = node.reg() {
+                for reg in regs {
+                    let start = reg.starting_address as usize;
+                    let size = reg.size.unwrap_or(0x1000) as usize;
+                    ranges.push(start..start + size);
+                }
+            }
+            if ranges.len() < 6 {
+                continue;
+            }
+            let names: Option<Vec<&str>> = node
+                .property("reg-names")
+                .and_then(|property| property.as_str())
+                .map(|value| value.split('\0').collect());
+            let pick = |name: &str, fallback: usize| -> Option<Range<usize>> {
+                if let Some(names) = names.as_ref() {
+                    if let Some(position) = names.iter().position(|entry| *entry == name) {
+                        return ranges.get(position).cloned();
+                    }
+                }
+                ranges.get(fallback).cloned()
+            };
+            let Some(dbi) = pick("dbi", 0) else {
+                continue;
+            };
+            let Some(dbi2) = pick("dbi2", 1) else {
+                continue;
+            };
+            let Some(atu) = pick("atu", 2) else {
+                continue;
+            };
+            let Some(config) = pick("config", 3) else {
+                continue;
+            };
+            let Some(app) = pick("app", 4) else {
+                continue;
+            };
+            let Some(link) = pick("link", 5).or_else(|| pick("phy_ahb", 5)) else {
+                continue;
+            };
+
+            let lanes = node
+                .property("num-lanes")
+                .and_then(|property| property.as_usize())
+                .unwrap_or(1) as u32;
+            let port = node
+                .property("spacemit,pcie-port")
+                .and_then(|property| property.as_usize())
+                .unwrap_or(0) as u32;
+            let first = node.compatible().map(Compatible::first).unwrap_or("");
+            if best
+                .as_ref()
+                .map(|(best_lanes, _, _)| lanes > *best_lanes)
+                .unwrap_or(true)
+            {
+                best = Some((
+                    lanes,
+                    crate::bus::pci::SpacemitPciInfo {
+                        port,
+                        lanes,
+                        dbi,
+                        dbi2,
+                        atu,
+                        config,
+                        app,
+                        link,
+                    },
+                    first,
+                ));
+            }
+        }
+        best.map(|(_, spacemit, compatible)| {
+            CommonDeviceType::Pci(crate::bus::pci::PciHostInfo {
+                compatible: compatible.to_string(),
+                ecam: None,
+                spacemit: Some(spacemit),
+            })
+        })
     }
 
     fn probe_sd(&self) -> Option<CommonDeviceType> {

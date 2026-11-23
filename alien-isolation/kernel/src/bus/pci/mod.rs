@@ -1,20 +1,20 @@
-//! Minimal PCIe ECAM configuration-space access and device enumeration.
+//! Minimal PCIe configuration-space access and device enumeration.
 //!
-//! Phase M5A only covers the QEMU `virt` host bridge (`pci-host-ecam-generic`):
-//! scan bus 0, size BARs, assign the NVMe BAR from a fixed 32-bit window and
-//! hand the resulting MMIO range to the `nvme` block device domain.
+//! Two host bridges are supported:
 //!
-//! K3 uses a DesignWare host bridge that needs iATU programming; that path is
-//! added in M5B and is not handled here.
+//! - QEMU `virt`: generic ECAM (`pci-host-ecam-generic`).
+//! - SpacemiT K3: DesignWare host bridge with a separate iATU block.
+//!
+//! The TCB only enumerates devices, assigns the NVMe BAR and hands the MMIO
+//! range to the `nvme` block device domain. NVMe protocol logic stays in the
+//! domain.
 
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use core::ops::Range;
 
 use basic::io::SafeIORegion;
 use ksync::Mutex;
 use platform::println;
-
-use crate::bus::CommonDeviceInfo;
 
 mod device;
 use device::PciBus;
@@ -29,6 +29,29 @@ const PCI_HEADER_TYPE: u16 = 0x0c;
 const PCI_BAR0: u16 = 0x10;
 
 const PCI_CLASS_NVME: u32 = 0x010802;
+
+/// Host bridge description produced by the device-tree probe.
+#[derive(Clone, Debug)]
+pub struct PciHostInfo {
+    pub compatible: String,
+    /// Generic ECAM window (QEMU).
+    pub ecam: Option<Range<usize>>,
+    /// DesignWare host bridge (K3).
+    pub spacemit: Option<SpacemitPciInfo>,
+}
+
+/// MMIO ranges of one `spacemit,k3-pcie` controller.
+#[derive(Clone, Debug)]
+pub struct SpacemitPciInfo {
+    pub port: u32,
+    pub lanes: u32,
+    pub dbi: Range<usize>,
+    pub dbi2: Range<usize>,
+    pub atu: Range<usize>,
+    pub config: Range<usize>,
+    pub app: Range<usize>,
+    pub link: Range<usize>,
+}
 
 /// One PCIe function address.
 #[derive(Clone, Copy, Debug)]
@@ -72,15 +95,21 @@ pub fn take_nvme() -> Option<NvmeBar> {
     NVME_DEVICE.lock().take()
 }
 
-/// PCIe ECAM host bridge.
+/// Configuration-space access shared by both host bridges.
+pub trait PciHost {
+    fn read_config(&self, address: PciAddress, offset: u16) -> u32;
+    fn write_config(&self, address: PciAddress, offset: u16, value: u32);
+}
+
+/// PCIe ECAM host bridge (QEMU `virt`).
 pub struct EcamHost {
     io: SafeIORegion,
 }
 
 impl EcamHost {
-    pub fn new(range: Range<mem::PhysAddr>) -> Self {
+    pub fn new(range: Range<usize>) -> Self {
         Self {
-            io: SafeIORegion::new(range),
+            io: SafeIORegion::from(range),
         }
     }
 
@@ -90,20 +119,197 @@ impl EcamHost {
             + ((address.func as usize) << 12)
             + (offset as usize & 0xffc)
     }
+}
 
-    pub fn read_config(&self, address: PciAddress, offset: u16) -> u32 {
+impl PciHost for EcamHost {
+    fn read_config(&self, address: PciAddress, offset: u16) -> u32 {
         self.io
             .read_at(Self::config_offset(address, offset))
             .unwrap_or(u32::MAX)
     }
 
-    pub fn write_config(&self, address: PciAddress, offset: u16, value: u32) {
-        let _ = self.io.write_at(Self::config_offset(address, offset), value);
+    fn write_config(&self, address: PciAddress, offset: u16, value: u32) {
+        let _ = self
+            .io
+            .write_at(Self::config_offset(address, offset), value);
+    }
+}
+
+// DesignWare iATU registers, relative to the selected region.
+const IATU_VIEWPORT: usize = 0x900;
+const IATU_VIEWPORT_BASE: usize = 0x904;
+const ATU_REGION_CTRL1: usize = 0x00;
+const ATU_REGION_CTRL2: usize = 0x04;
+const ATU_LOWER_BASE: usize = 0x08;
+const ATU_UPPER_BASE: usize = 0x0c;
+const ATU_LIMIT: usize = 0x10;
+const ATU_LOWER_TARGET: usize = 0x14;
+const ATU_UPPER_TARGET: usize = 0x18;
+const ATU_ENABLE: u32 = 1 << 31;
+const ATU_DIR_IB: u32 = 1 << 31;
+const ATU_TYPE_MEM: u32 = 0x0;
+const ATU_TYPE_CFG0: u32 = 0x4;
+/// Unrolled iATU: one 512-byte slot per region, inbound in the upper half.
+const ATU_UNROLL_STRIDE: usize = 0x200;
+
+/// SpacemiT K3 DesignWare host bridge.
+pub struct SpacemitHost {
+    dbi: SafeIORegion,
+    atu: SafeIORegion,
+    link: SafeIORegion,
+    config: SafeIORegion,
+    unrolled: bool,
+}
+
+impl SpacemitHost {
+    pub fn new(info: &SpacemitPciInfo) -> Self {
+        let dbi = SafeIORegion::from(info.dbi.clone());
+        let atu = SafeIORegion::from(info.atu.clone());
+        let link = SafeIORegion::from(info.link.clone());
+        let config = SafeIORegion::from(info.config.clone());
+        // A readable viewport register means the older windowed layout; an
+        // all-ones read means the region block is unrolled.
+        let unrolled = dbi.read_at::<u32>(IATU_VIEWPORT).map(|v| v == u32::MAX).unwrap_or(false);
+        Self {
+            dbi,
+            atu,
+            link,
+            config,
+            unrolled,
+        }
+    }
+
+    pub fn unrolled(&self) -> bool {
+        self.unrolled
+    }
+
+    /// `PHY_AHB_LINK_STS`: bit1 SMLH_LINK_UP, bit12 RDLH_LINK_UP.
+    pub fn link_status(&self) -> u32 {
+        self.link.read_at::<u32>(0x4).unwrap_or(0)
+    }
+
+    pub fn link_up(&self) -> bool {
+        let status = self.link_status();
+        status & (1 << 1) != 0 && status & (1 << 12) != 0
+    }
+
+    fn atu_offset(&self, inbound: bool, index: u32, reg: usize) -> usize {
+        let dir = if inbound { ATU_UNROLL_STRIDE } else { 0 };
+        index as usize * ATU_UNROLL_STRIDE + dir + reg
+    }
+
+    fn select_region(&self, inbound: bool, index: u32) -> usize {
+        if self.unrolled {
+            self.atu_offset(inbound, index, 0)
+        } else {
+            let viewport = if inbound { ATU_DIR_IB } else { 0 } | index;
+            let _ = self.dbi.write_at(IATU_VIEWPORT, viewport);
+            IATU_VIEWPORT_BASE
+        }
+    }
+
+    fn write_atu(&self, inbound: bool, index: u32, reg: usize, value: u32) {
+        let base = self.select_region(inbound, index);
+        let _ = self.dbi_or_atu(base + reg, value);
+    }
+
+    fn read_atu(&self, inbound: bool, index: u32, reg: usize) -> u32 {
+        let base = self.select_region(inbound, index);
+        self.dbi_or_atu_read(base + reg)
+    }
+
+    /// Unrolled mode lives in the separate `atu` region; viewport mode keeps
+    /// the region registers right after the viewport in DBI space.
+    fn dbi_or_atu(&self, offset: usize, value: u32) {
+        let _ = if self.unrolled {
+            self.atu.write_at(offset, value)
+        } else {
+            self.dbi.write_at(offset, value)
+        };
+    }
+
+    fn dbi_or_atu_read(&self, offset: usize) -> u32 {
+        if self.unrolled {
+            self.atu.read_at(offset).unwrap_or(u32::MAX)
+        } else {
+            self.dbi.read_at(offset).unwrap_or(u32::MAX)
+        }
+    }
+
+    fn program_outbound(
+        &self,
+        index: u32,
+        cpu_base: u64,
+        size: u64,
+        pci_base: u64,
+        kind: u32,
+    ) -> bool {
+        if size == 0 {
+            return false;
+        }
+        self.write_atu(false, index, ATU_REGION_CTRL1, kind);
+        self.write_atu(false, index, ATU_LOWER_BASE, cpu_base as u32);
+        self.write_atu(false, index, ATU_UPPER_BASE, (cpu_base >> 32) as u32);
+        self.write_atu(
+            false,
+            index,
+            ATU_LIMIT,
+            (cpu_base + size - 1) as u32,
+        );
+        self.write_atu(false, index, ATU_LOWER_TARGET, pci_base as u32);
+        self.write_atu(false, index, ATU_UPPER_TARGET, (pci_base >> 32) as u32);
+        self.write_atu(false, index, ATU_REGION_CTRL2, ATU_ENABLE);
+        for _ in 0..1000 {
+            if self.read_atu(false, index, ATU_REGION_CTRL2) & ATU_ENABLE != 0 {
+                return true;
+            }
+            core::hint::spin_loop();
+        }
+        false
+    }
+
+    /// Program outbound region 0 for one configuration-space access.
+    fn set_config_target(&self, address: PciAddress) -> bool {
+        let target = ((address.bus as u64) << 20)
+            | ((address.dev as u64) << 15)
+            | ((address.func as u64) << 12);
+        let cpu = self.config.phys_addr().as_usize() as u64;
+        self.program_outbound(0, cpu, 0x10000, target, ATU_TYPE_CFG0)
+    }
+
+    /// Map one BAR at `pci_addr` into the CPU `bar_window`.
+    pub fn map_bar(&self, pci_addr: u64, bar_window: usize, size: u64) -> bool {
+        self.program_outbound(
+            1,
+            bar_window as u64,
+            size,
+            pci_addr,
+            ATU_TYPE_MEM,
+        )
+    }
+}
+
+impl PciHost for SpacemitHost {
+    fn read_config(&self, address: PciAddress, offset: u16) -> u32 {
+        if !self.set_config_target(address) {
+            return u32::MAX;
+        }
+        self.config
+            .read_at((offset as usize) & 0xffc)
+            .unwrap_or(u32::MAX)
+    }
+
+    fn write_config(&self, address: PciAddress, offset: u16, value: u32) {
+        if self.set_config_target(address) {
+            let _ = self
+                .config
+                .write_at((offset as usize) & 0xffc, value);
+        }
     }
 }
 
 /// Scan bus 0 and return every present function.
-pub fn enumerate(host: &EcamHost) -> Vec<PciDevice> {
+pub fn enumerate(host: &dyn PciHost) -> Vec<PciDevice> {
     let mut devices = Vec::new();
     for dev in 0..32u8 {
         let probe = PciAddress {
@@ -128,12 +334,12 @@ pub fn enumerate(host: &EcamHost) -> Vec<PciDevice> {
     devices
 }
 
-fn read_u8(host: &EcamHost, address: PciAddress, offset: u16) -> u8 {
+fn read_u8(host: &dyn PciHost, address: PciAddress, offset: u16) -> u8 {
     let shift = (offset & 3) * 8;
     (host.read_config(address, offset & !3) >> shift) as u8
 }
 
-fn read_device(host: &EcamHost, address: PciAddress, id: u32, header_type: u8) -> PciDevice {
+fn read_device(host: &dyn PciHost, address: PciAddress, id: u32, header_type: u8) -> PciDevice {
     let class = host.read_config(address, PCI_CLASS_REVISION) >> 8;
     let mut bars = [None; 6];
     let mut index = 0u8;
@@ -155,7 +361,7 @@ fn read_device(host: &EcamHost, address: PciAddress, id: u32, header_type: u8) -
     }
 }
 
-fn read_bar(host: &EcamHost, address: PciAddress, index: u8) -> Option<PciBar> {
+fn read_bar(host: &dyn PciHost, address: PciAddress, index: u8) -> Option<PciBar> {
     let offset = PCI_BAR0 + index as u16 * 4;
     let original = host.read_config(address, offset);
     if original == 0 {
@@ -203,7 +409,7 @@ fn read_bar(host: &EcamHost, address: PciAddress, index: u8) -> Option<PciBar> {
     })
 }
 
-fn assign_bar(host: &EcamHost, address: PciAddress, bar: &PciBar, base: u64) -> bool {
+fn assign_bar(host: &dyn PciHost, address: PciAddress, bar: &PciBar, base: u64) -> bool {
     if bar.size == 0 || base & (bar.size - 1) != 0 {
         return false;
     }
@@ -215,7 +421,7 @@ fn assign_bar(host: &EcamHost, address: PciAddress, bar: &PciBar, base: u64) -> 
     true
 }
 
-fn bar_base(host: &EcamHost, address: PciAddress, index: u8) -> u64 {
+fn bar_base(host: &dyn PciHost, address: PciAddress, index: u8) -> u64 {
     let offset = PCI_BAR0 + index as u16 * 4;
     let lower = host.read_config(address, offset);
     let is_64 = (lower >> 1) & 0x3 == 0x2;
@@ -226,7 +432,7 @@ fn bar_base(host: &EcamHost, address: PciAddress, index: u8) -> u64 {
     base
 }
 
-fn enable_memory_bus_master(host: &EcamHost, address: PciAddress) {
+fn enable_memory_bus_master(host: &dyn PciHost, address: PciAddress) {
     let command = host.read_config(address, PCI_COMMAND);
     host.write_config(address, PCI_COMMAND, command | 0x6);
 }
@@ -238,13 +444,25 @@ fn align_up(value: u64, align: u64) -> u64 {
     (value + align - 1) & !(align - 1)
 }
 
-/// Enumerate the ECAM bus, assign an NVMe BAR and remember its MMIO range.
-pub fn pci_init(pci_info: CommonDeviceInfo) {
-    let base = pci_info.address_range.start.as_usize();
-    let size = pci_info.address_range.end.as_usize() - base;
+/// Dispatch to the host bridge described by the device tree.
+pub fn pci_init(info: PciHostInfo) {
+    if let Some(ecam) = info.ecam.clone() {
+        init_ecam(ecam);
+        return;
+    }
+    if let Some(spacemit) = info.spacemit.clone() {
+        init_spacemit(spacemit);
+        return;
+    }
+    println!("PCIe: host bridge has no usable address range, skip");
+}
+
+fn init_ecam(ecam: Range<usize>) {
+    let base = ecam.start;
+    let size = ecam.end - base;
     println!("PCIe: ECAM base={:#x} size={:#x}", base, size);
 
-    let host = EcamHost::new(pci_info.address_range.clone());
+    let host = EcamHost::new(ecam);
     let devices = enumerate(&host);
     if devices.is_empty() {
         println!("PCIe: no device");
@@ -291,6 +509,94 @@ pub fn pci_init(pci_info: CommonDeviceInfo) {
         );
         *NVME_DEVICE.lock() = Some(NvmeBar {
             bar: start..start + bar.size as usize,
+        });
+    }
+}
+
+fn init_spacemit(info: SpacemitPciInfo) {
+    println!(
+        "K3 PCIe: port={} lanes={} dbi={:#x}-{:#x} atu={:#x}-{:#x} config={:#x}-{:#x}",
+        info.port,
+        info.lanes,
+        info.dbi.start,
+        info.dbi.end,
+        info.atu.start,
+        info.atu.end,
+        info.config.start,
+        info.config.end
+    );
+
+    let host = SpacemitHost::new(&info);
+    println!(
+        "K3 PCIe: iATU {}",
+        if host.unrolled() {
+            "unrolled"
+        } else {
+            "viewport"
+        }
+    );
+
+    let status = host.link_status();
+    if !host.link_up() {
+        println!(
+            "K3 PCIe: port={} link down, PHY_AHB_LINK_STS={:#x}, skip NVMe",
+            info.port, status
+        );
+        return;
+    }
+    println!(
+        "K3 PCIe: port={} link up, PHY_AHB_LINK_STS={:#x}",
+        info.port, status
+    );
+
+    let devices = enumerate(&host);
+    if devices.is_empty() {
+        println!("K3 PCIe: link up but no device found");
+        return;
+    }
+    let nvme_count = devices
+        .iter()
+        .filter(|device| device.class == PCI_CLASS_NVME)
+        .count();
+    println!("K3 PCIe: {} device(s), {} NVMe", devices.len(), nvme_count);
+    for device in &devices {
+        print_device(device);
+    }
+
+    let window_start = platform::config::K3_PCI_BAR_WINDOW_START as u64;
+    let window_end = platform::config::K3_PCI_BAR_WINDOW_END as u64;
+    for device in &devices {
+        if device.class != PCI_CLASS_NVME {
+            continue;
+        }
+        let Some(bar) = device.bars.iter().flatten().find(|bar| bar.size > 0) else {
+            println!("K3 PCIe: NVMe has no memory BAR, skip");
+            continue;
+        };
+        let assigned = align_up(window_start, bar.size);
+        if assigned + bar.size > window_end {
+            println!(
+                "K3 PCIe: BAR window too small for {:#x} bytes",
+                bar.size
+            );
+            continue;
+        }
+        if !assign_bar(&host, device.address, bar, assigned) {
+            println!("K3 PCIe: BAR assignment failed");
+            continue;
+        }
+        enable_memory_bus_master(&host, device.address);
+        let start = bar_base(&host, device.address, bar.index);
+        if !host.map_bar(start, window_start as usize, bar.size) {
+            println!("K3 PCIe: iATU outbound mapping failed");
+            continue;
+        }
+        println!(
+            "K3 PCIe: NVMe BAR{} -> PCI {:#x}, CPU {:#x} size={:#x}",
+            bar.index, start, window_start, bar.size
+        );
+        *NVME_DEVICE.lock() = Some(NvmeBar {
+            bar: window_start as usize..window_start as usize + bar.size as usize,
         });
     }
 }

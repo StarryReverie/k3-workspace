@@ -55,22 +55,40 @@ impl Basic for NvmeDomain {
 impl BlkDeviceDomain for NvmeDomain {
     fn init(&self, device_info: &Range<usize>) -> AlienResult<()> {
         println!("nvme: bar {:#x}-{:#x}", device_info.start, device_info.end);
-        let io = SafeIORegion::from(device_info.clone());
-        let mut controller = match NvmeController::new(io) {
-            Ok(controller) => controller,
-            Err(error) => {
-                println!("nvme: controller init failed: {}", error);
-                return Ok(());
-            }
-        };
 
-        match controller.identify() {
-            Ok(identify) => identify.print(),
-            Err(error) => {
-                println!("nvme: identify failed: {}", error);
-                return Ok(());
+        // The QEMU TCG NVMe device occasionally reports a completion with an
+        // unexpected CID during setup. A full controller reset is cheap, so
+        // retry initialization instead of giving up on the block device.
+        let mut controller = None;
+        for attempt in 1..=3 {
+            let io = SafeIORegion::from(device_info.clone());
+            match NvmeController::new(io) {
+                Ok(mut candidate) => match candidate.identify() {
+                    Ok(identify) => {
+                        identify.print();
+                        controller = Some(candidate);
+                        break;
+                    }
+                    Err(error) => {
+                        println!(
+                            "nvme: identify failed (attempt {}): {}",
+                            attempt, error
+                        );
+                    }
+                },
+                Err(error) => {
+                    println!(
+                        "nvme: controller init failed (attempt {}): {}",
+                        attempt, error
+                    );
+                }
             }
         }
+        let Some(mut controller) = controller else {
+            println!("nvme: controller unavailable, block stack disabled");
+            return Ok(());
+        };
+
         if controller.block_size() != 512 {
             println!(
                 "nvme: unsupported LBA size {}, keep block stack disabled",

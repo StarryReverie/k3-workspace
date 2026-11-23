@@ -230,8 +230,10 @@ M5 把 PCIe 拆成 TCB 与域两层：
 `/dev/sda`。QEMU `virt` 上已通过 1/2/8 核枚举、Identify 与 FAT 读取。
 
 K3 的 `spacemit,k3-pcie` 节点不使用 ECAM：第一个 `reg` 是 DBI，配置空间需要
-iATU。当前板端取证显示两个已启用端口都是 Link down，因此真实 K3 仍走 SD
-回退；NVMe 待硬件链路确认后接入。
+iATU。TCB 已能解析该节点、按板卡条件映射 DBI/ATU/config/APMU、识别
+unrolled iATU，并在链路为 Link down 时安全跳过。当前板端取证显示两个已启用
+端口都是 Link down，因此真实 K3 仍走 SD 回退；NVMe 待硬件链路确认后验证
+BAR 与 iATU Outbound 映射。
 
 ## 对后续阶段的含义
 
@@ -240,6 +242,6 @@ iATU。当前板端取证显示两个已启用端口都是 Link down，因此真
 | M3 中断与控制台 | 完成：AIA 初始化、UART IRQ 与中断驱动 shell；板端 2/8 核通过 |
 | M4 存储 | 完成：SDHCI 只读块设备域；FAT 挂载 `/mnt`；板端 2/8 核读取文件 |
 | M5A QEMU NVMe | 完成：ECAM 枚举、BAR 分配、NVMe 域与 1/2/8 核回归 |
-| M5B K3 链路 | 取证完成但 Link down；待确认插槽/供电后做 iATU 与 BAR 映射 |
-| M5C K3 NVMe | 复用 NVMe 域，Identify、分区与挂载 |
+| M5B K3 链路 | TCB 路径完成：DTB 解析、条件映射、iATU 与 Link down 降级；链路待硬件确认 |
+| M5C K3 NVMe | 复用 NVMe 域，Identify、分区与挂载；待 M5B 链路可用 |
 | M6 收尾 | 域集合的平台化；K3 上完整 shell 与多核回归 |

@@ -78,6 +78,17 @@ no block device, skip FAT mount
 
 shell 正常，`/dev/sda` 与 FAT 均跳过。
 
+## 压力回归
+
+NVMe 场景在 QEMU 上连续运行 20 次：
+
+```text
+20/20 PASS
+其中 1 次在 Create SQ 阶段出现完成项 CID 异常，自动复位重试后成功
+```
+
+失败路径的重试策略见 [`../setup/qemu-nvme.md`](../setup/qemu-nvme.md)。
+
 ## 非 K3 基线
 
 `./scripts/alien-isolation/test-qemu.py --build all`：
@@ -95,18 +106,31 @@ virtio-mmio 块设备、`/dev/sda` 与 `/tests` FAT 未回归。
 
 ## 板端回退
 
-K3 板端当前 PCIe 链路 Link down，没有 NVMe 设备，因此走 SD 卡回退：
+K3 板端当前 PCIe 链路 Link down，没有 NVMe 设备。M5B-0 的 TCB 路径已接入：
+
+```text
+map pcie-dwc: 0x80000000-0x82e00000
+map pcie-config0: 0x1100000000-0x1100010000
+map pcie-bar0: 0x1100110000-0x1100210000
+map apmu-pcie: 0xd4282000-0xd4283000
+K3 PCIe: port=0 lanes=4 dbi=0x80000000-0x80001000 atu=0x80300000-0x80303f20 config=0x1100000000-0x1100010000
+K3 PCIe: iATU unrolled
+K3 PCIe: port=0 link down, PHY_AHB_LINK_STS=0xe000000, skip NVMe
+```
+
+然后回退到 SD 卡：
 
 ```text
 SDHCI: partition lba=8192 blocks=62325760 (30432 MiB)
 sdcard: 62325760 blocks
 <attach domain>: block, it's name is block-1
 fatfs mount success
-M5_FIRST:alien k3 sd mount ok
+M5B_FIRST:alien k3 sd mount ok
 ```
 
-新增的 PCIe 探测在真实 K3 上没有输出，也没有改变启动路径。板端取证细节见
-[`../setup/k3-pcie-recon.md`](../setup/k3-pcie-recon.md)。
+新增的 PCIe 探测没有改变启动路径。板端取证与寄存器细节见
+[`../setup/k3-pcie-recon.md`](../setup/k3-pcie-recon.md)，代码路径见
+[`../setup/k3-pcie.md`](../setup/k3-pcie.md)。
 
 ## 已知限制
 

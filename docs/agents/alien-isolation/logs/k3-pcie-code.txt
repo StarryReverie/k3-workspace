@@ -1,0 +1,22 @@
+Alien isolation K3 PCIe code path (M5B-0), 2026-11-23
+Source: logs/boot-20261123-222601.log
+Mode: real K3 board, read-only SD fallback; PCIe link down.
+
+[0] Boot hart 0
+[0] map pcie-dwc: 0x80000000-0x82e00000
+[0] map pcie-config0: 0x1100000000-0x1100010000
+[0] map pcie-bar0: 0x1100110000-0x1100210000
+[0] map apmu-pcie: 0xd4282000-0xd4283000
+[0] K3 PCIe: port=0 lanes=4 dbi=0x80000000-0x80001000 atu=0x80300000-0x80303f20 config=0x1100000000-0x1100010000
+[0] K3 PCIe: iATU unrolled
+[0] K3 PCIe: port=0 link down, PHY_AHB_LINK_STS=0xe000000, skip NVMe
+[0][Domain:16] SDHCI: partition lba=8192 blocks=62325760 (30432 MiB)
+[0] sdcard: 62325760 blocks
+[0] <attach domain>: block, it's name is block-1
+[0][Domain:3] fatfs mount success
+cho M5B_START
+M5B_START
+Alien:/# echo M5B_FIRST:${lines[0]}
+M5B_FIRST:alien k3 sd mount ok
+Alien:/# echo M5B_END
+M5B_END

@@ -7,3 +7,4 @@ edition = "2021"
 interface = { path = "../../../../domain-lib/interface" }
 shared_heap = { path = "../../../../domain-lib/shared_heap" }
 basic = { path = "../../../../domain-lib/basic" }
+arch = { path = "../../../../domain-lib/arch" }

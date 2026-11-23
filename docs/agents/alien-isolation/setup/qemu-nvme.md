@@ -118,6 +118,20 @@ Create CQ 0x05 / SQ 0x01   各 32 项
 DMA 页来自 `FrameTracker::new(1)`，域内物理地址与虚拟地址恒等，可直接作为
 PRP 地址，与 virtio 路径一致。
 
+提交队列项用 8 字节 volatile 写，保证 opcode 与 CID（同在 dword 0）同时
+可见；门铃前使用 `arch::fence_io()`。检查产物发现，自定义 target 上的
+`core::sync::atomic::fence(SeqCst)` 只生成 `fence rw,w` / `fence r,rw`，
+不覆盖设备 I/O，因此不能依赖它做 MMIO 屏障。
+
+## 完成项异常与重试
+
+QEMU TCG 上偶发出现“设备把有效命令的完成项写成 `CID=0`”。读取是幂等操作，
+因此驱动在 CID 不符时重新提交同一条 Read（最多 3 次）；控制器初始化失败时
+整体复位并重新初始化（最多 3 次）。压测 20 次读文件全部通过，其中一次在
+Create SQ 阶段命中异常，复位重试后成功。
+
+重试只在失败路径执行，正常路径没有额外开销。
+
 ## 分区与挂载
 
 NVMe 域暴露第一个可挂载分区：
@@ -168,5 +182,6 @@ K3 平台的 FAT 挂载点是 `/mnt`，`/tests` 仍来自 initramfs。`write_blo
 - 只支持 512 字节 LBA；4K LBA 时禁用块栈并打印原因。
 - 只取第一个 NVMe 与第一个 FAT 分区，只创建一个 `/dev/sda`。
 - 无热插拔、电源管理与多队列。
-- 真实 K3 的 iATU、APMU、PHY 尚未接入，见
-  [`k3-pcie-recon.md`](k3-pcie-recon.md)。
+- QEMU 上偶发完成项 `CID=0`，通过幂等读重试与初始化复位重试恢复。
+- 真实 K3 的 iATU、APMU、PHY 尚未接入链路，见
+  [`k3-pcie.md`](k3-pcie.md) 与 [`k3-pcie-recon.md`](k3-pcie-recon.md)。

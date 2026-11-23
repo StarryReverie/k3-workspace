@@ -89,6 +89,19 @@ pub fn sfence_vma_all() {
     riscv::asm::sfence_vma_all()
 }
 
+/// Full I/O fence.
+///
+/// `core::sync::atomic::fence` may be lowered without the I/O bits, so a
+/// driver that stores a descriptor in memory and then rings an MMIO doorbell
+/// needs an explicit `fence iorw, iorw` to make the descriptor visible to the
+/// device.
+#[inline(always)]
+pub fn fence_io() {
+    unsafe {
+        asm!("fence iorw, iorw", options(nostack, preserves_flags));
+    }
+}
+
 pub fn allow_access_user_memory() {
     unsafe {
         riscv::register::sstatus::set_sum();

@@ -19,6 +19,25 @@ pub const UART_IRQ: usize = 42;
 pub const PCI_BAR_WINDOW_START: usize = 0x4000_0000;
 pub const PCI_BAR_WINDOW_END: usize = 0x4010_0000;
 
+/// K3 PCIe MMIO, mapped only when the DTB says this is a SpacemiT K3 board.
+///
+/// The DBI region (0x8000_0000) overlaps the QEMU `virt` RAM base, so these
+/// ranges must never be installed on QEMU.
+pub const K3_PCIE_SPACE: &[(&str, usize, usize)] = &[
+    // Five controllers: DBI, DBI2, ATU and the PHY/link block.
+    ("pcie-dwc", 0x8000_0000, 0x02e0_0000),
+    // Port0 config space and the first 1 MiB of its BAR window.
+    ("pcie-config0", 0x11_0000_0000, 0x0001_0000),
+    ("pcie-bar0", 0x11_0011_0000, 0x0010_0000),
+    // APMU block that holds PCIe clock/reset controls. The block starts at
+    // 0xd4282800, so map the containing page.
+    ("apmu-pcie", 0xd428_2000, 0x1000),
+];
+
+/// CPU address chosen for the first K3 NVMe BAR (1:1 with its PCI address).
+pub const K3_PCI_BAR_WINDOW_START: usize = 0x11_0011_0000;
+pub const K3_PCI_BAR_WINDOW_END: usize = 0x11_0021_0000;
+
 pub const DEVICE_SPACE: &[(&str, usize, usize)] = &[
     ("uart", 0xd4017000, 0x1000),
     ("sdhci", 0xd4280000, 0x1000),
