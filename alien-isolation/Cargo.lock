@@ -1641,6 +1641,7 @@ dependencies = [
  "loader",
  "log",
  "mem",
+ "pci-core",
  "pconst",
  "platform",
  "riscv",
@@ -2126,6 +2127,10 @@ dependencies = [
  "log",
  "preprint",
 ]
+
+[[package]]
+name = "pci-core"
+version = "0.1.0"
 
 [[package]]
 name = "pconst"

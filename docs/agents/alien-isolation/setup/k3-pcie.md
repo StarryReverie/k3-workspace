@@ -134,7 +134,8 @@ K3 PCIe: port=0 link down, PHY_AHB_LINK_STS=0xe000000, skip NVMe
 ## 代码位置
 
 ```text
-kernel/src/bus/pci/mod.rs             ECAM/SpacemiT 分派、iATU、BAR
+base/pci-core/                        通用枚举、BAR、iATU（可主机侧测试）
+kernel/src/bus/pci/mod.rs             平台策略、真实 MMIO、NVMe BAR 交接
 kernel/src/bus/fdt.rs                 spacemit,k3-pcie 解析
 base/mem/src/vmm.rs                   板卡条件映射
 base/platform/src/k3_riscv/config.rs  K3 PCIe/APMU 地址
@@ -142,6 +143,18 @@ base/platform/src/k3_riscv/mod.rs     is_k3_board
 domain-lib/arch/src/riscv/mod.rs      fence_io
 domains/drivers/nvme/                 NVMe 域与重试
 ```
+
+## 离硬件验证
+
+`pci-core` 通过 `DwIo` 与 `PciHost` 抽象 MMIO，不依赖 K3 硬件。主机侧
+单元测试覆盖枚举、BAR 探测/分配、unrolled/viewport 判定、配置目标重写、
+Outbound 1 映射与 link 位定义：
+
+```bash
+nix develop -c cargo test -p pci-core
+```
+
+详见 [`../testing/pcie-core.md`](../testing/pcie-core.md)。
 
 ## 下一步
 

@@ -57,6 +57,11 @@ U-Boot 枚举不到 NVMe，记录见
 布局、检查链路，并在 Link down 时安全跳过。实现见
 [`../setup/k3-pcie.md`](../setup/k3-pcie.md)。
 
+在没有可用 NVMe 的情况下，枚举、BAR 与 iATU 逻辑已抽到 `base/pci-core`，
+并用寄存器模型做主机侧单元测试，见
+[`../testing/pcie-core.md`](../testing/pcie-core.md)。RAM DTB 启用 Port4 的
+实验未生效，因为 U-Boot 驱动模型在启动时已完成绑定。
+
 ## 与旧计划的对应
 
 ```text

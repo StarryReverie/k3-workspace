@@ -1,5 +1,5 @@
 Alien isolation K3 PCIe code path (M5B-0), 2026-11-23
-Source: logs/boot-20261123-222601.log
+Source: logs/boot-20261123-231411.log
 Mode: real K3 board, read-only SD fallback; PCIe link down.
 
 [0] Boot hart 0
@@ -14,9 +14,9 @@ Mode: real K3 board, read-only SD fallback; PCIe link down.
 [0] sdcard: 62325760 blocks
 [0] <attach domain>: block, it's name is block-1
 [0][Domain:3] fatfs mount success
-cho M5B_START
-M5B_START
-Alien:/# echo M5B_FIRST:${lines[0]}
-M5B_FIRST:alien k3 sd mount ok
-Alien:/# echo M5B_END
-M5B_END
+cho M5C_START
+M5C_START
+Alien:/# echo M5C_FIRST:${lines[0]}
+M5C_FIRST:alien k3 sd mount ok
+Alien:/# echo M5C_END
+M5C_END

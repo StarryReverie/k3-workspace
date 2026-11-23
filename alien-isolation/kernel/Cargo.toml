@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 mem = { path = "../base/mem" }
 platform = { path = "../base/platform" }
+pci-core = { path = "../base/pci-core" }
 riscv = "0.11"
 log = "0"
 xmas-elf = "0.10"

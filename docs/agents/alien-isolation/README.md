@@ -56,6 +56,7 @@ domain-lib  136007cdca82531f97a4e8da082b2ce48b839d2f
 | [`testing/k3-shell.md`](testing/k3-shell.md) | K3 shell 的 QEMU 与板端回归 |
 | [`testing/k3-storage.md`](testing/k3-storage.md) | SDHCI、块栈与 FAT 的板端回归 |
 | [`testing/qemu-nvme.md`](testing/qemu-nvme.md) | QEMU NVMe 1/2/8 核回归与板端回退 |
+| [`testing/pcie-core.md`](testing/pcie-core.md) | PCIe 枚举、BAR 与 iATU 的主机侧单元测试 |
 | [`plan/roadmap.md`](plan/roadmap.md) | 从 vendor 到 K3 PCIe/NVMe 的粗略路线 |
 
 新文档按主题放入子目录，不使用数字前缀。

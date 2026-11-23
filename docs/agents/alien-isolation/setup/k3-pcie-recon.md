@@ -165,6 +165,36 @@ link 寄存器：
 
 PHY 与 link 块可读，但端口未进入 L0。
 
+## RAM DTB 启用端口实验
+
+2026-11-23 在 U-Boot 中尝试把 Port4（`pcie@81000000`，x1，带 PHY 与
+pinctrl）改为启用：
+
+```text
+fdt addr $fdtcontroladdr
+fdt set /soc/pcie@81000000 status okay
+fdt print /soc/pcie@81000000        # status = "okay"
+pci enum
+```
+
+结果 `pci enum` 仍然只输出：
+
+```text
+PCIE-0: Link down
+PCIE-1: Link down
+```
+
+`nvme scan` 与 `nvme info` 也没有设备。原因不是 DTB 修改失败，而是 U-Boot
+的驱动模型在启动阶段已经完成 PCIe 控制器绑定；`fdt set` 修改的是工作
+FDT，`pci enum` 只枚举已绑定的控制器。
+
+因此该实验不能判断 Port4 是否接线。要测试 Port4，需要：
+
+- 在 U-Boot 启动前使用启用 Port4 的 DTB（涉及持久化修改或 provider 支持）；
+- 或由 Alien 自己完成 Port4 的 APMU/PHY/PERST# 初始化。
+
+当前结论仍以“两个已启用端口 Link down”为准。
+
 ## 结论
 
 1. 当前租用板卡是 `spacemit k3 com260 ifx board`；两个已启用 PCIe 端口都是
