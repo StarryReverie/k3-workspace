@@ -18,3 +18,5 @@ virtio_mmio_block = { path = "../virtio_mmio_block" }
 [features]
 default = ["rust-unwind"]
 rust-unwind = []
+# Test-only fault injection: the first block read panics inside the domain.
+crash = ["virtio_mmio_block/crash"]

@@ -196,8 +196,7 @@ def run_scenario(
             boot_hart = int(boot.group(1))
             expected = set(range(scenario.smp))
             expected.discard(boot_hart)
-            for hart in sorted(expected):
-                session.wait_for(rf"hart {hart} start\.\.\.", args.timeout)
+            session.wait_for_harts(expected, args.timeout)
             wait_for_shell(session, args.command_timeout)
             session.wait_for(r"AIA/PLIC: irq \d+ delivered", args.command_timeout)
             if scenario.nvme:

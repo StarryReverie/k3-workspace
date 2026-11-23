@@ -28,6 +28,9 @@ enum Commands {
         /// The output directory
         #[arg(short, long, value_name = "OUTPUT", default_value = "./build")]
         output: String,
+        /// Extra cargo features for this domain, e.g. crash
+        #[arg(long, value_name = "FEATURES", default_value = "")]
+        features: String,
     },
     /// Build all domain projects
     BuildAll {
@@ -37,6 +40,9 @@ enum Commands {
         /// The output directory
         #[arg(short, long, value_name = "OUTPUT", default_value = "./build")]
         output: String,
+        /// Extra cargo features per domain, repeatable: NAME=FEATURES
+        #[arg(long, value_name = "NAME=FEATURES")]
+        features: Vec<String>,
     },
     /// Clean a domain project
     Clean {
@@ -59,13 +65,22 @@ fn main() {
             println!("Creating new domain project: {}", name);
             subcommand::new::create_domain(name);
         }
-        Some(Commands::BuildAll { log, output }) => {
+        Some(Commands::BuildAll {
+            log,
+            output,
+            features,
+        }) => {
             println!("Building all domain projects, LOG: {log}");
-            subcommand::build::build_all(log.to_string(), output);
+            subcommand::build::build_all(log.to_string(), output, features);
         }
-        Some(Commands::Build { name, log, output }) => {
+        Some(Commands::Build {
+            name,
+            log,
+            output,
+            features,
+        }) => {
             println!("Building domain project: {}, LOG: {}", name, log);
-            subcommand::build::build_single(name, log, output);
+            subcommand::build::build_single(name, log, output, features);
         }
         Some(Commands::Clean { name }) => {
             println!("Cleaning domain project: {}", name);

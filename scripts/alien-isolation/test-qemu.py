@@ -8,7 +8,9 @@ Scenarios:
     smp-4      four harts
     smp-8      eight harts
     disk-load  two harts, load the vfs2 domain from the FAT disk with dvfs
-    all        smp-1, smp-2, smp-4, smp-8, disk-load
+    blk-crash  two harts, block domain built with fault injection
+    block-swap two harts, replace the live block domain with sshadow_blk
+    all        smp-1, smp-2, smp-4, smp-8, disk-load, blk-crash, block-swap
 
 Each scenario waits for the user init to exec /bin/sh, checks every secondary
 hart reported `hart N start...`, confirms the shell with a retried round trip,
@@ -49,11 +51,22 @@ class Scenario:
     name: str
     smp: int
     disk_load: bool = False
+    crash: bool = False
     marker: str = "M1_OK"
+    # Ordered (command, expected regex) pairs sent to the shell.
+    commands: tuple[tuple[str, str], ...] = ()
+    # Domain panics are expected when the block domain is built with fault
+    # injection; only a kernel panic still fails the scenario.
+    allow_domain_panic: bool = False
 
     @property
     def title(self) -> str:
-        kind = "disk-load" if self.disk_load else "shell"
+        if self.crash:
+            kind = "blk-crash"
+        elif self.disk_load:
+            kind = "disk-load"
+        else:
+            kind = "shell"
         return f"{self.name} (smp={self.smp}, {kind})"
 
 
@@ -64,9 +77,43 @@ SCENARIOS = {
     "smp-4": Scenario("smp-4", 4, marker="M1_SMP4_OK"),
     "smp-8": Scenario("smp-8", 8, marker="M1_SMP8_OK"),
     "disk-load": Scenario("disk-load", 2, disk_load=True, marker="M1_DISK_OK"),
+    # The virtio block domain is built with `crash`: the first block read
+    # panics, the TCB counts the panic, and shadow_blk catches DOMAINCRASH
+    # and rereads. Reading hello.txt after boot proves the retry worked.
+    "blk-crash": Scenario(
+        "blk-crash",
+        2,
+        crash=True,
+        marker="M6_CRASH_OK",
+        commands=(
+            (
+                "mapfile -t lines < /tests/hello.txt; echo M6_FILE:${lines[0]}",
+                r"(?m)^M6_FILE:alien isolation block read ok\s*$",
+            ),
+        ),
+        allow_domain_panic=True,
+    ),
+    # dtest rejects an unsupported replacement, then replaces the live
+    # shadow_blk domain with sshadow_blk and reads hello.txt through it.
+    "block-swap": Scenario(
+        "block-swap",
+        2,
+        marker="M6_SWAP_OK",
+        commands=(
+            ("dtest", r"SWAP_REJECT_OK[\s\S]*?SWAP_OK"),
+        ),
+    ),
 }
 ALIASES = {
-    "all": ["smp-1", "smp-2", "smp-4", "smp-8", "disk-load"],
+    "all": [
+        "smp-1",
+        "smp-2",
+        "smp-4",
+        "smp-8",
+        "disk-load",
+        "blk-crash",
+        "block-swap",
+    ],
 }
 
 
@@ -113,12 +160,13 @@ def resolve(names: list[str]) -> list[Scenario]:
     return resolved
 
 
-def image_dir(smp: int) -> Path:
-    return ALIEN / "build" / f"smp-{smp}"
+def image_dir(smp: int, crash: bool = False) -> Path:
+    name = f"crash-smp-{smp}" if crash else f"smp-{smp}"
+    return ALIEN / "build" / name
 
 
-def image_ok(smp: int, log_level: str) -> bool:
-    out = image_dir(smp)
+def image_ok(smp: int, log_level: str, crash: bool = False) -> bool:
+    out = image_dir(smp, crash)
     if not all(
         (out / name).is_file()
         for name in ("kernel", "initramfs.cpio.gz", "sdcard.img")
@@ -132,7 +180,11 @@ def image_ok(smp: int, log_level: str) -> bool:
         for line in info.read_text().splitlines()
         if "=" in line
     )
-    return values.get("SMP") == str(smp) and values.get("LOG") == log_level
+    return (
+        values.get("SMP") == str(smp)
+        and values.get("LOG") == log_level
+        and values.get("CRASH", "0") == ("1" if crash else "0")
+    )
 
 
 def wait_for_shell(session: QemuSession, timeout: float) -> None:
@@ -156,7 +208,7 @@ def wait_for_shell(session: QemuSession, timeout: float) -> None:
             time.sleep(0.5)
 
 
-def build_image(smp: int, log_level: str) -> None:
+def build_image(smp: int, log_level: str, crash: bool = False) -> None:
     command = [
         str(BUILD),
         "--smp",
@@ -164,9 +216,11 @@ def build_image(smp: int, log_level: str) -> None:
         "--log",
         log_level,
         "--out",
-        str(image_dir(smp)),
+        str(image_dir(smp, crash)),
     ]
-    print(f"build: smp={smp} log={log_level}")
+    if crash:
+        command.append("--crash")
+    print(f"build: smp={smp} log={log_level} crash={int(crash)}")
     result = subprocess.run(command, cwd=ROOT)
     if result.returncode != 0:
         raise SystemExit(f"build failed for smp={smp}")
@@ -175,7 +229,7 @@ def build_image(smp: int, log_level: str) -> None:
 def run_scenario(
     scenario: Scenario, args: argparse.Namespace, log_path: Path
 ) -> None:
-    out = image_dir(scenario.smp)
+    out = image_dir(scenario.smp, scenario.crash)
     env = os.environ.copy()
     env.update(
         {
@@ -188,6 +242,7 @@ def run_scenario(
         f"scenario: {scenario.name}\n"
         f"smp: {scenario.smp}\n"
         f"disk-load: {scenario.disk_load}\n"
+        f"crash: {scenario.crash}\n"
         f"log-level: {args.log_level}\n"
     )
     with QemuSession(
@@ -201,8 +256,7 @@ def run_scenario(
             boot_hart = int(boot.group(1))
             expected = set(range(scenario.smp))
             expected.discard(boot_hart)
-            for hart in sorted(expected):
-                session.wait_for(rf"hart {hart} start\.\.\.", args.timeout)
+            session.wait_for_harts(expected, args.timeout)
             wait_for_shell(session, args.command_timeout)
             if scenario.disk_load:
                 session.send("dvfs")
@@ -210,12 +264,29 @@ def run_scenario(
                     r"Test register and update vfs domain success",
                     args.command_timeout,
                 )
+            if scenario.crash:
+                # The block domain panicked while the task domain read
+                # /tests/init; shadow_blk caught DOMAINCRASH and reread.
+                # Require the panic itself so a silently disabled injection
+                # cannot pass the scenario.
+                session.wait_for(r"blk crash trick", args.command_timeout)
+                session.wait_for(r"catch unwind error", args.command_timeout)
+                session.wait_for(
+                    r"domain crash, try restart domain", args.command_timeout
+                )
+                session.wait_for(r"try reread block", args.command_timeout)
+            for command, expected in scenario.commands:
+                session.send(command)
+                session.wait_for(expected, args.command_timeout)
             session.send(f"echo {scenario.marker}")
             session.wait_for(
                 rf"(?m)^{re.escape(scenario.marker)}\s*$", args.command_timeout
             )
             text = session.text()
-            for failure in ("Kernel panic", "panicked at"):
+            fatal = ["Kernel panic"]
+            if not scenario.allow_domain_panic:
+                fatal.append("panicked at")
+            for failure in fatal:
                 if failure in text:
                     raise RuntimeError(f"found {failure!r} in serial output")
             session.save_log(log_path, header + "result: PASS\n\n")
@@ -244,20 +315,22 @@ def main() -> int:
 
     args.log_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    built: set[int] = set()
+    built: set[tuple[int, bool]] = set()
     failures: list[str] = []
 
     for scenario in scenarios:
         print(f"\n[{scenario.name}] {scenario.title}")
         try:
-            if args.build and scenario.smp not in built:
-                build_image(scenario.smp, args.log_level)
-                built.add(scenario.smp)
-            elif not image_ok(scenario.smp, args.log_level):
+            key = (scenario.smp, scenario.crash)
+            if args.build and key not in built:
+                build_image(scenario.smp, args.log_level, scenario.crash)
+                built.add(key)
+            elif not image_ok(scenario.smp, args.log_level, scenario.crash):
                 if not args.build:
                     raise RuntimeError(
-                        f"image {image_dir(scenario.smp)} is missing or was built "
-                        f"with a different SMP/log level; rerun with --build"
+                        f"image {image_dir(scenario.smp, scenario.crash)} is "
+                        f"missing or was built with different SMP/log/crash "
+                        f"settings; rerun with --build"
                     )
             log_path = args.log_dir / f"{stamp}-alien-isolation-{scenario.name}.log"
             run_scenario(scenario, args, log_path)

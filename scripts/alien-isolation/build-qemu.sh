@@ -5,6 +5,7 @@
 #   --smp N      number of harts (default: 2)
 #   --log LEVEL  domain log level; the kernel stays quiet (default: INFO)
 #   --out DIR    output directory (default: <alien>/build/smp-<N>)
+#   --crash      build the block domain with fault injection (test only)
 #
 # Environment variables are also accepted: QEMU_SMP, LOG, OUT_DIR, ALIEN_DIR.
 #
@@ -16,7 +17,7 @@
 set -euo pipefail
 
 usage() {
-    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -24,6 +25,7 @@ ALIEN_DIR=${ALIEN_DIR:-$ROOT/alien-isolation}
 QEMU_SMP=${QEMU_SMP:-2}
 LOG=${LOG:-INFO}
 OUT_DIR=${OUT_DIR:-}
+CRASH=${CRASH:-0}
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -38,6 +40,10 @@ while [ $# -gt 0 ]; do
         --out)
             OUT_DIR=$2
             shift 2
+            ;;
+        --crash)
+            CRASH=1
+            shift
             ;;
         -h|--help)
             usage
@@ -86,6 +92,12 @@ done
 # Remove old artifacts so that a failed build cannot pass the check below by
 # leaving a previously built ELF in place.
 rm -rf "$OUT_DIR/init" "$OUT_DIR/disk"
+DOMAIN_FEATURE_ARGS=()
+if [ "$CRASH" = "1" ]; then
+    # Fault injection lives in the virtio block domain. The feature is only
+    # enabled for test images; normal images keep the block domain intact.
+    DOMAIN_FEATURE_ARGS=(--features virtio_mmio_block=crash)
+fi
 (
     cd "$ALIEN_DIR/domains"
     # Domain ELFs index per-hart arrays with MAX_CPU_NUM, so they do not depend
@@ -93,7 +105,7 @@ rm -rf "$OUT_DIR/init" "$OUT_DIR/disk"
     unset SMP
     CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback \
         LOG="$LOG" \
-        cargo domain build-all -l "$LOG" -o "$OUT_DIR"
+        cargo domain build-all -l "$LOG" -o "$OUT_DIR" "${DOMAIN_FEATURE_ARGS[@]}"
 ) > "$OUT_DIR/domains.log" 2>&1
 
 python3 - "$ALIEN_DIR" "$OUT_DIR" <<'PY'
@@ -167,6 +179,8 @@ dd if=/dev/zero of="$OUT_DIR/sdcard.img" bs=1M count=72 status=none
 mkfs.fat -F 32 "$OUT_DIR/sdcard.img" >/dev/null
 mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR/rootfs/init" "::/init"
 mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR/rootfs/bash" "::/bash"
+printf 'alien isolation block read ok\n' > "$OUT_DIR/rootfs/hello.txt"
+mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR/rootfs/hello.txt" "::/hello.txt"
 for app in $USER_APPS; do
     mcopy -i "$OUT_DIR/sdcard.img" "$OUT_DIR/rootfs/$app" "::$app"
 done
@@ -181,6 +195,7 @@ fi
 cat > "$OUT_DIR/build-info" <<EOF
 SMP=$QEMU_SMP
 LOG=$LOG
+CRASH=$CRASH
 INIT_DOMAINS=$(find "$OUT_DIR/init" -type f | wc -l)
 DISK_DOMAINS=$(find "$OUT_DIR/disk" -type f | wc -l)
 USER_PROGRAMS=$USER_APPS

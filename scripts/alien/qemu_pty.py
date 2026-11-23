@@ -111,6 +111,38 @@ class QemuSession:
                 # The PTY is closed but the process may still be reaping.
                 time.sleep(0.05)
 
+    def wait_for_harts(self, expected: set[int], timeout: float = 30.0) -> None:
+        """Wait until every hart shows evidence that it started.
+
+        Eight harts printing at once can drop or merge a ``hart N start...``
+        line. A hart that printed its unwind self-test did run, so accept
+        either form instead of failing on lost console output.
+        """
+        deadline = time.monotonic() + timeout
+        while True:
+            text = self.text()
+            missing = sorted(
+                hart
+                for hart in expected
+                if not re.search(rf"hart {hart} start\.\.\.", text)
+                and not re.search(rf"(?m)^\[{hart}\] Test no panic\.\.\.", text)
+            )
+            if not missing:
+                return
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise SessionTimeout(
+                    f"no startup evidence for harts {missing}; "
+                    f"last output:\n{self.tail()}"
+                )
+            if not self._read(min(0.2, remaining)):
+                if self.process.poll() is not None:
+                    raise SessionError(
+                        f"QEMU exited with {self.process.returncode} while "
+                        f"waiting for harts {missing}; last output:\n{self.tail()}"
+                    )
+                time.sleep(0.05)
+
     def send(self, command: str) -> None:
         """Send one command line to the serial console."""
         if self.closed:

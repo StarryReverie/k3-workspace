@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 use crate::subcommand::{Config, DOMAIN_SET};
 
@@ -14,7 +14,7 @@ fn check_output_exist(output: &String) {
     }
 }
 
-pub fn build_single(name: &str, log: &str, output: &String) {
+pub fn build_single(name: &str, log: &str, output: &String, features: &str) {
     check_output_exist(output);
     let domain_list = fs::read_to_string("./domain-list.toml").unwrap();
     let config: Config = toml::from_str(&domain_list).unwrap();
@@ -27,13 +27,18 @@ pub fn build_single(name: &str, log: &str, output: &String) {
         );
         return;
     }
+    let extra = if features.is_empty() {
+        None
+    } else {
+        Some(features)
+    };
     let init_members = config.domains.get("init_members").unwrap();
     if init_members.contains(&r_name.to_string()) {
-        build_domain(r_name, log.to_string(), "init", output);
+        build_domain(r_name, log.to_string(), "init", output, extra);
     } else {
         let disk_members = config.domains.get("disk_members").unwrap();
         if disk_members.contains(&r_name.to_string()) {
-            build_domain(r_name, log.to_string(), "disk", output);
+            build_domain(r_name, log.to_string(), "disk", output, extra);
         } else {
             println!(
                 "Domain [{}] is not in the init or disk members list, skip building",
@@ -43,7 +48,7 @@ pub fn build_single(name: &str, log: &str, output: &String) {
     }
 }
 
-pub fn build_domain(name: &str, log: String, dir: &str, output: &String) {
+pub fn build_domain(name: &str, log: String, dir: &str, output: &String, features: Option<&str>) {
     println!("Building domain [{}] project", name);
     for ty in DOMAIN_SET {
         let path = format!("./{}/{}/g{}/Cargo.toml", ty, name, name);
@@ -52,7 +57,8 @@ pub fn build_domain(name: &str, log: String, dir: &str, output: &String) {
             let path = format!("./{}/{}/g{}/Cargo.toml", ty, name, name);
             let path = Path::new(&path);
             println!("Start building domain,path: {:?}", path);
-            let status = std::process::Command::new("cargo")
+            let mut command = std::process::Command::new("cargo");
+            command
                 .arg("build")
                 .arg("--release")
                 .env("LOG", log)
@@ -63,9 +69,12 @@ pub fn build_domain(name: &str, log: String, dir: &str, output: &String) {
                 .arg("-Zbuild-std=core,alloc")
                 .arg("-Zbuild-std-features=compiler-builtins-mem")
                 .arg("--target-dir")
-                .arg("./target")
-                .status()
-                .expect("failed to execute cargo build");
+                .arg("./target");
+            if let Some(features) = features {
+                println!("Extra cargo features for [{}]: {}", name, features);
+                command.arg("--features").arg(features);
+            }
+            let status = command.status().expect("failed to execute cargo build");
             if !status.success() {
                 eprintln!("Build domain [{}] failed: {}", name, status);
                 std::process::exit(1);
@@ -82,10 +91,11 @@ pub fn build_domain(name: &str, log: String, dir: &str, output: &String) {
     }
 }
 
-pub fn build_all(log: String, output: &String) {
+pub fn build_all(log: String, output: &String, features: &[String]) {
     check_output_exist(output);
     let domain_list = fs::read_to_string("./domain-list.toml").unwrap();
     let config: Config = toml::from_str(&domain_list).unwrap();
+    let extra = parse_features(features);
     println!("Start building all domains");
     let all_members = config.domains.get("members").unwrap().clone();
     let init_members = config.domains.get("init_members").unwrap().clone();
@@ -98,7 +108,8 @@ pub fn build_all(log: String, output: &String) {
             continue;
         }
         let value = log.to_string();
-        build_domain(&domain_name, value, "init", output)
+        let features = extra.get(domain_name.as_str()).map(|f| f.as_str());
+        build_domain(&domain_name, value, "init", output, features)
     }
     let disk_members = config.domains.get("disk_members").unwrap().clone();
     if !disk_members.is_empty() {
@@ -111,8 +122,25 @@ pub fn build_all(log: String, output: &String) {
                 continue;
             }
             let value = log.to_string();
-
-            build_domain(&domain_name, value, "disk", output)
+            let features = extra.get(domain_name.as_str()).map(|f| f.as_str());
+            build_domain(&domain_name, value, "disk", output, features)
         }
     }
+}
+
+/// Parse repeatable `NAME=FEATURES` arguments into a per-domain map.
+fn parse_features(items: &[String]) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for item in items {
+        match item.split_once('=') {
+            Some((name, features)) if !name.is_empty() && !features.is_empty() => {
+                map.insert(name.to_string(), features.to_string());
+            }
+            _ => {
+                eprintln!("--features expects NAME=FEATURES, got {:?}", item);
+                std::process::exit(2);
+            }
+        }
+    }
+    map
 }
