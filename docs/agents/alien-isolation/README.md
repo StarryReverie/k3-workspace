@@ -19,6 +19,7 @@
 | QEMU PCIe 与 NVMe | 完成，ECAM 枚举、BAR 分配、只读 NVMe 域，1/2/8 核 |
 | K3 PCIe 链路 | Linux 侧确认：Port4 为 RTL8852 WiFi，Port0（x4 M.2）Link down，未发现 NVMe |
 | K3 PCIe TCB 路径 | 完成，DTB 解析、条件映射、iATU 与 Link down 降级；板端 SD 回退正常 |
+| 域崩溃恢复与热替换 | 完成，QEMU `blk-crash` 与 `block-swap` 场景；不支持的替换返回错误 |
 
 ## 固定信息
 
@@ -57,6 +58,8 @@ domain-lib  136007cdca82531f97a4e8da082b2ce48b839d2f
 | [`testing/k3-storage.md`](testing/k3-storage.md) | SDHCI、块栈与 FAT 的板端回归 |
 | [`testing/qemu-nvme.md`](testing/qemu-nvme.md) | QEMU NVMe 1/2/8 核回归与板端回退 |
 | [`testing/pcie-core.md`](testing/pcie-core.md) | PCIe 枚举、BAR 与 iATU 的主机侧单元测试 |
+| [`testing/domain-recovery.md`](testing/domain-recovery.md) | 块域崩溃恢复、热替换与 TCB 加固 |
+| [`testing/full-matrix.md`](testing/full-matrix.md) | 干净构建、全矩阵与板端回归结果 |
 | [`plan/roadmap.md`](plan/roadmap.md) | 从 vendor 到 K3 PCIe/NVMe 的粗略路线 |
 
 新文档按主题放入子目录，不使用数字前缀。

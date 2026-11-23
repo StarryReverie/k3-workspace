@@ -68,6 +68,18 @@ down，日志中没有 `nvme` 或 class `0x010802`。因此当前板卡没有可
 发现的 NVMe，M5B/M5C 的真实硬件验收需要换一块确实装盘的板卡。证据见
 [`../setup/k3-pcie-recon.md`](../setup/k3-pcie-recon.md)。
 
+M6 的离硬件部分已完成。TCB 中 `sys_update_domain` 与 `sys_reload_domain`
+原本在遇到不支持的域类型时 `panic!`，现在返回 `AlienError::EINVAL`。
+QEMU 新增两个隔离性场景：`blk-crash` 让块域在首次读块时 panic，验证
+`shadow_blk` 捕获 `DOMAINCRASH` 后重读并继续启动；`block-swap` 先要求 TCB
+拒绝不支持的替换，再把运行中的 `shadow_blk-1` 换成 `sshadow_blk` 并继续
+读取 FAT。记录见
+[`../testing/domain-recovery.md`](../testing/domain-recovery.md)，全矩阵见
+[`../testing/full-matrix.md`](../testing/full-matrix.md)。
+
+M5B/M5C 仍等待带盘板卡；M6 中依赖板端的部分只做了 2/8 核启动与 SD 读取
+回归。
+
 ## 与旧计划的对应
 
 ```text
@@ -98,4 +110,5 @@ down，日志中没有 `nvme` 或 class `0x010802`。因此当前板卡没有可
 4. 复用现有 `nvme` 域完成 Identify、分区与 `/mnt` 挂载。
 5. 保留 SDHCI 与 virtio 回退，补 QEMU 1/2/8 核与板端回归。
 
-换板之前可以继续 M6 收尾，或维护现有 QEMU 与 `pci-core` 单元测试。
+换板之前只需维护现有 QEMU 场景、`pci-core` 单元测试与文档；M6 的离硬件
+部分已完成，见 [`../testing/full-matrix.md`](../testing/full-matrix.md)。

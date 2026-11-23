@@ -21,8 +21,12 @@
 | `smp-4` | 4 | 3 个从 hart，输出 `M1_SMP4_OK` |
 | `smp-8` | 8 | 7 个从 hart，输出 `M1_SMP8_OK` |
 | `disk-load` | 2 | 用 `dvfs` 从 FAT 盘装载 `gvfs2`，替换运行中的 `vfs` 域，输出 `M1_DISK_OK` |
+| `blk-crash` | 2 | 块域带故障注入启动，验证 `DOMAINCRASH` 捕获与重读，输出 `M6_CRASH_OK` |
+| `block-swap` | 2 | 拒绝不支持的替换，再把 `shadow_blk-1` 换成 `sshadow_blk` 并读文件，输出 `M6_SWAP_OK` |
 
-`all` 依次执行 `smp-1`、`smp-2`、`smp-4`、`smp-8` 与 `disk-load`。
+`all` 依次执行 `smp-1`、`smp-2`、`smp-4`、`smp-8`、`disk-load`、`blk-crash`
+与 `block-swap`。后两个场景的机制见
+[`domain-recovery.md`](domain-recovery.md)。
 
 ## 构建
 
@@ -69,9 +73,10 @@ alien-isolation/build/smp-8/
 /bash            完整 bash
 /dvfs            装载 vfs2 的用户程序
 /dlog            装载 xlogger 的用户程序
-/dtest           装载 sshadow_blk 的用户程序
+/dtest           替换 shadow_blk 为 sshadow_blk 的用户程序
 /dtask           装载 random_scheduler 的用户程序
 /dnet            装载 virtio_mmio_net 的用户程序
+/hello.txt       块设备读取验证用的文本文件
 /g*              8 个 disk 域
 /domains/g*      同一批 disk 域
 ```
